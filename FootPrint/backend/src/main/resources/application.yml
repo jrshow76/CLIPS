@@ -1,0 +1,37 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: footprint
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:footprint}
+    username: ${DB_USER:footprint_app}
+    password: ${DB_PASSWORD:footprint_pw}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+jwt:
+  secret: ${JWT_SECRET:footprint-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  access-token-expiry-ms: 1800000    # 30분
+  refresh-token-expiry-ms: 604800000 # 7일
+
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+
+logging:
+  level:
+    com.footprint: INFO

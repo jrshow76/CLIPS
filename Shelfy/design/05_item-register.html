@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상품 등록 - Shelfy</title>
+  <link rel="stylesheet" href="./common.css">
+  <style>
+    /* ==========================================================================
+       05_item-register.html - 아이템 등록 폼 페이지 전용 스타일
+       SCR-022 상품 등록 (다단계 폼)
+       ========================================================================== */
+
+    /* --------------------------------------------------------------------------
+       Register Layout
+       -------------------------------------------------------------------------- */
+    .register-layout {
+      max-width: var(--container-lg);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+      padding-top: var(--space-10);
+      padding-bottom: var(--space-20);
+    }
+
+    .register-header {
+      margin-bottom: var(--space-8);
+    }
+    .register-header__back {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      text-decoration: none;
+      margin-bottom: var(--space-4);
+      transition: color var(--transition-base);
+    }
+    .register-header__back:hover { color: var(--color-text-primary); }
+    .register-header__title {
+      font-size: var(--font-size-3xl);
+      font-weight: var(--font-weight-extrabold);
+      color: var(--color-text-primary);
+      letter-spacing: var(--letter-spacing-tight);
+      margin-bottom: var(--space-2);
+    }
+    .register-header__desc {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+    }
+
+    /* --------------------------------------------------------------------------
+       Step Indicator
+       -------------------------------------------------------------------------- */
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: var(--space-10);
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      position: relative;
+      flex: 1;
+    }
+
+    .step__circle {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      border: 2px solid var(--color-border-default);
+      background-color: var(--color-bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-tertiary);
+      transition: all var(--transition-base);
+      position: relative;
+      z-index: 1;
+    }
+
+    .step--completed .step__circle {
+      background-color: var(--color-primary);
+      border-color: var(--color-primary);
+      color: white;
+    }
+    .step--active .step__circle {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      box-shadow: var(--shadow-focus);
+    }
+
+    .step__label {
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-disabled);
+      white-space: nowrap;
+      text-align: center;
+    }
+    .step--active .step__label { color: var(--color-primary); font-weight: var(--font-weight-semibold); }
+    .step--completed .step__label { color: var(--color-text-tertiary); }
+
+    /* Connector line */
+    .step-connector {
+      flex: 1;
+      height: 2px;
+      background-color: var(--color-border-default);
+      margin-bottom: var(--space-6);
+      transition: background-color var(--transition-base);
+      max-width: 80px;
+    }
+    .step-connector--done { background-color: var(--color-primary); }
+
+    /* --------------------------------------------------------------------------
+       Form Card (각 step을 감싸는 카드)
+       -------------------------------------------------------------------------- */
+    .form-card {
+      background-color: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-2xl);
+      overflow: hidden;
+    }
+
+    .form-card__header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-6) var(--space-8);
+      border-bottom: 1px solid var(--color-border-default);
+      background-color: var(--color-bg-muted);
+    }
+    .form-card__step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-primary);
+      color: white;
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .form-card__title {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+    }
+    .form-card__desc {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      margin-left: auto;
+    }
+
+    .form-card__body {
+      padding: var(--space-8);
+    }
+
+    /* --------------------------------------------------------------------------
+       Step 1: Basic Info
+       -------------------------------------------------------------------------- */
+    .form-row {
+      display: grid;
+      gap: var(--space-5);
+    }
+    .form-row--2col {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .form-field + .form-field { margin-top: var(--space-5); }
+
+    /* Textarea with grow */
+    .form-textarea--grow {
+      min-height: 140px;
+      resize: vertical;
+      max-height: 400px;
+    }
+
+    /* --------------------------------------------------------------------------
+       Step 2: Sale Type & Pricing
+       -------------------------------------------------------------------------- */
+    .sale-type-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+      margin-bottom: var(--space-8);
+    }
+
+    .sale-type-card {
+      border: 2px solid var(--color-border-default);
+      border-radius: var(--radius-xl);
+      padding: var(--space-5);
+      cursor: pointer;
+      transition: border-color var(--transition-base), background-color var(--transition-base), box-shadow var(--transition-base);
+      position: relative;
+    }
+    .sale-type-card:hover {
+      border-color: var(--color-primary-light);
+      background-color: var(--color-primary-10);
+    }
+    .sale-type-card--selected {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary-10);
+      box-shadow: var(--shadow-focus);
+    }
+    .sale-type-card input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sale-type-card__selected-mark {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      width: 18px;
+      height: 18px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity var(--transition-base);
+    }
+    .sale-type-card--selected .sale-type-card__selected-mark { opacity: 1; }
+    .sale-type-card__selected-mark::after {
+      content: '';
+      width: 8px;
+      height: 5px;
+      border-left: 1.5px solid white;
+      border-bottom: 1.5px solid white;
+      transform: rotate(-45deg) translateY(-1px);
+      display: block;
+    }
+    .sale-type-card__icon {
+      font-size: 1.5rem;
+      margin-bottom: var(--space-3);
+    }
+    .sale-type-card__title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-1);
+    }
+    .sale-type-card--selected .sale-type-card__title { color: var(--color-primary); }
+    .sale-type-card__desc {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+      line-height: var(--line-height-relaxed);
+    }
+
+    /* Conditional pricing section */
+    .pricing-section {
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+    .pricing-section__header {
+      padding: var(--space-4) var(--space-5);
+      background-color: var(--color-bg-muted);
+      border-bottom: 1px solid var(--color-border-default);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary);
+    }
+    .pricing-section__body {
+      padding: var(--space-5);
+    }
+
+    /* Subscription plan builder */
+    .plan-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+    .plan-item {
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      background-color: var(--color-bg-surface);
+      position: relative;
+    }
+    .plan-item__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-4);
+    }
+    .plan-item__title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary);
+    }
+    .plan-item__remove {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-tertiary);
+      cursor: pointer;
+      background: none;
+      border: none;
+      transition: color var(--transition-base), background-color var(--transition-base);
+    }
+    .plan-item__remove:hover {
+      color: var(--color-error);
+      background-color: var(--color-error-bg);
+    }
+    .plan-item__fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: var(--space-3);
+    }
+
+    .add-plan-btn {
+      width: 100%;
+      border: 1.5px dashed var(--color-border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-tertiary);
+      cursor: pointer;
+      background: none;
+      transition: border-color var(--transition-base), color var(--transition-base), background-color var(--transition-base);
+    }
+    .add-plan-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      background-color: var(--color-primary-10);
+    }
+
+    /* Price input with currency symbol */
+    .price-input-wrap {
+      position: relative;
+    }
+    .price-input-wrap .form-input {
+      padding-left: var(--space-8);
+    }
+    .price-input-wrap__symbol {
+      position: absolute;
+      left: var(--space-3);
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      pointer-events: none;
+    }
+
+    /* --------------------------------------------------------------------------
+       Step 3: Image Upload
+       -------------------------------------------------------------------------- */
+    .image-upload-zone {
+      border: 2px dashed var(--color-border-default);
+      border-radius: var(--radius-xl);
+      padding: var(--space-12) var(--space-8);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition-base), background-color var(--transition-base);
+      position: relative;
+    }
+    .image-upload-zone:hover,
+    .image-upload-zone--dragover {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary-10);
+    }
+    .image-upload-zone__input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .image-upload-zone__icon {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-xl);
+      background-color: var(--color-bg-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto var(--space-4);
+      font-size: 1.5rem;
+    }
+    .image-upload-zone__title {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-2);
+    }
+    .image-upload-zone__desc {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      line-height: var(--line-height-relaxed);
+    }
+    .image-upload-zone__desc strong {
+      color: var(--color-primary);
+    }
+    .image-upload-zone__limit {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-disabled);
+      margin-top: var(--space-2);
+    }
+
+    /* Uploaded image preview grid */
+    .image-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--space-3);
+      margin-top: var(--space-5);
+    }
+    .image-preview-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background-color: var(--color-bg-muted);
+      border: 2px solid var(--color-border-default);
+    }
+    .image-preview-item--thumbnail {
+      border-color: var(--color-primary);
+    }
+    .image-preview-item__img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    .image-preview-item__actions {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      opacity: 0;
+      transition: opacity var(--transition-base);
+    }
+    .image-preview-item:hover .image-preview-item__actions { opacity: 1; }
+    .image-preview-item__action-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      background-color: rgba(255,255,255,0.92);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--color-text-secondary);
+      transition: color var(--transition-fast);
+    }
+    .image-preview-item__action-btn:hover { color: var(--color-error); }
+    .image-preview-item__thumb-badge {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      background-color: var(--color-primary);
+      color: white;
+      font-size: 9px;
+      font-weight: var(--font-weight-bold);
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Drag handle area */
+    .image-preview-item__drag-handle {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 16px;
+      height: 16px;
+      cursor: grab;
+      color: rgba(255,255,255,0.8);
+      opacity: 0;
+      transition: opacity var(--transition-base);
+    }
+    .image-preview-item:hover .image-preview-item__drag-handle { opacity: 1; }
+
+    /* Tag input area */
+    .tag-input-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      border: 1.5px solid var(--color-border-default);
+      border-radius: var(--radius-md);
+      min-height: 44px;
+      cursor: text;
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+    .tag-input-area:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-focus);
+    }
+    .tag-input-area__input {
+      flex: 1;
+      min-width: 120px;
+      height: 24px;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-primary);
+      background: none;
+      border: none;
+      outline: none;
+    }
+    .tag-input-area__input::placeholder { color: var(--color-text-disabled); }
+
+    /* --------------------------------------------------------------------------
+       Step 4: Publish Options
+       -------------------------------------------------------------------------- */
+    .publish-option-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+    .publish-option-card {
+      border: 2px solid var(--color-border-default);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      cursor: pointer;
+      transition: border-color var(--transition-base), background-color var(--transition-base);
+      position: relative;
+    }
+    .publish-option-card:hover {
+      border-color: var(--color-primary-light);
+      background-color: var(--color-primary-10);
+    }
+    .publish-option-card--selected {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary-10);
+    }
+    .publish-option-card input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+    }
+    .publish-option-card__icon {
+      font-size: 2rem;
+      margin-bottom: var(--space-3);
+    }
+    .publish-option-card__title {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-2);
+    }
+    .publish-option-card--selected .publish-option-card__title { color: var(--color-primary); }
+    .publish-option-card__desc {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      line-height: var(--line-height-relaxed);
+    }
+    .publish-option-card__check {
+      position: absolute;
+      top: var(--space-4);
+      right: var(--space-4);
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-full);
+      border: 2px solid var(--color-border-default);
+      background-color: white;
+      transition: border-color var(--transition-base), background-color var(--transition-base);
+    }
+    .publish-option-card--selected .publish-option-card__check {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary);
+    }
+    .publish-option-card--selected .publish-option-card__check::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 10px;
+      height: 6px;
+      border-left: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(-45deg) translateY(-1px);
+      display: block;
+    }
+
+    /* --------------------------------------------------------------------------
+       Form Navigation (이전/다음 버튼)
+       -------------------------------------------------------------------------- */
+    .form-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-6) var(--space-8);
+      border-top: 1px solid var(--color-border-default);
+      background-color: var(--color-bg-muted);
+    }
+    .form-nav__left { display: flex; gap: var(--space-3); }
+    .form-nav__right { display: flex; gap: var(--space-3); }
+
+    /* Autosave indicator */
+    .autosave-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+    }
+    .autosave-indicator__dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-success);
+    }
+
+    /* --------------------------------------------------------------------------
+       Responsive
+       -------------------------------------------------------------------------- */
+    @media (max-width: 1024px) {
+      .sale-type-cards { grid-template-columns: 1fr 1fr; }
+      .sale-type-cards .sale-type-card:last-child {
+        grid-column: 1 / -1;
+      }
+      .image-preview-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .register-layout { padding-top: var(--space-6); }
+      .form-row--2col { grid-template-columns: 1fr; }
+      .sale-type-cards { grid-template-columns: 1fr; }
+      .sale-type-cards .sale-type-card:last-child { grid-column: auto; }
+      .plan-item__fields { grid-template-columns: 1fr; }
+      .publish-option-cards { grid-template-columns: 1fr; }
+      .image-preview-grid { grid-template-columns: repeat(3, 1fr); }
+      .form-card__body { padding: var(--space-5); }
+      .form-card__header { padding: var(--space-4) var(--space-5); }
+      .form-nav { padding: var(--space-4) var(--space-5); flex-wrap: wrap; gap: var(--space-3); }
+      .form-nav__right { width: 100%; }
+      .form-nav__right .btn { flex: 1; }
+      .step-indicator { gap: 0; }
+    }
+
+    @media (max-width: 480px) {
+      .step__label { display: none; }
+      .image-preview-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- GNB -->
+  <header class="gnb" role="banner">
+    <div class="gnb__inner">
+      <a href="/" class="gnb__logo" aria-label="Shelfy 홈">
+        <div class="gnb__logo-mark" aria-hidden="true">S</div>
+        <span class="gnb__logo-text">Shelfy</span>
+      </a>
+      <!-- Register 페이지에서는 검색 숨김 -->
+      <nav class="gnb__nav" aria-label="사용자 메뉴">
+        <div class="autosave-indicator" role="status" aria-live="polite">
+          <span class="autosave-indicator__dot" aria-hidden="true"></span>
+          임시 저장됨
+        </div>
+        <button class="gnb__avatar" aria-label="내 계정 메뉴 열기" aria-haspopup="true" aria-expanded="false">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#C85C3D,#A34428);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;">M</div>
+        </button>
+      </nav>
+      <button class="gnb__mobile-menu-btn btn btn--ghost btn--icon" aria-label="메뉴 열기">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page-body">
+    <div class="register-layout">
+
+      <!-- Header -->
+      <div class="register-header">
+        <a href="/dashboard/shelf" class="register-header__back">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          내 선반으로
+        </a>
+        <h1 class="register-header__title">새 상품 등록</h1>
+        <p class="register-header__desc">선반에 올릴 상품 정보를 입력해주세요. 언제든지 임시저장 후 나중에 완성할 수 있습니다.</p>
+      </div>
+
+      <!-- Step Indicator -->
+      <div class="step-indicator" role="list" aria-label="등록 단계">
+
+        <div class="step step--completed" role="listitem" aria-current="false">
+          <div class="step__circle" aria-label="1단계 완료">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span class="step__label">기본 정보</span>
+        </div>
+
+        <div class="step-connector step-connector--done" aria-hidden="true"></div>
+
+        <div class="step step--active" role="listitem" aria-current="step">
+          <div class="step__circle" aria-label="2단계 현재 진행중">2</div>
+          <span class="step__label">판매 유형</span>
+        </div>
+
+        <div class="step-connector" aria-hidden="true"></div>
+
+        <div class="step" role="listitem" aria-current="false">
+          <div class="step__circle" aria-label="3단계 미완료">3</div>
+          <span class="step__label">이미지/태그</span>
+        </div>
+
+        <div class="step-connector" aria-hidden="true"></div>
+
+        <div class="step" role="listitem" aria-current="false">
+          <div class="step__circle" aria-label="4단계 미완료">4</div>
+          <span class="step__label">공개 설정</span>
+        </div>
+
+      </div>
+
+      <!-- -------------------------------------------------------
+           Step 1: 기본 정보 (Completed - collapsed for reference)
+           ------------------------------------------------------- -->
+      <!-- Step 1은 완료된 상태이므로 접힌 상태로 표시 -->
+      <div class="form-card" style="margin-bottom: var(--space-5); opacity: 0.6;" aria-label="1단계 완료">
+        <div class="form-card__header">
+          <span class="form-card__step-num" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span class="form-card__title">기본 정보</span>
+          <button class="btn btn--ghost btn--sm" style="margin-left:auto;" aria-label="기본 정보 수정">수정</button>
+        </div>
+      </div>
+
+      <!-- -------------------------------------------------------
+           Step 2: 판매 유형 선택 (Active)
+           ------------------------------------------------------- -->
+      <div class="form-card" id="step-2" aria-label="2단계: 판매 유형 선택">
+        <div class="form-card__header">
+          <span class="form-card__step-num" aria-hidden="true">2</span>
+          <span class="form-card__title">판매 유형 및 가격 설정</span>
+          <span class="form-card__desc" aria-hidden="true">구매, 구독, 또는 둘 다 선택하세요</span>
+        </div>
+        <div class="form-card__body">
+
+          <!-- Sale Type Selection -->
+          <fieldset style="border:none;padding:0;margin-bottom: var(--space-8);">
+            <legend style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);color:var(--color-text-primary);margin-bottom:var(--space-4);">
+              판매 방식 선택 <span style="color:var(--color-error);" aria-hidden="true">*</span>
+              <span class="sr-only">(필수)</span>
+            </legend>
+            <div class="sale-type-cards" role="radiogroup" aria-required="true">
+
+              <label class="sale-type-card" aria-label="단일 구매">
+                <input type="radio" name="saleType" value="PURCHASE" aria-describedby="purchase-desc">
+                <div class="sale-type-card__selected-mark" aria-hidden="true"></div>
+                <div class="sale-type-card__icon" aria-hidden="true">🛒</div>
+                <div class="sale-type-card__title">단일 구매</div>
+                <div class="sale-type-card__desc" id="purchase-desc">고객이 한 번 결제하고 영구적으로 사용합니다.</div>
+              </label>
+
+              <label class="sale-type-card sale-type-card--selected" aria-label="구독 (현재 선택됨)">
+                <input type="radio" name="saleType" value="SUBSCRIBE" checked aria-describedby="subscribe-desc">
+                <div class="sale-type-card__selected-mark" aria-hidden="true"></div>
+                <div class="sale-type-card__icon" aria-hidden="true">🔄</div>
+                <div class="sale-type-card__title">구독</div>
+                <div class="sale-type-card__desc" id="subscribe-desc">정기 결제로 지속적인 수익을 만들어보세요.</div>
+              </label>
+
+              <label class="sale-type-card" aria-label="구매+구독 모두">
+                <input type="radio" name="saleType" value="BOTH" aria-describedby="both-desc">
+                <div class="sale-type-card__selected-mark" aria-hidden="true"></div>
+                <div class="sale-type-card__icon" aria-hidden="true">✨</div>
+                <div class="sale-type-card__title">구매 + 구독</div>
+                <div class="sale-type-card__desc" id="both-desc">단일 구매와 구독 모두 제공합니다.</div>
+              </label>
+
+            </div>
+          </fieldset>
+
+          <!-- Subscription Plans (구독 선택 시 표시) -->
+          <div class="pricing-section">
+            <div class="pricing-section__header">
+              구독 플랜 설정
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-tertiary);font-weight:400;margin-left:var(--space-2);">최소 1개 이상 등록 필요</span>
+            </div>
+            <div class="pricing-section__body">
+
+              <div class="plan-list" role="list" aria-label="구독 플랜 목록">
+
+                <!-- Plan 1 -->
+                <div class="plan-item" role="listitem">
+                  <div class="plan-item__header">
+                    <span class="plan-item__title">플랜 1</span>
+                    <button class="plan-item__remove" aria-label="플랜 1 삭제">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                    </button>
+                  </div>
+                  <div class="plan-item__fields">
+                    <div class="form-field">
+                      <label class="form-label form-label--required" for="plan1-name">플랜 이름</label>
+                      <input type="text" id="plan1-name" class="form-input" placeholder="예: Basic" value="Basic" maxlength="50">
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label form-label--required" for="plan1-period">결제 주기</label>
+                      <select id="plan1-period" class="form-select">
+                        <option value="MONTHLY" selected>월간 (MONTHLY)</option>
+                        <option value="QUARTERLY">분기 (QUARTERLY)</option>
+                        <option value="YEARLY">연간 (YEARLY)</option>
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label form-label--required" for="plan1-price">플랜 가격</label>
+                      <div class="price-input-wrap">
+                        <span class="price-input-wrap__symbol" aria-hidden="true">₩</span>
+                        <input type="number" id="plan1-price" class="form-input" placeholder="0" min="100" value="9900" aria-label="플랜 1 가격 (원)">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-field" style="margin-top: var(--space-3);">
+                    <label class="form-label" for="plan1-desc">플랜 설명 (선택)</label>
+                    <input type="text" id="plan1-desc" class="form-input" placeholder="이 플랜에 포함된 혜택을 입력하세요" value="모든 UI 키트 이용 + 월간 업데이트 포함" maxlength="500">
+                  </div>
+                </div>
+
+                <!-- Plan 2 -->
+                <div class="plan-item" role="listitem">
+                  <div class="plan-item__header">
+                    <span class="plan-item__title">플랜 2</span>
+                    <button class="plan-item__remove" aria-label="플랜 2 삭제">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                    </button>
+                  </div>
+                  <div class="plan-item__fields">
+                    <div class="form-field">
+                      <label class="form-label form-label--required" for="plan2-name">플랜 이름</label>
+                      <input type="text" id="plan2-name" class="form-input" placeholder="예: Premium" value="Premium" maxlength="50">
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label form-label--required" for="plan2-period">결제 주기</label>
+                      <select id="plan2-period" class="form-select">
+                        <option value="MONTHLY" selected>월간 (MONTHLY)</option>
+                        <option value="QUARTERLY">분기 (QUARTERLY)</option>
+                        <option value="YEARLY">연간 (YEARLY)</option>
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label form-label--required" for="plan2-price">플랜 가격</label>
+                      <div class="price-input-wrap">
+                        <span class="price-input-wrap__symbol" aria-hidden="true">₩</span>
+                        <input type="number" id="plan2-price" class="form-input" placeholder="0" min="100" value="19900" aria-label="플랜 2 가격 (원)">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-field" style="margin-top: var(--space-3);">
+                    <label class="form-label" for="plan2-desc">플랜 설명 (선택)</label>
+                    <input type="text" id="plan2-desc" class="form-input" placeholder="이 플랜에 포함된 혜택을 입력하세요" value="Basic 포함 + 1:1 피드백 + 소스 파일 전체 공개" maxlength="500">
+                  </div>
+                </div>
+
+              </div><!-- /plan-list -->
+
+              <button class="add-plan-btn" aria-label="구독 플랜 추가">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                플랜 추가
+              </button>
+
+            </div>
+          </div><!-- /pricing-section -->
+
+        </div>
+
+        <!-- Form Navigation -->
+        <div class="form-nav">
+          <div class="form-nav__left">
+            <button class="btn btn--ghost btn--sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              이전
+            </button>
+          </div>
+          <div class="form-nav__right">
+            <button class="btn btn--secondary">임시 저장</button>
+            <button class="btn btn--primary">
+              다음 단계
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /step-2 form-card -->
+
+      <!-- -------------------------------------------------------
+           Step 3: 이미지/태그 (Preview - collapsed)
+           ------------------------------------------------------- -->
+      <div class="form-card" style="margin-top: var(--space-5); opacity: 0.4; pointer-events:none;" aria-label="3단계: 이미지 및 태그 (미완료)">
+        <div class="form-card__header">
+          <span class="form-card__step-num" style="background-color:var(--color-border-strong);" aria-hidden="true">3</span>
+          <span class="form-card__title">이미지 업로드 및 태그</span>
+        </div>
+      </div>
+
+      <!-- -------------------------------------------------------
+           Step 4: 공개 설정 (Preview - collapsed)
+           ------------------------------------------------------- -->
+      <div class="form-card" style="margin-top: var(--space-5); opacity: 0.4; pointer-events:none;" aria-label="4단계: 공개 설정 (미완료)">
+        <div class="form-card__header">
+          <span class="form-card__step-num" style="background-color:var(--color-border-strong);" aria-hidden="true">4</span>
+          <span class="form-card__title">공개 설정</span>
+        </div>
+      </div>
+
+      <!-- -------------------------------------------------------
+           Step 3 Full Preview (이미지/태그 단계 내용 - 참고용)
+           ------------------------------------------------------- -->
+      <div class="form-card" style="margin-top: var(--space-10);" id="step-3-preview" aria-label="3단계 미리보기: 이미지 업로드 및 태그">
+        <div class="form-card__header">
+          <span class="form-card__step-num" aria-hidden="true">3</span>
+          <span class="form-card__title">이미지 업로드 및 태그</span>
+          <span class="form-card__desc" aria-hidden="true">상품을 잘 표현하는 이미지를 추가하세요</span>
+        </div>
+        <div class="form-card__body">
+
+          <!-- Upload Zone -->
+          <div class="form-field">
+            <span class="form-label form-label--required" id="image-label">상품 이미지</span>
+            <div class="image-upload-zone" role="button" tabindex="0" aria-labelledby="image-label" aria-describedby="image-desc">
+              <input type="file" class="image-upload-zone__input" accept="image/jpeg,image/png,image/webp" multiple aria-hidden="true" tabindex="-1">
+              <div class="image-upload-zone__icon" aria-hidden="true">📷</div>
+              <div class="image-upload-zone__title">클릭하거나 파일을 드래그하여 업로드</div>
+              <div class="image-upload-zone__desc" id="image-desc">
+                <strong>JPG, PNG, WEBP</strong> 지원<br>
+                이미지 1장당 최대 10MB · 최대 10장
+              </div>
+              <div class="image-upload-zone__limit">첫 번째 이미지가 대표 이미지로 자동 설정됩니다</div>
+            </div>
+
+            <!-- Uploaded Previews -->
+            <div class="image-preview-grid" role="list" aria-label="업로드된 이미지 목록">
+              <div class="image-preview-item image-preview-item--thumbnail" role="listitem" aria-label="이미지 1 (대표 이미지)">
+                <div class="image-preview-item__img" aria-hidden="true">🖼</div>
+                <button class="image-preview-item__drag-handle" aria-label="드래그하여 순서 변경">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+                </button>
+                <div class="image-preview-item__actions">
+                  <button class="image-preview-item__action-btn" aria-label="이미지 1 삭제">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <span class="image-preview-item__thumb-badge">대표</span>
+              </div>
+
+              <div class="image-preview-item" role="listitem" aria-label="이미지 2">
+                <div class="image-preview-item__img" aria-hidden="true">📐</div>
+                <div class="image-preview-item__actions">
+                  <button class="image-preview-item__action-btn" aria-label="이미지 2 삭제">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="image-preview-item" role="listitem" aria-label="이미지 3">
+                <div class="image-preview-item__img" aria-hidden="true">🎨</div>
+                <div class="image-preview-item__actions">
+                  <button class="image-preview-item__action-btn" aria-label="이미지 3 삭제">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p class="form-hint">이미지를 드래그하여 순서를 변경할 수 있습니다. 첫 번째 이미지가 대표 이미지입니다.</p>
+          </div>
+
+          <!-- Tags -->
+          <div class="form-field" style="margin-top: var(--space-6);">
+            <label class="form-label" for="tag-input">태그</label>
+            <div class="tag-input-area" role="group" aria-label="태그 입력 영역">
+              <span class="tag tag--active tag--removable">
+                Figma
+                <button class="tag__remove" aria-label="Figma 태그 제거">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </span>
+              <span class="tag tag--active tag--removable">
+                UI 키트
+                <button class="tag__remove" aria-label="UI 키트 태그 제거">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </span>
+              <span class="tag tag--active tag--removable">
+                디자인 시스템
+                <button class="tag__remove" aria-label="디자인 시스템 태그 제거">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </span>
+              <input type="text" id="tag-input" class="tag-input-area__input" placeholder="태그 입력 후 Enter" aria-label="새 태그 입력">
+            </div>
+            <div class="form-counter">
+              <span>3 / 10</span>
+            </div>
+            <p class="form-hint">태그를 입력하고 Enter를 누르면 추가됩니다. 최대 10개, 각 20자 이내</p>
+          </div>
+
+        </div>
+
+        <div class="form-nav">
+          <div class="form-nav__left">
+            <button class="btn btn--ghost btn--sm">이전</button>
+          </div>
+          <div class="form-nav__right">
+            <button class="btn btn--secondary">임시 저장</button>
+            <button class="btn btn--primary">다음 단계</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- -------------------------------------------------------
+           Step 4 Full Preview (공개 설정 단계 - 참고용)
+           ------------------------------------------------------- -->
+      <div class="form-card" style="margin-top: var(--space-5);" id="step-4-preview" aria-label="4단계 미리보기: 공개 설정">
+        <div class="form-card__header">
+          <span class="form-card__step-num" aria-hidden="true">4</span>
+          <span class="form-card__title">공개 설정</span>
+          <span class="form-card__desc" aria-hidden="true">상품을 지금 바로 공개하거나 나중에 공개할 수 있습니다</span>
+        </div>
+        <div class="form-card__body">
+
+          <fieldset style="border:none;padding:0;">
+            <legend class="form-label" style="margin-bottom:var(--space-4);">공개 여부</legend>
+            <div class="publish-option-cards" role="radiogroup">
+
+              <label class="publish-option-card" aria-label="임시 저장 (비공개)">
+                <input type="radio" name="status" value="DRAFT" aria-describedby="draft-desc">
+                <span class="publish-option-card__check" aria-hidden="true"></span>
+                <div class="publish-option-card__icon" aria-hidden="true">📝</div>
+                <div class="publish-option-card__title">임시 저장 (비공개)</div>
+                <div class="publish-option-card__desc" id="draft-desc">
+                  상품을 저장하지만 아직 공개하지 않습니다. 언제든지 공개로 전환할 수 있습니다.
+                </div>
+              </label>
+
+              <label class="publish-option-card publish-option-card--selected" aria-label="즉시 공개 (현재 선택됨)">
+                <input type="radio" name="status" value="PUBLISHED" checked aria-describedby="publish-desc">
+                <span class="publish-option-card__check" aria-hidden="true"></span>
+                <div class="publish-option-card__icon" aria-hidden="true">🚀</div>
+                <div class="publish-option-card__title">즉시 공개</div>
+                <div class="publish-option-card__desc" id="publish-desc">
+                  등록 즉시 상품 페이지가 공개되어 구매자가 바로 탐색하고 구매할 수 있습니다.
+                </div>
+              </label>
+
+            </div>
+          </fieldset>
+
+          <!-- Final Checklist -->
+          <div class="alert alert--info" style="margin-top: var(--space-6);" role="note">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+              <strong>공개 전 확인사항:</strong> 등록 후 수익의 10%가 플랫폼 수수료로 공제됩니다. 정산은 익월 15일에 진행됩니다.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="form-nav">
+          <div class="form-nav__left">
+            <button class="btn btn--ghost btn--sm">이전</button>
+          </div>
+          <div class="form-nav__right">
+            <button class="btn btn--secondary">임시 저장</button>
+            <button class="btn btn--primary btn--lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              상품 등록 완료
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" role="contentinfo">
+    <div class="footer__inner">
+      <div class="footer__bottom">
+        <p class="footer__copy">© 2026 Shelfy. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

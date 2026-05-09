@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.shelfy.item.mapper.ItemMapper">
+
+    <!-- ===== ResultMap 정의 ===== -->
+
+    <resultMap id="ItemSummaryResultMap" type="com.shelfy.item.dto.response.ItemSummaryResponse">
+        <result property="itemId"          column="id"/>
+        <result property="title"           column="title"/>
+        <result property="price"           column="price"/>
+        <result property="saleType"        column="sale_type"/>
+        <result property="status"          column="status"/>
+        <result property="thumbnailUrl"    column="thumbnail_url"/>
+        <result property="createdAt"       column="created_at"/>
+        <result property="sellerNickname"  column="seller_nickname"/>
+    </resultMap>
+
+    <resultMap id="ItemDetailResultMap" type="com.shelfy.item.dto.response.ItemDetailResponse">
+        <result property="itemId"      column="id"/>
+        <result property="title"       column="title"/>
+        <result property="description" column="description"/>
+        <result property="category"    column="category"/>
+        <result property="saleType"    column="sale_type"/>
+        <result property="price"       column="price"/>
+        <result property="status"      column="status"/>
+        <result property="viewCount"   column="view_count"/>
+        <result property="createdAt"   column="created_at"/>
+        <result property="updatedAt"   column="updated_at"/>
+        <!-- tags: PostgreSQL 배열 → List<String> 변환은 TypeHandler로 처리 -->
+        <result property="tags"        column="tags"
+                typeHandler="com.shelfy.item.mapper.StringArrayTypeHandler"/>
+
+        <!-- seller 정보 -->
+        <association property="seller" javaType="com.shelfy.item.dto.response.ItemDetailResponse$SellerDto">
+            <result property="userId"          column="seller_id"/>
+            <result property="nickname"        column="seller_nickname"/>
+            <result property="profileImageUrl" column="seller_profile_image_url"/>
+            <result property="itemCount"       column="seller_item_count"/>
+        </association>
+
+        <!-- 이미지 목록 -->
+        <collection property="images"
+                    ofType="com.shelfy.item.dto.response.ItemDetailResponse$ImageDto"
+                    select="findImagesByItemId"
+                    column="id"/>
+
+        <!-- 구독 플랜 목록 -->
+        <collection property="subscriptionPlans"
+                    ofType="com.shelfy.item.dto.response.ItemDetailResponse$SubscriptionPlanDto"
+                    select="findPlansByItemId"
+                    column="id"/>
+    </resultMap>
+
+    <resultMap id="ImageResultMap" type="com.shelfy.item.dto.response.ItemDetailResponse$ImageDto">
+        <result property="imageId"     column="file_id"/>
+        <result property="url"         column="image_url"/>
+        <result property="isThumbnail" column="is_thumbnail"/>
+    </resultMap>
+
+    <resultMap id="PlanResultMap" type="com.shelfy.item.dto.response.ItemDetailResponse$SubscriptionPlanDto">
+        <result property="planId"      column="id"/>
+        <result property="planName"    column="plan_name"/>
+        <result property="period"      column="period"/>
+        <result property="planPrice"   column="plan_price"/>
+        <result property="description" column="description"/>
+    </resultMap>
+
+    <!-- ===== 공통 WHERE 절 Fragment ===== -->
+
+    <!-- 피드 조회용 공통 필터 (PUBLISHED + 미삭제 + 동적 조건) -->
+    <sql id="publishedItemFilter">
+        WHERE i.status = 'PUBLISHED'
+          AND i.deleted_at IS NULL
+        <if test="category != null">
+            AND i.category = #{category}
+        </if>
+        <if test="saleType != null">
+            AND i.sale_type = #{saleType}
+        </if>
+        <if test="minPrice != null">
+            AND i.price &gt;= #{minPrice}
+        </if>
+        <if test="maxPrice != null">
+            AND i.price &lt;= #{maxPrice}
+        </if>
+    </sql>
+
+    <!-- 정렬 조건 Fragment -->
+    <sql id="itemSortClause">
+        <choose>
+            <when test="sort == 'popular'">
+                ORDER BY i.view_count DESC, i.created_at DESC
+            </when>
+            <when test="sort == 'lowPrice'">
+                ORDER BY i.price ASC, i.created_at DESC
+            </when>
+            <when test="sort == 'highPrice'">
+                ORDER BY i.price DESC, i.created_at DESC
+            </when>
+            <when test="sort == 'title'">
+                ORDER BY i.title
+                <choose>
+                    <when test="order == 'ASC'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <when test="sort == 'price'">
+                ORDER BY i.price
+                <choose>
+                    <when test="order == 'ASC'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <!-- latest (기본값) -->
+            <otherwise>
+                ORDER BY i.created_at DESC
+            </otherwise>
+        </choose>
+    </sql>
+
+    <!-- ===== 상품 피드 목록 조회 ===== -->
+
+    <select id="findPublishedItems" resultMap="ItemSummaryResultMap">
+        SELECT
+            i.id,
+            i.title,
+            i.price,
+            i.sale_type,
+            i.status,
+            i.created_at,
+            ii.image_url AS thumbnail_url,
+            u.nickname   AS seller_nickname
+        FROM items i
+        LEFT JOIN item_images ii
+            ON ii.item_id = i.id AND ii.is_thumbnail = TRUE
+        LEFT JOIN users u
+            ON u.id = i.seller_id AND u.deleted_at IS NULL
+        <include refid="publishedItemFilter"/>
+        <include refid="itemSortClause"/>
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countPublishedItems" resultType="long">
+        SELECT COUNT(*)
+        FROM items i
+        <include refid="publishedItemFilter"/>
+    </select>
+
+    <!-- ===== 전문 검색 (tsvector + GIN 인덱스 활용) ===== -->
+    <!--
+        DBA 인덱스 설계: idx_items_search_vector (GIN on search_vector)
+        search_vector는 트리거로 자동 갱신 (title 가중치A, description 가중치B, tags 가중치C)
+
+        주의: #{q} 사용으로 SQL Injection 방지.
+        to_tsquery는 공백/특수문자 처리를 위해 simple 사전 + :* 접두어 매칭 적용.
+        plainto_tsquery를 사용하면 자연어 쿼리를 자동 파싱한다.
+    -->
+    <select id="searchItems" resultMap="ItemSummaryResultMap">
+        SELECT
+            i.id,
+            i.title,
+            i.price,
+            i.sale_type,
+            i.status,
+            i.created_at,
+            ii.image_url AS thumbnail_url,
+            u.nickname   AS seller_nickname,
+            ts_rank(i.search_vector, query) AS rank
+        FROM items i
+        CROSS JOIN plainto_tsquery('simple', #{q}) AS query
+        LEFT JOIN item_images ii
+            ON ii.item_id = i.id AND ii.is_thumbnail = TRUE
+        LEFT JOIN users u
+            ON u.id = i.seller_id AND u.deleted_at IS NULL
+        WHERE i.search_vector @@ query
+          AND i.status = 'PUBLISHED'
+          AND i.deleted_at IS NULL
+        <if test="category != null">
+            AND i.category = #{category}
+        </if>
+        <if test="saleType != null">
+            AND i.sale_type = #{saleType}
+        </if>
+        ORDER BY rank DESC, i.created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countSearchItems" resultType="long">
+        SELECT COUNT(*)
+        FROM items i
+        CROSS JOIN plainto_tsquery('simple', #{q}) AS query
+        WHERE i.search_vector @@ query
+          AND i.status = 'PUBLISHED'
+          AND i.deleted_at IS NULL
+        <if test="category != null">
+            AND i.category = #{category}
+        </if>
+        <if test="saleType != null">
+            AND i.sale_type = #{saleType}
+        </if>
+    </select>
+
+    <!-- ===== 셀러 본인 상품 목록 ===== -->
+
+    <select id="findMyItems" resultMap="ItemSummaryResultMap">
+        SELECT
+            i.id,
+            i.title,
+            i.price,
+            i.sale_type,
+            i.status,
+            i.created_at,
+            ii.image_url AS thumbnail_url
+        FROM items i
+        LEFT JOIN item_images ii
+            ON ii.item_id = i.id AND ii.is_thumbnail = TRUE
+        WHERE i.seller_id = #{sellerId}
+          AND i.deleted_at IS NULL
+        <if test="status != null and status.name() != 'DELETED'">
+            AND i.status = #{status}
+        </if>
+        <choose>
+            <when test="sort == 'title'">
+                ORDER BY i.title
+                <choose>
+                    <when test="order == 'ASC'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <when test="sort == 'price'">
+                ORDER BY i.price
+                <choose>
+                    <when test="order == 'ASC'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                ORDER BY i.created_at
+                <choose>
+                    <when test="order == 'ASC'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </otherwise>
+        </choose>
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countMyItems" resultType="long">
+        SELECT COUNT(*)
+        FROM items i
+        WHERE i.seller_id = #{sellerId}
+          AND i.deleted_at IS NULL
+        <if test="status != null and status.name() != 'DELETED'">
+            AND i.status = #{status}
+        </if>
+    </select>
+
+    <!-- ===== 상품 상세 조회 ===== -->
+
+    <select id="findItemDetail" resultMap="ItemDetailResultMap">
+        SELECT
+            i.id,
+            i.title,
+            i.description,
+            i.category,
+            i.sale_type,
+            i.price,
+            i.status,
+            i.view_count,
+            i.tags,
+            i.created_at,
+            i.updated_at,
+            i.seller_id,
+            u.nickname          AS seller_nickname,
+            u.profile_image_url AS seller_profile_image_url,
+            (SELECT COUNT(*)
+             FROM items si
+             WHERE si.seller_id = i.seller_id
+               AND si.status = 'PUBLISHED'
+               AND si.deleted_at IS NULL) AS seller_item_count
+        FROM items i
+        LEFT JOIN users u
+            ON u.id = i.seller_id AND u.deleted_at IS NULL
+        WHERE i.id = #{itemId}
+          AND i.deleted_at IS NULL
+    </select>
+
+    <!-- 이미지 목록 조회 (상품 상세 collection 용) -->
+    <select id="findImagesByItemId"
+            resultMap="ImageResultMap">
+        SELECT
+            file_id,
+            image_url,
+            is_thumbnail
+        FROM item_images
+        WHERE item_id = #{id}
+        ORDER BY sort_order ASC
+    </select>
+
+    <!-- 활성 구독 플랜 목록 조회 (상품 상세 collection 용) -->
+    <select id="findPlansByItemId"
+            resultMap="PlanResultMap">
+        SELECT
+            id,
+            plan_name,
+            period,
+            plan_price,
+            description
+        FROM subscription_plans
+        WHERE item_id = #{id}
+          AND is_active = TRUE
+        ORDER BY plan_price ASC
+    </select>
+
+    <!-- ===== 활성 구독자 수 (플랜별) ===== -->
+
+    <select id="countActiveSubscribersByPlanId" resultType="long">
+        SELECT COUNT(*)
+        FROM subscriptions
+        WHERE plan_id  = #{planId}
+          AND status IN ('ACTIVE', 'CANCEL_REQUESTED')
+    </select>
+
+</mapper>

@@ -1,0 +1,196 @@
+.container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  min-height: 60vh;
+}
+
+.card {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 2rem;
+  width: 100%;
+  max-width: 56rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* 완료 배지 */
+.successBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 9999px;
+  padding: 0.375rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.checkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: #16a34a;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* 결과 이미지 미리보기 */
+.previewWrapper {
+  width: 100%;
+  border-radius: 0.75rem;
+  overflow: auto;
+  background-color: #f8fafc;
+  border: 1px solid #e5e7eb;
+  max-height: 70vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.resultImage {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+/* 설정 요약 */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.summaryItem {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+}
+
+.summaryDivider {
+  color: #d1d5db;
+  font-size: 0.875rem;
+}
+
+/* 다운로드 섹션 */
+.downloadGroup {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.downloadLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* 다운로드 버튼 */
+.downloadButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.downloadButton:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.downloadButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* JPG 버튼 (보조 스타일) */
+.jpgButton {
+  background-color: #059669;
+}
+
+.jpgButton:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+/* 형식 배지 */
+.formatBadge {
+  font-size: 0.6875rem;
+  background-color: rgba(255, 255, 255, 0.25);
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+}
+
+/* 다시 시작 버튼 */
+.restartButton {
+  padding: 0.625rem 2rem;
+  background-color: #fff;
+  color: #6b7280;
+  border: 1.5px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.restartButton:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+/* 에러 카드 */
+.errorCard {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  color: #6b7280;
+}
+
+/* 반응형 */
+@media (max-width: 480px) {
+  .buttonRow {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .downloadButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

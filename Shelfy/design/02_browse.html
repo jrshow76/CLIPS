@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상품 탐색 - Shelfy</title>
+  <link rel="stylesheet" href="./common.css">
+  <style>
+    /* ==========================================================================
+       02_browse.html - 아이템 목록/탐색 페이지 전용 스타일
+       SCR-002 검색 결과 / 탐색 피드
+       ========================================================================== */
+
+    /* --------------------------------------------------------------------------
+       Browse Layout
+       -------------------------------------------------------------------------- */
+    .browse-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: var(--space-8);
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+      padding-top: var(--space-8);
+      padding-bottom: var(--space-20);
+      align-items: start;
+    }
+
+    /* --------------------------------------------------------------------------
+       Search Header (검색 결과 헤더)
+       -------------------------------------------------------------------------- */
+    .search-header {
+      background-color: var(--color-bg-muted);
+      border-bottom: 1px solid var(--color-border-default);
+      padding: var(--space-8) 0 var(--space-6);
+    }
+    .search-header__inner {
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+    }
+
+    /* 인라인 검색바 */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      background-color: var(--color-bg-surface);
+      border: 1.5px solid var(--color-border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--space-2) var(--space-3);
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+      max-width: 720px;
+    }
+    .search-bar:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-focus);
+    }
+    .search-bar__icon {
+      color: var(--color-text-tertiary);
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+    }
+    .search-bar__input {
+      flex: 1;
+      height: 40px;
+      font-size: var(--font-size-base);
+      color: var(--color-text-primary);
+      background: none;
+      border: none;
+      outline: none;
+    }
+    .search-bar__input::placeholder {
+      color: var(--color-text-disabled);
+    }
+    .search-bar__clear {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-tertiary);
+      transition: background-color var(--transition-base), color var(--transition-base);
+    }
+    .search-bar__clear:hover {
+      background-color: var(--color-bg-muted);
+      color: var(--color-text-primary);
+    }
+    .search-bar__submit {
+      height: 40px;
+      padding: 0 var(--space-5);
+      background-color: var(--color-primary);
+      color: var(--color-text-inverse);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      border: none;
+      cursor: pointer;
+      transition: background-color var(--transition-base);
+      flex-shrink: 0;
+    }
+    .search-bar__submit:hover {
+      background-color: var(--color-primary-dark);
+    }
+
+    .search-header__result-info {
+      margin-top: var(--space-4);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .search-header__query {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+    }
+    .search-header__query em {
+      color: var(--color-primary);
+      font-style: normal;
+    }
+    .search-header__count {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+    }
+
+    /* Active filter chips */
+    .active-filters {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-top: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: var(--space-1) var(--space-3);
+      background-color: var(--color-primary-10);
+      border: 1px solid rgba(200, 92, 61, 0.25);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-primary);
+    }
+    .active-filter-chip__remove {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: var(--radius-full);
+      transition: background-color var(--transition-fast);
+    }
+    .active-filter-chip__remove:hover {
+      background-color: rgba(200, 92, 61, 0.20);
+    }
+    .active-filters__clear-all {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+      text-decoration: underline;
+      cursor: pointer;
+      margin-left: var(--space-1);
+    }
+    .active-filters__clear-all:hover { color: var(--color-text-secondary); }
+
+    /* --------------------------------------------------------------------------
+       Filter Sidebar
+       -------------------------------------------------------------------------- */
+    .filter-sidebar {
+      position: sticky;
+      top: calc(var(--gnb-height) + var(--space-4));
+      background-color: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+
+    .filter-sidebar__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--color-border-default);
+    }
+    .filter-sidebar__title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .filter-sidebar__title svg { color: var(--color-text-tertiary); }
+    .filter-sidebar__reset {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .filter-sidebar__reset:hover { color: var(--color-primary); }
+
+    .filter-group {
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--color-border-default);
+    }
+    .filter-group:last-child { border-bottom: none; }
+
+    .filter-group__toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-bottom: var(--space-3);
+    }
+    .filter-group__label {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary);
+    }
+    .filter-group__chevron {
+      color: var(--color-text-tertiary);
+      transition: transform var(--transition-base);
+    }
+    .filter-group--open .filter-group__chevron {
+      transform: rotate(180deg);
+    }
+
+    .filter-group__body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      cursor: pointer;
+    }
+    .filter-option__left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .filter-option__check {
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--color-border-default);
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color var(--transition-base), background-color var(--transition-base);
+    }
+    .filter-option--checked .filter-option__check {
+      border-color: var(--color-primary);
+      background-color: var(--color-primary);
+    }
+    .filter-option--checked .filter-option__check::after {
+      content: '';
+      width: 8px;
+      height: 5px;
+      border-left: 1.5px solid white;
+      border-bottom: 1.5px solid white;
+      transform: rotate(-45deg) translateY(-1px);
+      display: block;
+    }
+    .filter-option__text {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+    .filter-option--checked .filter-option__text {
+      color: var(--color-text-primary);
+      font-weight: var(--font-weight-medium);
+    }
+    .filter-option__count {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-disabled);
+    }
+
+    /* Price Range */
+    .price-range {
+      margin-top: var(--space-1);
+    }
+    .price-range__inputs {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: var(--space-2);
+      align-items: center;
+    }
+    .price-range__input {
+      width: 100%;
+      height: 36px;
+      padding: 0 var(--space-3);
+      border: 1.5px solid var(--color-border-default);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-primary);
+      background-color: var(--color-bg-surface);
+      transition: border-color var(--transition-base);
+    }
+    .price-range__input:focus {
+      border-color: var(--color-primary);
+      outline: none;
+    }
+    .price-range__sep {
+      text-align: center;
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+    }
+    .price-range__apply {
+      width: 100%;
+      margin-top: var(--space-3);
+    }
+
+    /* --------------------------------------------------------------------------
+       Browse Content Area
+       -------------------------------------------------------------------------- */
+    .browse-content {}
+
+    .browse-toolbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+
+    .browse-count {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+    }
+    .browse-count strong {
+      color: var(--color-text-primary);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .browse-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .view-toggle {
+      display: flex;
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .view-toggle__btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-tertiary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: background-color var(--transition-base), color var(--transition-base);
+    }
+    .view-toggle__btn:hover { background-color: var(--color-bg-muted); }
+    .view-toggle__btn--active {
+      background-color: var(--color-primary);
+      color: var(--color-text-inverse);
+    }
+
+    .sort-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    .sort-bar__label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      white-space: nowrap;
+    }
+
+    /* Browse Grid */
+    .browse-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+    }
+    .browse-grid--list {
+      grid-template-columns: 1fr;
+    }
+
+    /* List view item card */
+    .item-card--list {
+      display: flex;
+      flex-direction: row;
+      border-radius: var(--radius-xl);
+    }
+    .item-card--list .item-card__thumb {
+      width: 180px;
+      padding-top: 0;
+      height: 130px;
+      flex-shrink: 0;
+      border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+    }
+    .item-card--list .item-card__thumb img {
+      position: static;
+      width: 100%;
+      height: 100%;
+    }
+    .item-card--list .item-card__body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-5);
+    }
+
+    /* --------------------------------------------------------------------------
+       No Results
+       -------------------------------------------------------------------------- */
+    .no-results {
+      grid-column: 1 / -1;
+    }
+
+    /* --------------------------------------------------------------------------
+       Mobile Filter Drawer
+       -------------------------------------------------------------------------- */
+    .filter-toggle-mobile {
+      display: none;
+    }
+
+    .filter-drawer-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-overlay);
+      background: rgba(28, 26, 23, 0.50);
+    }
+    .filter-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: calc(var(--z-overlay) + 10);
+      background-color: var(--color-bg-surface);
+      border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+      padding: var(--space-6);
+      max-height: 85vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform var(--transition-slow);
+    }
+    .filter-drawer--open { transform: translateY(0); }
+
+    /* --------------------------------------------------------------------------
+       Responsive
+       -------------------------------------------------------------------------- */
+    @media (max-width: 1024px) {
+      .browse-layout { grid-template-columns: 220px 1fr; gap: var(--space-6); }
+      .browse-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .browse-layout {
+        grid-template-columns: 1fr;
+      }
+      .filter-sidebar { display: none; }
+      .filter-toggle-mobile { display: flex; }
+      .browse-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+    }
+
+    @media (max-width: 480px) {
+      .browse-toolbar-row { flex-wrap: wrap; gap: var(--space-2); }
+      .browse-grid { gap: var(--space-3); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================
+       GNB
+       ========================================================= -->
+  <header class="gnb" role="banner">
+    <div class="gnb__inner">
+      <a href="/" class="gnb__logo" aria-label="Shelfy 홈">
+        <div class="gnb__logo-mark" aria-hidden="true">S</div>
+        <span class="gnb__logo-text">Shelfy</span>
+      </a>
+      <div class="gnb__search" role="search">
+        <label for="gnb-search" class="sr-only">상품 검색</label>
+        <svg class="gnb__search-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input id="gnb-search" type="search" class="gnb__search-input" placeholder="상품명, 셀러, 태그로 검색" value="UI 키트" autocomplete="off">
+      </div>
+      <nav class="gnb__nav" aria-label="주요 메뉴">
+        <a href="/auth/login" class="btn btn--ghost btn--sm">로그인</a>
+        <a href="/auth/signup" class="btn btn--primary btn--sm">시작하기</a>
+      </nav>
+      <button class="gnb__mobile-menu-btn btn btn--ghost btn--icon" aria-label="메뉴 열기">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================
+       Page Body
+       ========================================================= -->
+  <main class="page-body">
+
+    <!-- -------------------------------------------------------
+         Search Header
+         ------------------------------------------------------- -->
+    <div class="search-header">
+      <div class="search-header__inner">
+
+        <!-- Search Bar -->
+        <div class="search-bar" role="search">
+          <svg class="search-bar__icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <label for="main-search" class="sr-only">상품 검색</label>
+          <input id="main-search" type="search" class="search-bar__input" value="UI 키트" autocomplete="off" aria-label="검색어">
+          <button class="search-bar__clear" aria-label="검색어 지우기">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <button class="search-bar__submit">검색</button>
+        </div>
+
+        <!-- Result info -->
+        <div class="search-header__result-info" aria-live="polite" aria-atomic="true">
+          <span class="search-header__query">
+            <em>"UI 키트"</em> 검색 결과
+          </span>
+          <span class="search-header__count">총 248개 상품</span>
+        </div>
+
+        <!-- Active Filters -->
+        <div class="active-filters" aria-label="적용된 필터">
+          <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">적용된 필터:</span>
+          <div class="active-filter-chip">
+            디지털 콘텐츠
+            <button class="active-filter-chip__remove" aria-label="디지털 콘텐츠 필터 제거">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="active-filter-chip">
+            구매
+            <button class="active-filter-chip__remove" aria-label="구매 필터 제거">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <button class="active-filters__clear-all">전체 초기화</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------
+         Browse Layout
+         ------------------------------------------------------- -->
+    <div class="browse-layout">
+
+      <!-- Filter Sidebar -->
+      <aside class="filter-sidebar" aria-label="필터">
+        <div class="filter-sidebar__header">
+          <span class="filter-sidebar__title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            필터
+          </span>
+          <button class="filter-sidebar__reset">초기화</button>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="filter-group filter-group--open">
+          <button class="filter-group__toggle" aria-expanded="true" aria-controls="filter-category">
+            <span class="filter-group__label">카테고리</span>
+            <svg class="filter-group__chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 15l-6-6-6 6"/>
+            </svg>
+          </button>
+          <div class="filter-group__body" id="filter-category">
+            <label class="filter-option filter-option--checked">
+              <input type="checkbox" class="sr-only" checked>
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">디지털 콘텐츠</span>
+              </span>
+              <span class="filter-option__count">124</span>
+            </label>
+            <label class="filter-option">
+              <input type="checkbox" class="sr-only">
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">강의/교육</span>
+              </span>
+              <span class="filter-option__count">56</span>
+            </label>
+            <label class="filter-option">
+              <input type="checkbox" class="sr-only">
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">템플릿/자료</span>
+              </span>
+              <span class="filter-option__count">38</span>
+            </label>
+            <label class="filter-option">
+              <input type="checkbox" class="sr-only">
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">사진/그래픽</span>
+              </span>
+              <span class="filter-option__count">21</span>
+            </label>
+            <label class="filter-option">
+              <input type="checkbox" class="sr-only">
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">음악/사운드</span>
+              </span>
+              <span class="filter-option__count">9</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Sale Type Filter -->
+        <div class="filter-group filter-group--open">
+          <button class="filter-group__toggle" aria-expanded="true" aria-controls="filter-saletype">
+            <span class="filter-group__label">판매 유형</span>
+            <svg class="filter-group__chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 15l-6-6-6 6"/>
+            </svg>
+          </button>
+          <div class="filter-group__body" id="filter-saletype">
+            <label class="filter-option filter-option--checked">
+              <input type="checkbox" class="sr-only" checked>
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">구매</span>
+              </span>
+              <span class="filter-option__count">180</span>
+            </label>
+            <label class="filter-option">
+              <input type="checkbox" class="sr-only">
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">구독</span>
+              </span>
+              <span class="filter-option__count">48</span>
+            </label>
+            <label class="filter-option">
+              <input type="checkbox" class="sr-only">
+              <span class="filter-option__left">
+                <span class="filter-option__check" aria-hidden="true"></span>
+                <span class="filter-option__text">구매+구독</span>
+              </span>
+              <span class="filter-option__count">20</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Price Range Filter -->
+        <div class="filter-group filter-group--open">
+          <button class="filter-group__toggle" aria-expanded="true" aria-controls="filter-price">
+            <span class="filter-group__label">가격 범위</span>
+            <svg class="filter-group__chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 15l-6-6-6 6"/>
+            </svg>
+          </button>
+          <div class="filter-group__body" id="filter-price">
+            <div class="price-range">
+              <div class="price-range__inputs">
+                <label>
+                  <span class="sr-only">최소 가격</span>
+                  <input type="number" class="price-range__input" placeholder="최소" min="0" aria-label="최소 가격">
+                </label>
+                <span class="price-range__sep" aria-hidden="true">~</span>
+                <label>
+                  <span class="sr-only">최대 가격</span>
+                  <input type="number" class="price-range__input" placeholder="최대" min="0" aria-label="최대 가격">
+                </label>
+              </div>
+              <button class="btn btn--secondary btn--sm price-range__apply">가격 적용</button>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Browse Content -->
+      <div class="browse-content">
+
+        <!-- Toolbar Row -->
+        <div class="browse-toolbar-row">
+          <div style="display: flex; align-items: center; gap: var(--space-3);">
+            <!-- Mobile filter button -->
+            <button class="btn btn--secondary btn--sm filter-toggle-mobile" aria-label="필터 열기">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              필터
+            </button>
+            <p class="browse-count">
+              <strong>248</strong>개 상품
+            </p>
+          </div>
+
+          <div class="browse-toolbar-right">
+            <div class="sort-bar">
+              <span class="sort-bar__label">정렬:</span>
+              <label for="browse-sort" class="sr-only">정렬 기준</label>
+              <select id="browse-sort" class="sort-select" aria-label="정렬 기준 선택">
+                <option value="latest">최신순</option>
+                <option value="popular" selected>인기순</option>
+                <option value="lowPrice">낮은 가격순</option>
+                <option value="highPrice">높은 가격순</option>
+              </select>
+            </div>
+            <div class="view-toggle" role="group" aria-label="보기 방식">
+              <button class="view-toggle__btn view-toggle__btn--active" aria-label="그리드 보기" aria-pressed="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+              </button>
+              <button class="view-toggle__btn" aria-label="리스트 보기" aria-pressed="false">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="browse-grid" role="list" aria-label="검색 결과 상품 목록">
+
+          <!-- Item 1 -->
+          <article class="item-card" role="listitem">
+            <a href="/items/1" class="item-card__link" aria-label="Figma UI 키트 프로 - 12,000원">
+              <div class="item-card__thumb">
+                <div class="item-card__thumb-placeholder" aria-hidden="true">🖼</div>
+                <div class="item-card__badge">
+                  <span class="badge badge--purchase">구매</span>
+                </div>
+              </div>
+              <div class="item-card__body">
+                <div class="item-card__seller">
+                  <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                  <span class="item-card__seller-name">design_mia</span>
+                </div>
+                <h3 class="item-card__title">Figma UI 키트 프로 - 200개 이상의 컴포넌트</h3>
+                <div class="item-card__footer">
+                  <span class="item-card__price">12,000원</span>
+                  <div class="item-card__meta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    2.4k
+                  </div>
+                </div>
+              </div>
+            </a>
+          </article>
+
+          <!-- Item 2 -->
+          <article class="item-card" role="listitem">
+            <a href="/items/2" class="item-card__link" aria-label="React 컴포넌트 UI 키트 - 25,000원">
+              <div class="item-card__thumb">
+                <div class="item-card__thumb-placeholder" aria-hidden="true">⚛️</div>
+                <div class="item-card__badge">
+                  <span class="badge badge--both">구매+구독</span>
+                </div>
+              </div>
+              <div class="item-card__body">
+                <div class="item-card__seller">
+                  <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                  <span class="item-card__seller-name">dev_james</span>
+                </div>
+                <h3 class="item-card__title">React 컴포넌트 UI 키트 - TailwindCSS 기반</h3>
+                <div class="item-card__footer">
+                  <span class="item-card__price">25,000원</span>
+                  <div class="item-card__meta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    3.8k
+                  </div>
+                </div>
+              </div>
+            </a>
+          </article>
+
+          <!-- Item 3 -->
+          <article class="item-card" role="listitem">
+            <a href="/items/3" class="item-card__link" aria-label="아이콘 UI 키트 - 8,900원">
+              <div class="item-card__thumb">
+                <div class="item-card__thumb-placeholder" aria-hidden="true">✦</div>
+                <div class="item-card__badge">
+                  <span class="badge badge--purchase">구매</span>
+                </div>
+              </div>
+              <div class="item-card__body">
+                <div class="item-card__seller">
+                  <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                  <span class="item-card__seller-name">icon_leo</span>
+                </div>
+                <h3 class="item-card__title">미니멀 아이콘 UI 키트 1,200개 SVG 포함</h3>
+                <div class="item-card__footer">
+                  <span class="item-card__price">8,900원</span>
+                  <div class="item-card__meta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    6.9k
+                  </div>
+                </div>
+              </div>
+            </a>
+          </article>
+
+          <!-- Item 4 -->
+          <article class="item-card" role="listitem">
+            <a href="/items/4" class="item-card__link" aria-label="모바일 UI 키트 - 19,800원">
+              <div class="item-card__thumb">
+                <div class="item-card__thumb-placeholder" aria-hidden="true">📱</div>
+                <div class="item-card__badge">
+                  <span class="badge badge--purchase">구매</span>
+                </div>
+              </div>
+              <div class="item-card__body">
+                <div class="item-card__seller">
+                  <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                  <span class="item-card__seller-name">design_mia</span>
+                </div>
+                <h3 class="item-card__title">iOS/Android 모바일 UI 키트 - 다크모드 포함</h3>
+                <div class="item-card__footer">
+                  <span class="item-card__price">19,800원</span>
+                  <div class="item-card__meta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    1.6k
+                  </div>
+                </div>
+              </div>
+            </a>
+          </article>
+
+          <!-- Item 5 -->
+          <article class="item-card" role="listitem">
+            <a href="/items/5" class="item-card__link" aria-label="대시보드 UI 키트 - 월 12,000원부터">
+              <div class="item-card__thumb">
+                <div class="item-card__thumb-placeholder" aria-hidden="true">📊</div>
+                <div class="item-card__badge">
+                  <span class="badge badge--subscribe">구독</span>
+                </div>
+              </div>
+              <div class="item-card__body">
+                <div class="item-card__seller">
+                  <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                  <span class="item-card__seller-name">ux_sara</span>
+                </div>
+                <h3 class="item-card__title">어드민 대시보드 UI 키트 - 월간 업데이트</h3>
+                <div class="item-card__footer">
+                  <div>
+                    <span class="item-card__price-from">부터</span>
+                    <span class="item-card__price">12,000원</span>
+                    <span class="item-card__price-sub">/월</span>
+                  </div>
+                  <div class="item-card__meta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    980
+                  </div>
+                </div>
+              </div>
+            </a>
+          </article>
+
+          <!-- Item 6 -->
+          <article class="item-card" role="listitem">
+            <a href="/items/6" class="item-card__link" aria-label="이커머스 UI 키트 - 34,900원">
+              <div class="item-card__thumb">
+                <div class="item-card__thumb-placeholder" aria-hidden="true">🛍</div>
+                <div class="item-card__badge">
+                  <span class="badge badge--purchase">구매</span>
+                </div>
+              </div>
+              <div class="item-card__body">
+                <div class="item-card__seller">
+                  <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                  <span class="item-card__seller-name">icon_leo</span>
+                </div>
+                <h3 class="item-card__title">이커머스 완성형 UI 키트 - 랜딩부터 결제까지</h3>
+                <div class="item-card__footer">
+                  <span class="item-card__price">34,900원</span>
+                  <div class="item-card__meta">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    2.1k
+                  </div>
+                </div>
+              </div>
+            </a>
+          </article>
+
+        </div><!-- /browse-grid -->
+
+        <!-- Pagination -->
+        <nav class="pagination" aria-label="페이지 이동">
+          <button class="pagination__item pagination__item--disabled" aria-label="이전 페이지" aria-disabled="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button class="pagination__item pagination__item--active" aria-label="1 페이지" aria-current="page">1</button>
+          <button class="pagination__item" aria-label="2 페이지">2</button>
+          <button class="pagination__item" aria-label="3 페이지">3</button>
+          <span class="pagination__item" aria-hidden="true" style="cursor: default;">...</span>
+          <button class="pagination__item" aria-label="13 페이지">13</button>
+          <button class="pagination__item" aria-label="다음 페이지">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </nav>
+
+      </div><!-- /browse-content -->
+
+    </div><!-- /browse-layout -->
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" role="contentinfo">
+    <div class="footer__inner">
+      <div class="footer__bottom">
+        <p class="footer__copy">© 2026 Shelfy. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

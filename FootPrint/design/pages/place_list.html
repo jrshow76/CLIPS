@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>장소 목록 | 발자국</title>
+  <link rel="stylesheet" href="../common/variables.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', -apple-system, sans-serif; background: #FAFAF8; min-height: 100vh; }
+
+    /* GNB (공통) */
+    .gnb { height: 60px; background: #fff; border-bottom: 1px solid #E7E5E4; display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 100; }
+    .gnb__logo { font-size: 20px; font-weight: 800; color: #F97316; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+    .gnb__nav { display: flex; gap: 4px; margin-left: 16px; }
+    .gnb__nav a { padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; color: #78716C; text-decoration: none; transition: .15s; }
+    .gnb__nav a:hover, .gnb__nav a.active { background: #FFF8F0; color: #F97316; }
+    .gnb__actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn-sm { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; text-decoration: none; }
+    .btn-sm--primary { background: #F97316; color: #fff; }
+    .btn-sm--primary:hover { background: #EA580C; }
+
+    /* 메인 컨테이너 */
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+    /* 페이지 헤더 */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .page-header__title { font-size: 24px; font-weight: 800; color: #1C1917; }
+    .page-header__count { font-size: 14px; color: #78716C; margin-top: 4px; }
+
+    /* 필터 바 */
+    .filter-bar {
+      background: #fff;
+      border: 1px solid #E7E5E4;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .filter-bar input[type="search"] {
+      flex: 1;
+      min-width: 200px;
+      border: 1.5px solid #E7E5E4;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 14px;
+      outline: none;
+    }
+    .filter-bar input:focus { border-color: #F97316; }
+    .filter-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-chip {
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px solid #E7E5E4;
+      background: #fff;
+      color: #78716C;
+      cursor: pointer;
+    }
+    .filter-chip.active { border-color: #F97316; background: #FFF8F0; color: #F97316; }
+
+    /* 장소 그리드 */
+    .place-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    /* 장소 카드 */
+    .place-card {
+      background: #fff;
+      border: 1px solid #E7E5E4;
+      border-radius: 16px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .place-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.10); }
+
+    .place-card__thumb {
+      height: 160px;
+      background: linear-gradient(135deg, #FFF8F0, #FEF3C7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 52px;
+    }
+    .place-card__body { padding: 16px; }
+    .place-card__badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge--orange { background: #FFF8F0; color: #F97316; }
+    .badge--green  { background: #F0FDF4; color: #16A34A; }
+    .badge--blue   { background: #F0F9FF; color: #0284C7; }
+
+    .place-card__name { font-size: 16px; font-weight: 700; color: #1C1917; margin-bottom: 4px; }
+    .place-card__address { font-size: 13px; color: #78716C; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .place-card__meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #A8A29E; }
+    .place-card__rating { color: #F59E0B; font-weight: 600; font-size: 13px; }
+
+    /* 빈 상태 */
+    .empty-state { text-align: center; padding: 80px 0; color: #A8A29E; }
+    .empty-state__icon { font-size: 56px; display: block; margin-bottom: 16px; }
+    .empty-state__text { font-size: 16px; margin-bottom: 20px; }
+
+    @media (max-width: 768px) {
+      .gnb__nav { display: none; }
+      .place-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    }
+    @media (max-width: 480px) {
+      .place-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="gnb">
+    <a href="map.html" class="gnb__logo">🗺️ 발자국</a>
+    <div class="gnb__nav">
+      <a href="map.html">지도</a>
+      <a href="place_list.html" class="active">장소 목록</a>
+      <a href="#">통계</a>
+    </div>
+    <div class="gnb__actions">
+      <a href="place_register.html" class="btn-sm btn-sm--primary">＋ 장소 등록</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- 페이지 헤더 -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-header__title">나의 발자국</h1>
+        <p class="page-header__count">총 10곳을 방문했습니다</p>
+      </div>
+    </div>
+
+    <!-- 필터 바 -->
+    <div class="filter-bar">
+      <input type="search" placeholder="장소명, 주소로 검색...">
+      <div class="filter-tags">
+        <button class="filter-chip active">전체</button>
+        <button class="filter-chip">맛집</button>
+        <button class="filter-chip">카페</button>
+        <button class="filter-chip">관광지</button>
+        <button class="filter-chip">자연</button>
+        <button class="filter-chip">숙소</button>
+      </div>
+    </div>
+
+    <!-- 장소 그리드 -->
+    <div class="place-grid">
+      <a href="place_detail.html" class="place-card">
+        <div class="place-card__thumb">🏯</div>
+        <div class="place-card__body">
+          <div class="place-card__badges">
+            <span class="badge badge--orange">관광지</span>
+          </div>
+          <h2 class="place-card__name">경복궁</h2>
+          <p class="place-card__address">서울 종로구 사직로 161</p>
+          <div class="place-card__meta">
+            <span>2026.03.15</span>
+            <span class="place-card__rating">★ 5.0</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="place_detail.html" class="place-card">
+        <div class="place-card__thumb">🌋</div>
+        <div class="place-card__body">
+          <div class="place-card__badges">
+            <span class="badge badge--green">자연</span>
+          </div>
+          <h2 class="place-card__name">제주 한라산</h2>
+          <p class="place-card__address">제주 서귀포시 토평동 산15-1</p>
+          <div class="place-card__meta">
+            <span>2026.04.20</span>
+            <span class="place-card__rating">★ 5.0</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="place_detail.html" class="place-card">
+        <div class="place-card__thumb">☕</div>
+        <div class="place-card__body">
+          <div class="place-card__badges">
+            <span class="badge badge--blue">카페</span>
+          </div>
+          <h2 class="place-card__name">성수동 카페거리</h2>
+          <p class="place-card__address">서울 성동구 서울숲2길</p>
+          <div class="place-card__meta">
+            <span>2026.04.10</span>
+            <span class="place-card__rating">★ 3.0</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="place_detail.html" class="place-card">
+        <div class="place-card__thumb">🍖</div>
+        <div class="place-card__body">
+          <div class="place-card__badges">
+            <span class="badge badge--orange">맛집</span>
+          </div>
+          <h2 class="place-card__name">광장시장</h2>
+          <p class="place-card__address">서울 종로구 창경궁로 88</p>
+          <div class="place-card__meta">
+            <span>2026.04.01</span>
+            <span class="place-card__rating">★ 5.0</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+</body>
+</html>

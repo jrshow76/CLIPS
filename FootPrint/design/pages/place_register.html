@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>장소 등록 | 발자국</title>
+  <link rel="stylesheet" href="../common/variables.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', -apple-system, sans-serif; background: #FAFAF8; }
+
+    .gnb { height: 60px; background: #fff; border-bottom: 1px solid #E7E5E4; display: flex; align-items: center; padding: 0 24px; gap: 12px; position: sticky; top: 0; z-index: 100; }
+    .gnb__back { font-size: 22px; text-decoration: none; color: #1C1917; }
+    .gnb__title { font-size: 17px; font-weight: 700; color: #1C1917; }
+
+    .container { max-width: 680px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* 섹션 */
+    .section { background: #fff; border: 1px solid #E7E5E4; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+    .section__title { font-size: 15px; font-weight: 700; color: #1C1917; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    /* 폼 그룹 */
+    .form-group { margin-bottom: 16px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-group label { display: block; font-size: 13px; font-weight: 700; color: #44403C; margin-bottom: 6px; }
+    .form-group label .required { color: #F97316; margin-left: 2px; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      border: 1.5px solid #E7E5E4;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 14px;
+      color: #1C1917;
+      transition: border-color .2s;
+      outline: none;
+      background: #fff;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #F97316; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: #A8A29E; }
+    .form-group textarea { resize: vertical; min-height: 100px; }
+
+    /* 지도 선택 영역 */
+    .map-picker {
+      height: 200px;
+      background: linear-gradient(135deg, #E8E3D9, #D4CFBE);
+      border-radius: 12px;
+      border: 1.5px dashed #C7C3BB;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: border-color .2s;
+      margin-bottom: 12px;
+    }
+    .map-picker:hover { border-color: #F97316; }
+    .map-picker__icon { font-size: 36px; }
+    .map-picker__text { font-size: 14px; color: #78716C; font-weight: 500; }
+
+    .coord-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* 카테고리 선택 */
+    .category-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cat-chip {
+      padding: 7px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px solid #E7E5E4;
+      background: #fff;
+      color: #78716C;
+      cursor: pointer;
+      transition: .15s;
+    }
+    .cat-chip.selected { border-color: #F97316; background: #FFF8F0; color: #F97316; }
+
+    /* 사진 업로드 */
+    .photo-upload {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .photo-add-btn {
+      width: 88px;
+      height: 88px;
+      border: 1.5px dashed #C7C3BB;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      font-size: 24px;
+      color: #A8A29E;
+      transition: .15s;
+    }
+    .photo-add-btn:hover { border-color: #F97316; color: #F97316; }
+    .photo-add-btn span { font-size: 11px; }
+
+    /* 평점 */
+    .rating-selector { display: flex; gap: 8px; }
+    .star-btn { font-size: 28px; cursor: pointer; color: #E7E5E4; transition: color .1s; }
+    .star-btn.filled { color: #F59E0B; }
+
+    /* 하단 버튼 */
+    .form-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border-top: 1px solid #E7E5E4;
+      padding: 16px 24px;
+      display: flex;
+      gap: 12px;
+    }
+    .btn-cancel { flex: 1; padding: 14px; border: 1.5px solid #E7E5E4; border-radius: 10px; font-size: 15px; font-weight: 600; color: #78716C; background: #fff; cursor: pointer; }
+    .btn-submit { flex: 2; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; color: #fff; background: #F97316; cursor: pointer; }
+    .btn-submit:hover { background: #EA580C; }
+  </style>
+</head>
+<body>
+
+  <nav class="gnb">
+    <a href="place_list.html" class="gnb__back">←</a>
+    <span class="gnb__title">장소 등록</span>
+  </nav>
+
+  <div class="container">
+    <form novalidate>
+
+      <!-- 위치 정보 -->
+      <div class="section">
+        <h2 class="section__title">📍 위치 정보</h2>
+        <div class="map-picker">
+          <span class="map-picker__icon">🗺️</span>
+          <p class="map-picker__text">지도를 클릭하거나 주소를 검색하세요</p>
+        </div>
+        <div class="form-group">
+          <label for="address">주소</label>
+          <input type="text" id="address" placeholder="주소를 입력하거나 지도에서 선택하세요">
+        </div>
+        <div class="coord-row">
+          <div class="form-group">
+            <label for="lat">위도 <span class="required">*</span></label>
+            <input type="number" id="lat" placeholder="37.5795">
+          </div>
+          <div class="form-group">
+            <label for="lng">경도 <span class="required">*</span></label>
+            <input type="number" id="lng" placeholder="126.9770">
+          </div>
+        </div>
+      </div>
+
+      <!-- 기본 정보 -->
+      <div class="section">
+        <h2 class="section__title">📝 기본 정보</h2>
+        <div class="form-group">
+          <label for="name">장소명 <span class="required">*</span></label>
+          <input type="text" id="name" placeholder="장소명을 입력하세요 (최대 100자)">
+        </div>
+        <div class="form-group">
+          <label for="visitedAt">방문일 <span class="required">*</span></label>
+          <input type="date" id="visitedAt">
+        </div>
+        <div class="form-group">
+          <label>평점</label>
+          <div class="rating-selector">
+            <span class="star-btn filled">★</span>
+            <span class="star-btn filled">★</span>
+            <span class="star-btn filled">★</span>
+            <span class="star-btn">★</span>
+            <span class="star-btn">★</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="memo">메모</label>
+          <textarea id="memo" placeholder="이 장소에 대한 기억을 남겨보세요... (최대 2,000자)"></textarea>
+        </div>
+      </div>
+
+      <!-- 카테고리 -->
+      <div class="section">
+        <h2 class="section__title">🏷️ 카테고리 <span class="required">*</span></h2>
+        <div class="category-grid">
+          <button type="button" class="cat-chip selected">맛집</button>
+          <button type="button" class="cat-chip">카페</button>
+          <button type="button" class="cat-chip">관광지</button>
+          <button type="button" class="cat-chip">숙소</button>
+          <button type="button" class="cat-chip">쇼핑</button>
+          <button type="button" class="cat-chip">자연</button>
+          <button type="button" class="cat-chip">문화</button>
+          <button type="button" class="cat-chip">기타</button>
+        </div>
+      </div>
+
+      <!-- 사진 -->
+      <div class="section">
+        <h2 class="section__title">📷 사진 (최대 5장)</h2>
+        <div class="photo-upload">
+          <div class="photo-add-btn">
+            <span>＋</span>
+            <span>사진 추가</span>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- 하단 버튼 -->
+  <div class="form-actions">
+    <button type="button" class="btn-cancel" onclick="history.back()">취소</button>
+    <button type="submit" class="btn-submit">등록하기</button>
+  </div>
+
+</body>
+</html>

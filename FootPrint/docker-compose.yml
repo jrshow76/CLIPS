@@ -1,0 +1,83 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: footprint-db
+    environment:
+      POSTGRES_DB: footprint
+      POSTGRES_USER: footprint_app
+      POSTGRES_PASSWORD: footprint_pw
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5436:5432"
+    networks:
+      - footprint-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U footprint_app -d footprint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: footprint-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: footprint
+      DB_USER: footprint_app
+      DB_PASSWORD: footprint_pw
+      JWT_SECRET: ${JWT_SECRET:-footprint-secret-key-must-be-at-least-256-bits-long-for-hs256}
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      - upload_data:/app/uploads
+    ports:
+      - "8090:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - footprint-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8080/api/v1/auth/me > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: footprint-frontend
+    environment:
+      # BACKEND_URL: Next.js 서버(컨테이너)에서 백엔드로 내부 통신
+      BACKEND_URL: http://backend:8080
+      # NEXT_PUBLIC_API_URL: 브라우저에서 호스트 포트로 접근
+      NEXT_PUBLIC_API_URL: http://localhost:8090
+      NEXT_PUBLIC_KAKAO_MAP_KEY: ${KAKAO_MAP_KEY:-}
+    ports:
+      - "3002:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - footprint-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  upload_data:
+
+networks:
+  footprint-net:
+    driver: bridge

@@ -1,0 +1,182 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  min-height: 60vh;
+}
+
+.card {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 28rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+/* 애니메이션 원형 아이콘 */
+.animationWrapper {
+  position: relative;
+  width: 5rem;
+  height: 5rem;
+}
+
+.circle1,
+.circle2,
+.circle3 {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.circle1 {
+  width: 5rem;
+  height: 5rem;
+  border-top-color: #3b82f6;
+  animation: spin 1s linear infinite;
+}
+
+.circle2 {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-top-color: #93c5fd;
+  animation: spin 0.8s linear infinite reverse;
+}
+
+.circle3 {
+  width: 2rem;
+  height: 2rem;
+  border-top-color: #bfdbfe;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* 단계 메시지 */
+.stepMessage {
+  font-size: 1rem;
+  color: #374151;
+  font-weight: 500;
+  margin: 0;
+  min-height: 1.5rem;
+}
+
+/* 진행률 섹션 */
+.progressSection {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progressLabel {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.progressPercent {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #3b82f6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 프로그레스 바 */
+.progressBar {
+  width: 100%;
+  height: 0.625rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+  /* 줄무늬 애니메이션 */
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 경과 시간 */
+.elapsed {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 폴백 안내 메시지 */
+.fallbackNotice {
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  color: #92400e;
+  width: 100%;
+  text-align: left;
+  line-height: 1.5;
+}
+
+/* 취소 버튼 */
+.cancelButton {
+  padding: 0.625rem 2rem;
+  background-color: #fff;
+  color: #dc2626;
+  border: 1.5px solid #fca5a5;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.25rem;
+}
+
+.cancelButton:hover {
+  background-color: #fee2e2;
+  border-color: #f87171;
+}
+
+.waitMessage {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}

@@ -1,0 +1,1190 @@
+{
+  "info": {
+    "name": "Shelfy API Test Collection",
+    "description": "Shelfy 서비스 API 테스트 컬렉션 (인증 → 파일 → 아이템 → 구매 → 구독 체이닝)\n\n환경 변수:\n- baseUrl: API 서버 기본 URL\n- accessToken: 로그인 후 자동 설정\n- sellerAccessToken: 셀러 계정 토큰\n- buyerAccessToken: 바이어 계정 토큰\n- testItemId: 생성된 상품 ID\n- testOrderId: 생성된 주문 ID\n- testSubscriptionId: 생성된 구독 ID\n- testImageId: 업로드된 이미지 ID",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "sellerAccessToken", "value": "", "type": "string" },
+    { "key": "buyerAccessToken", "value": "", "type": "string" },
+    { "key": "testItemId", "value": "", "type": "string" },
+    { "key": "testPlanId", "value": "", "type": "string" },
+    { "key": "testOrderId", "value": "", "type": "string" },
+    { "key": "testSubscriptionId", "value": "", "type": "string" },
+    { "key": "testImageId", "value": "", "type": "string" },
+    { "key": "sellerEmail", "value": "", "type": "string" },
+    { "key": "buyerEmail", "value": "", "type": "string" },
+    { "key": "testPassword", "value": "Shelfy1234!", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01. 인증 (AUTH)",
+      "item": [
+        {
+          "name": "AUTH-001 셀러 회원가입",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const timestamp = Date.now();",
+                  "const sellerEmail = `seller_${timestamp}@shelfy-test.io`;",
+                  "const sellerNick = `seller_${timestamp.toString().slice(-6)}`;",
+                  "pm.collectionVariables.set('sellerEmail', sellerEmail);",
+                  "pm.collectionVariables.set('sellerNick', sellerNick);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('응답 구조 검증', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data.userId).to.exist;",
+                  "  pm.expect(body.data.email).to.equal(pm.collectionVariables.get('sellerEmail'));",
+                  "  pm.expect(body.data.nickname).to.equal(pm.collectionVariables.get('sellerNick'));",
+                  "  pm.expect(body.data.password).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"passwordConfirm\": \"{{testPassword}}\",\n  \"nickname\": \"{{sellerNick}}\",\n  \"agreeTerms\": true,\n  \"agreePrivacy\": true,\n  \"agreeMarketing\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "AUTH-002 바이어 회원가입",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const timestamp = Date.now() + 1;",
+                  "const buyerEmail = `buyer_${timestamp}@shelfy-test.io`;",
+                  "const buyerNick = `buyer_${timestamp.toString().slice(-6)}`;",
+                  "pm.collectionVariables.set('buyerEmail', buyerEmail);",
+                  "pm.collectionVariables.set('buyerNick', buyerNick);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"passwordConfirm\": \"{{testPassword}}\",\n  \"nickname\": \"{{buyerNick}}\",\n  \"agreeTerms\": true,\n  \"agreePrivacy\": true,\n  \"agreeMarketing\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "AUTH-E001 이메일 중복 가입 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409 반환', () => pm.response.to.have.status(409));",
+                  "pm.test('에러 코드 AUTH-E001', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error.code).to.equal('AUTH-E001');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"passwordConfirm\": \"{{testPassword}}\",\n  \"nickname\": \"new_unique_nick_999\",\n  \"agreeTerms\": true,\n  \"agreePrivacy\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "AUTH-003 셀러 로그인",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('accessToken 발급', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.accessToken).to.exist;",
+                  "  pm.expect(body.data.tokenType).to.equal('Bearer');",
+                  "  pm.expect(body.data.expiresIn).to.equal(3600);",
+                  "  pm.expect(body.data.refreshToken).to.be.undefined;",
+                  "  pm.collectionVariables.set('sellerAccessToken', body.data.accessToken);",
+                  "  pm.collectionVariables.set('accessToken', body.data.accessToken);",
+                  "});",
+                  "pm.test('refreshToken HttpOnly 쿠키 설정 확인', () => {",
+                  "  const setCookie = pm.response.headers.get('Set-Cookie') || '';",
+                  "  pm.expect(setCookie.toLowerCase()).to.include('httponly');",
+                  "  pm.expect(setCookie).to.include('refreshToken');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "AUTH-004 바이어 로그인",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('바이어 accessToken 저장', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('buyerAccessToken', body.data.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "AUTH-E020 잘못된 비밀번호 로그인",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401 반환', () => pm.response.to.have.status(401));",
+                  "pm.test('에러 코드 AUTH-E020', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('AUTH-E020');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"WrongPass9!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "AUTH-005 토큰 갱신",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('새 accessToken 발급', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.accessToken).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/token/refresh"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. 파일 업로드 (FILE)",
+      "item": [
+        {
+          "name": "FILE-001 이미지 정상 업로드 (JPG)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => pm.response.to.have.status(201));",
+                  "pm.test('imageId 및 URL 반환', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.imageId).to.exist;",
+                  "  pm.expect(body.data.url).to.exist;",
+                  "  pm.expect(body.data.url).to.include('cdn.shelfy.io');",
+                  "  pm.collectionVariables.set('testImageId', body.data.imageId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "./fixtures/test-image.jpg" },
+                { "key": "type", "value": "ITEM_IMAGE", "type": "text" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "FILE-E002 지원하지 않는 형식 (GIF) 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 반환', () => pm.response.to.have.status(400));",
+                  "pm.test('에러 코드 ITEM-E002', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('ITEM-E002');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "./fixtures/test-image.gif" },
+                { "key": "type", "value": "ITEM_IMAGE", "type": "text" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "FILE-E005 Magic Bytes 스푸핑 차단 (확장자 위조)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 반환 (Magic Bytes 검증)', () => pm.response.to.have.status(400));",
+                  "pm.test('에러 코드 ITEM-E002', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('ITEM-E002');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "./fixtures/spoofed-script.jpg",
+                  "description": "확장자는 .jpg이나 실제 내용은 PHP 스크립트인 파일"
+                },
+                { "key": "type", "value": "ITEM_IMAGE", "type": "text" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. 상품 (ITEM)",
+      "item": [
+        {
+          "name": "ITEM-001 상품 등록 (PURCHASE 유형)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => pm.response.to.have.status(201));",
+                  "pm.test('itemId 저장', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.itemId).to.exist;",
+                  "  pm.collectionVariables.set('testItemId', body.data.itemId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman 테스트 상품\",\n  \"description\": \"API 테스트 컬렉션으로 등록한 테스트 상품입니다.\",\n  \"category\": \"TEMPLATE\",\n  \"saleType\": \"PURCHASE\",\n  \"price\": 15000,\n  \"imageIds\": [\"{{testImageId}}\"],\n  \"thumbnailIndex\": 0,\n  \"tags\": [\"테스트\", \"Postman\"],\n  \"status\": \"PUBLISHED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ITEM-002 상품 등록 (SUBSCRIBE 유형)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => pm.response.to.have.status(201));",
+                  "pm.test('구독 상품 itemId 저장', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('subscribeItemId', body.data.itemId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"구독 전용 테스트 상품\",\n  \"description\": \"구독 API 테스트를 위한 전용 상품입니다.\",\n  \"category\": \"COURSE\",\n  \"saleType\": \"SUBSCRIBE\",\n  \"subscriptionPlans\": [\n    {\n      \"planName\": \"Basic\",\n      \"period\": \"MONTHLY\",\n      \"planPrice\": 5000,\n      \"description\": \"월간 기본 플랜\"\n    },\n    {\n      \"planName\": \"Premium\",\n      \"period\": \"YEARLY\",\n      \"planPrice\": 50000,\n      \"description\": \"연간 프리미엄 플랜\"\n    }\n  ],\n  \"imageIds\": [\"{{testImageId}}\"],\n  \"status\": \"PUBLISHED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ITEM-E005 가격 범위 오류 (99원)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 반환', () => pm.response.to.have.status(400));",
+                  "pm.test('에러 코드 ITEM-E005', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('ITEM-E005');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"가격 오류 테스트\",\n  \"description\": \"가격 경계값 테스트용 상품입니다.\",\n  \"category\": \"TEMPLATE\",\n  \"saleType\": \"PURCHASE\",\n  \"price\": 99,\n  \"imageIds\": [\"{{testImageId}}\"],\n  \"status\": \"PUBLISHED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ITEM-003 상품 상세 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('상품 정보 및 셀러 정보 포함', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.itemId).to.exist;",
+                  "  pm.expect(body.data.title).to.exist;",
+                  "  pm.expect(body.data.seller).to.exist;",
+                  "  pm.expect(body.data.viewCount).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/items/{{testItemId}}"
+          }
+        },
+        {
+          "name": "ITEM-004 상품 수정",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('updatedAt 포함', () => {",
+                  "  pm.expect(pm.response.json().data.updatedAt).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/items/{{testItemId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman 수정된 테스트 상품\",\n  \"description\": \"API 테스트 컬렉션으로 수정한 테스트 상품입니다.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ITEM-E020 타인 상품 수정 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 반환', () => pm.response.to.have.status(403));",
+                  "pm.test('에러 코드 ITEM-E020', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('ITEM-E020');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/items/{{testItemId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"권한 없는 수정 시도\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ITEM-005 상품 목록 탐색 (전체 공개)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('페이지네이션 구조 검증', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.content).to.be.an('array');",
+                  "  pm.expect(body.data.page).to.equal(0);",
+                  "  pm.expect(body.data.size).to.exist;",
+                  "  pm.expect(body.data.totalElements).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/items?sort=latest&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["items"],
+              "query": [
+                { "key": "sort", "value": "latest" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ITEM-006 내 상품 목록 조회 (셀러)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('공개/비공개 모두 포함', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.content).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/items/my?status=ALL",
+              "host": ["{{baseUrl}}"],
+              "path": ["items", "my"],
+              "query": [{ "key": "status", "value": "ALL" }]
+            }
+          }
+        },
+        {
+          "name": "ITEM-007 상품 검색",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('검색 결과 totalElements 포함', () => {",
+                  "  pm.expect(pm.response.json().data.totalElements).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/items/search?q=Postman&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["items", "search"],
+              "query": [
+                { "key": "q", "value": "Postman" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. 구매 (ORDER)",
+      "item": [
+        {
+          "name": "ORDER-001 정상 구매 (PURCHASE 상품)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => pm.response.to.have.status(201));",
+                  "pm.test('주문 정보 검증 및 orderId 저장', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.orderId).to.exist;",
+                  "  pm.expect(body.data.status).to.equal('COMPLETED');",
+                  "  pm.expect(body.data.paidAt).to.exist;",
+                  "  pm.collectionVariables.set('testOrderId', body.data.orderId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{testItemId}},\n  \"paymentMethod\": \"CARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ORDER-E001 본인 상품 구매 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422 반환', () => pm.response.to.have.status(422));",
+                  "pm.test('에러 코드 ORDER-E001', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error.code).to.equal('ORDER-E001');",
+                  "  pm.expect(body.error.message).to.include('본인');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{testItemId}},\n  \"paymentMethod\": \"CARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ORDER-E004 구독 전용 상품 단건 구매 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422 반환', () => pm.response.to.have.status(422));",
+                  "pm.test('에러 코드 ORDER-E004', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('ORDER-E004');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{subscribeItemId}},\n  \"paymentMethod\": \"CARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ORDER-002 구매 내역 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('구매 내역 페이지네이션 검증', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.content).to.be.an('array');",
+                  "  pm.expect(body.data.content.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/orders"
+          }
+        },
+        {
+          "name": "ORDER-003 환불 요청 (7일 이내, 미열람)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('환불 상태 및 금액 검증', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.status).to.equal('REFUNDED');",
+                  "  pm.expect(body.data.refundAmount).to.be.greaterThan(0);",
+                  "  pm.expect(body.data.refundedAt).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/orders/{{testOrderId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Postman 테스트 환불\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. 구독 (SUB)",
+      "item": [
+        {
+          "name": "SUB-001 구독 신청 (MONTHLY 플랜)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// subscribeItemId와 planId가 설정되어 있어야 함",
+                  "const subItemId = pm.collectionVariables.get('subscribeItemId');",
+                  "if (!subItemId) {",
+                  "  console.warn('subscribeItemId가 설정되지 않았습니다. 아이템 등록 단계를 먼저 실행하세요.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 반환', () => pm.response.to.have.status(201));",
+                  "pm.test('구독 정보 검증 및 subscriptionId 저장', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.subscriptionId).to.exist;",
+                  "  pm.expect(body.data.status).to.equal('ACTIVE');",
+                  "  pm.expect(body.data.nextBillingAt).to.exist;",
+                  "  pm.collectionVariables.set('testSubscriptionId', body.data.subscriptionId);",
+                  "});",
+                  "pm.test('MONTHLY 다음 결제일 = 구독 시작일 + 1개월', () => {",
+                  "  const body = pm.response.json();",
+                  "  const start = new Date(body.data.startedAt);",
+                  "  const nextBilling = new Date(body.data.nextBillingAt);",
+                  "  const expected = new Date(start);",
+                  "  expected.setMonth(expected.getMonth() + 1);",
+                  "  const diffMs = Math.abs(nextBilling - expected);",
+                  "  pm.expect(diffMs).to.be.lessThan(24 * 60 * 60 * 1000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/subscriptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{subscribeItemId}},\n  \"planId\": {{testPlanId}},\n  \"paymentMethod\": \"CARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SUB-E001 중복 구독 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409 반환', () => pm.response.to.have.status(409));",
+                  "pm.test('에러 코드 SUB-E001', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('SUB-E001');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/subscriptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{subscribeItemId}},\n  \"planId\": {{testPlanId}},\n  \"paymentMethod\": \"CARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SUB-E002 본인 상품 구독 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422 반환', () => pm.response.to.have.status(422));",
+                  "pm.test('에러 코드 SUB-E002', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('SUB-E002');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/subscriptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{subscribeItemId}},\n  \"planId\": {{testPlanId}},\n  \"paymentMethod\": \"CARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SUB-002 구독 내역 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('활성 구독 포함 확인', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.content).to.be.an('array');",
+                  "  const activeSubs = body.data.content.filter(s => s.status === 'ACTIVE');",
+                  "  pm.expect(activeSubs.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions?status=ALL",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions"],
+              "query": [{ "key": "status", "value": "ALL" }]
+            }
+          }
+        },
+        {
+          "name": "SUB-003 구독 해지 신청",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('CANCEL_REQUESTED 상태 및 activeUntil 확인', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.status).to.equal('CANCEL_REQUESTED');",
+                  "  pm.expect(body.data.activeUntil).to.exist;",
+                  "  pm.expect(body.data.cancelledAt).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/subscriptions/{{testSubscriptionId}}/cancel"
+          }
+        },
+        {
+          "name": "SUB-004 구독 해지 취소 (재활성화)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('ACTIVE 상태로 복원', () => {",
+                  "  pm.expect(pm.response.json().data.status).to.equal('ACTIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/subscriptions/{{testSubscriptionId}}/reactivate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. 프로필 (PROFILE)",
+      "item": [
+        {
+          "name": "PROFILE-001 셀러 공개 프로필 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('공개 프로필 구조 검증', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.nickname).to.exist;",
+                  "  pm.expect(body.data.itemCount).to.be.a('number');",
+                  "  pm.expect(body.data.joinedAt).to.exist;",
+                  "  pm.expect(body.data.items).to.exist;",
+                  "  pm.expect(body.data.email).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{sellerNick}}/profile"
+          }
+        },
+        {
+          "name": "PROFILE-002 내 프로필 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('이메일 인증 상태 포함', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.email).to.exist;",
+                  "  pm.expect(body.data.emailVerified).to.be.a('boolean');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "PROFILE-003 닉네임 중복 검사 - 본인 닉네임 재설정 허용",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환 (본인 닉네임은 중복 허용)', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"{{sellerNick}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PROFILE-E002 타인 닉네임으로 변경 차단",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409 반환', () => pm.response.to.have.status(409));",
+                  "pm.test('에러 코드 AUTH-E002', () => {",
+                  "  pm.expect(pm.response.json().error.code).to.equal('AUTH-E002');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{buyerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"{{sellerNick}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PROFILE-004 셀러 수익 현황 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 반환', () => pm.response.to.have.status(200));",
+                  "pm.test('수수료 10% 계산 검증', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.totalRevenue).to.be.a('number');",
+                  "  pm.expect(body.data.totalFee).to.be.a('number');",
+                  "  pm.expect(body.data.netRevenue).to.be.a('number');",
+                  "  // 수수료 10% 정확도 검증 (오차 1원 허용)",
+                  "  const expectedFee = Math.floor(body.data.totalRevenue * 0.1);",
+                  "  pm.expect(Math.abs(body.data.totalFee - expectedFee)).to.be.lessThan(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/revenue?year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me", "revenue"],
+              "query": [{ "key": "year", "value": "2026" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. 로그아웃",
+      "item": [
+        {
+          "name": "AUTH-LOGOUT 셀러 로그아웃",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204 반환', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('sellerAccessToken', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "AUTH-LOGOUT 로그아웃 후 보호 API 접근 차단 확인",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401 반환 (로그아웃 후 접근 불가)', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerAccessToken}}" }
+            ],
+            "url": "{{baseUrl}}/users/me"
+          }
+        }
+      ]
+    }
+  ]
+}

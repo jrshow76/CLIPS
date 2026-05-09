@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>design_mia의 선반 - Shelfy</title>
+  <link rel="stylesheet" href="./common.css">
+  <style>
+    /* ==========================================================================
+       04_my-shelf.html - 셀러 프로필 / 마이 선반 페이지 전용 스타일
+       SCR-004 셀러 프로필 / 선반 (공개)
+       SCR-021 내 선반 관리 (대시보드 - 로그인 사용자 자신)
+       ========================================================================== */
+
+    /* --------------------------------------------------------------------------
+       Profile Hero (셀러 프로필 헤더)
+       -------------------------------------------------------------------------- */
+    .profile-hero {
+      background-color: var(--color-bg-muted);
+      border-bottom: 1px solid var(--color-border-default);
+      padding: var(--space-12) 0 0;
+    }
+    .profile-hero__inner {
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+    }
+
+    .profile-hero__top {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-6);
+      margin-bottom: var(--space-8);
+    }
+
+    /* Avatar */
+    .profile-hero__avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .profile-hero__avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: var(--radius-full);
+      background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary-dark));
+      border: 3px solid var(--color-bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-3xl);
+      font-weight: var(--font-weight-bold);
+      color: white;
+      box-shadow: var(--shadow-md);
+    }
+    .profile-hero__avatar-edit-btn {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-bg-surface);
+      border: 1.5px solid var(--color-border-default);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+    .profile-hero__avatar-edit-btn:hover {
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Profile Info */
+    .profile-hero__info {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-hero__nickname {
+      font-size: var(--font-size-3xl);
+      font-weight: var(--font-weight-extrabold);
+      color: var(--color-text-primary);
+      letter-spacing: var(--letter-spacing-tight);
+      margin-bottom: var(--space-2);
+    }
+    .profile-hero__bio {
+      font-size: var(--font-size-base);
+      color: var(--color-text-secondary);
+      line-height: var(--line-height-relaxed);
+      max-width: 520px;
+      margin-bottom: var(--space-4);
+    }
+    .profile-hero__bio--empty {
+      color: var(--color-text-disabled);
+      font-style: italic;
+    }
+
+    /* Stats row */
+    .profile-hero__stats {
+      display: flex;
+      align-items: center;
+      gap: var(--space-6);
+      flex-wrap: wrap;
+    }
+    .profile-hero__stat {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .profile-hero__stat-value {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+      line-height: 1;
+    }
+    .profile-hero__stat-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+      margin-top: var(--space-1);
+    }
+    .profile-hero__stat-divider {
+      width: 1px;
+      height: 32px;
+      background-color: var(--color-border-default);
+    }
+
+    /* Actions (공개 프로필에서 타 사용자가 보는 경우) */
+    .profile-hero__actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-shrink: 0;
+    }
+
+    /* Owner mode banner (자신의 선반인 경우) */
+    .profile-owner-notice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      background-color: var(--color-primary-10);
+      border: 1px solid rgba(200, 92, 61, 0.20);
+      border-radius: var(--radius-lg);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+    .profile-owner-notice__text {
+      font-size: var(--font-size-sm);
+      color: var(--color-primary);
+      font-weight: var(--font-weight-medium);
+    }
+    .profile-owner-notice__actions {
+      display: flex;
+      gap: var(--space-2);
+      flex-shrink: 0;
+    }
+
+    /* Tab bar under hero */
+    .profile-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: none;
+      margin-top: var(--space-6);
+    }
+    .profile-tab {
+      padding: var(--space-3) var(--space-5);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-tertiary);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      transition: color var(--transition-base), border-color var(--transition-base);
+      white-space: nowrap;
+    }
+    .profile-tab:hover {
+      color: var(--color-text-secondary);
+    }
+    .profile-tab--active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    /* --------------------------------------------------------------------------
+       Shelf Content Area
+       -------------------------------------------------------------------------- */
+    .shelf-layout {
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+      padding-top: var(--space-8);
+      padding-bottom: var(--space-20);
+    }
+
+    /* --------------------------------------------------------------------------
+       Owner Mode: Shelf Management (내 선반 관리 뷰)
+       -------------------------------------------------------------------------- */
+    .shelf-owner-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+      background-color: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-xl);
+      padding: var(--space-4) var(--space-5);
+    }
+
+    /* Status Tab Pills */
+    .status-tab-group {
+      display: flex;
+      gap: var(--space-1);
+      background-color: var(--color-bg-muted);
+      border-radius: var(--radius-full);
+      padding: 3px;
+    }
+    .status-tab {
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-tertiary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: background-color var(--transition-base), color var(--transition-base);
+      white-space: nowrap;
+    }
+    .status-tab:hover { color: var(--color-text-secondary); }
+    .status-tab--active {
+      background-color: var(--color-bg-surface);
+      color: var(--color-text-primary);
+      font-weight: var(--font-weight-semibold);
+      box-shadow: var(--shadow-xs);
+    }
+
+    /* Shelf toolbar actions */
+    .shelf-owner-toolbar__actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    /* --------------------------------------------------------------------------
+       Item Grid (셀러 상품 목록)
+       -------------------------------------------------------------------------- */
+    .shelf-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-4);
+    }
+
+    /* Owner item card has extra overlay controls */
+    .item-card--owner {
+      position: relative;
+    }
+    .item-card--owner:hover .item-card-overlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .item-card-overlay {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      display: flex;
+      gap: var(--space-1);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-base);
+      z-index: 10;
+    }
+    .item-card-overlay__btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      background-color: rgba(255,255,255,0.95);
+      border: 1px solid var(--color-border-default);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+      box-shadow: var(--shadow-xs);
+    }
+    .item-card-overlay__btn:hover { color: var(--color-text-primary); border-color: var(--color-border-strong); }
+    .item-card-overlay__btn--danger:hover { color: var(--color-error); border-color: var(--color-error); }
+
+    /* Status indicator on card */
+    .item-card__status-dot {
+      position: absolute;
+      top: var(--space-3);
+      left: var(--space-3);
+      z-index: 5;
+    }
+
+    /* Draft overlay */
+    .item-card--draft .item-card__thumb::after {
+      content: '비공개';
+      position: absolute;
+      inset: 0;
+      background-color: rgba(28, 26, 23, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: var(--letter-spacing-wide);
+    }
+
+    /* Toggle switch for public/private */
+    .publish-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-top: var(--space-3);
+    }
+    .publish-toggle__label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+    }
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-switch__track {
+      position: absolute;
+      inset: 0;
+      background-color: var(--color-border-strong);
+      border-radius: var(--radius-full);
+      transition: background-color var(--transition-base);
+      cursor: pointer;
+    }
+    .toggle-switch input:checked + .toggle-switch__track {
+      background-color: var(--color-primary);
+    }
+    .toggle-switch__track::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-full);
+      background-color: white;
+      transition: transform var(--transition-base);
+      box-shadow: var(--shadow-xs);
+    }
+    .toggle-switch input:checked + .toggle-switch__track::before {
+      transform: translateX(16px);
+    }
+
+    /* --------------------------------------------------------------------------
+       Empty State (상품 없는 경우)
+       -------------------------------------------------------------------------- */
+    .shelf-empty {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-20) var(--space-8);
+      text-align: center;
+      gap: var(--space-5);
+    }
+    .shelf-empty__icon {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius-xl);
+      background-color: var(--color-bg-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      border: 2px dashed var(--color-border-default);
+    }
+    .shelf-empty__title {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-secondary);
+    }
+    .shelf-empty__desc {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      max-width: 320px;
+      line-height: var(--line-height-relaxed);
+    }
+
+    /* --------------------------------------------------------------------------
+       Responsive
+       -------------------------------------------------------------------------- */
+    @media (max-width: 1024px) {
+      .shelf-grid { grid-template-columns: repeat(3, 1fr); }
+      .profile-hero__avatar { width: 80px; height: 80px; font-size: var(--font-size-2xl); }
+    }
+
+    @media (max-width: 768px) {
+      .profile-hero__top {
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+      .profile-hero__actions { width: 100%; }
+      .profile-hero__nickname { font-size: var(--font-size-2xl); }
+      .profile-hero__stats { gap: var(--space-4); }
+      .shelf-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+      .shelf-owner-toolbar { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+      .shelf-owner-toolbar__actions { width: 100%; justify-content: flex-end; }
+    }
+
+    @media (max-width: 480px) {
+      .profile-tabs { overflow-x: auto; scrollbar-width: none; }
+      .profile-tabs::-webkit-scrollbar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- GNB (로그인 상태 - 자신의 선반 방문) -->
+  <header class="gnb" role="banner">
+    <div class="gnb__inner">
+      <a href="/" class="gnb__logo" aria-label="Shelfy 홈">
+        <div class="gnb__logo-mark" aria-hidden="true">S</div>
+        <span class="gnb__logo-text">Shelfy</span>
+      </a>
+      <div class="gnb__search" role="search">
+        <label for="gnb-search" class="sr-only">상품 검색</label>
+        <svg class="gnb__search-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input id="gnb-search" type="search" class="gnb__search-input" placeholder="상품명, 셀러, 태그로 검색" autocomplete="off">
+      </div>
+      <nav class="gnb__nav" aria-label="사용자 메뉴">
+        <a href="/dashboard/items/new" class="btn btn--secondary btn--sm">+ 상품 등록</a>
+        <button class="gnb__avatar" aria-label="내 계정 메뉴 열기" aria-haspopup="true" aria-expanded="false">
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#C85C3D,#A34428);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;">M</div>
+        </button>
+      </nav>
+      <button class="gnb__mobile-menu-btn btn btn--ghost btn--icon" aria-label="메뉴 열기">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page-body">
+
+    <!-- -------------------------------------------------------
+         Profile Hero
+         ------------------------------------------------------- -->
+    <div class="profile-hero">
+      <div class="profile-hero__inner">
+
+        <!-- Owner Mode Notice (자신의 선반일 때만 노출) -->
+        <div class="profile-owner-notice" role="note" aria-label="내 선반 관리 안내">
+          <span class="profile-owner-notice__text">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="display:inline;vertical-align:-2px;margin-right:4px;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            현재 내 선반을 관리 중입니다. 비공개 상품도 함께 표시됩니다.
+          </span>
+          <div class="profile-owner-notice__actions">
+            <a href="/dashboard/profile" class="btn btn--ghost btn--sm">프로필 수정</a>
+            <a href="/dashboard/items/new" class="btn btn--primary btn--sm">+ 상품 등록</a>
+          </div>
+        </div>
+
+        <!-- Profile Top -->
+        <div class="profile-hero__top">
+          <!-- Avatar -->
+          <div class="profile-hero__avatar-wrap">
+            <div class="profile-hero__avatar" aria-label="design_mia 프로필 이미지">M</div>
+            <button class="profile-hero__avatar-edit-btn" aria-label="프로필 이미지 변경">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Info -->
+          <div class="profile-hero__info">
+            <h1 class="profile-hero__nickname">design_mia</h1>
+            <p class="profile-hero__bio">
+              UI/UX 디자이너. Figma 키트, 아이콘 세트, 디자인 리소스를 공유합니다.
+              전문 디자이너의 실무 경험을 담은 고품질 리소스를 제공합니다.
+            </p>
+            <div class="profile-hero__stats" role="list" aria-label="셀러 통계">
+              <div class="profile-hero__stat" role="listitem">
+                <span class="profile-hero__stat-value">24</span>
+                <span class="profile-hero__stat-label">전체 상품</span>
+              </div>
+              <div class="profile-hero__stat-divider" aria-hidden="true"></div>
+              <div class="profile-hero__stat" role="listitem">
+                <span class="profile-hero__stat-value">18</span>
+                <span class="profile-hero__stat-label">공개 상품</span>
+              </div>
+              <div class="profile-hero__stat-divider" aria-hidden="true"></div>
+              <div class="profile-hero__stat" role="listitem">
+                <span class="profile-hero__stat-value">1,240</span>
+                <span class="profile-hero__stat-label">구독자</span>
+              </div>
+              <div class="profile-hero__stat-divider" aria-hidden="true"></div>
+              <div class="profile-hero__stat" role="listitem">
+                <span class="profile-hero__stat-value">2026.01</span>
+                <span class="profile-hero__stat-label">가입일</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions (타 사용자가 볼 때의 버튼 - 소유자 모드에서는 숨김 처리) -->
+          <!-- <div class="profile-hero__actions">
+            <button class="btn btn--primary">팔로우</button>
+            <button class="btn btn--secondary btn--icon" aria-label="공유">...</button>
+          </div> -->
+        </div>
+
+        <!-- Profile Tab Nav -->
+        <nav class="profile-tabs" role="tablist" aria-label="선반 탭">
+          <button class="profile-tab profile-tab--active" role="tab" aria-selected="true" aria-controls="tab-shelf">
+            내 선반
+          </button>
+          <button class="profile-tab" role="tab" aria-selected="false" aria-controls="tab-revenue">
+            수익 현황
+          </button>
+          <button class="profile-tab" role="tab" aria-selected="false" aria-controls="tab-orders">
+            구매 내역
+          </button>
+          <button class="profile-tab" role="tab" aria-selected="false" aria-controls="tab-subs">
+            구독 내역
+          </button>
+        </nav>
+
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------
+         Shelf Content
+         ------------------------------------------------------- -->
+    <div class="shelf-layout" id="tab-shelf" role="tabpanel" aria-labelledby="tab-shelf-label">
+
+      <!-- Owner Toolbar (자신의 선반일 때만 노출) -->
+      <div class="shelf-owner-toolbar" aria-label="선반 관리 도구">
+
+        <!-- Status Filter Tabs -->
+        <div class="status-tab-group" role="group" aria-label="상태 필터">
+          <button class="status-tab status-tab--active" aria-pressed="true">전체 (24)</button>
+          <button class="status-tab" aria-pressed="false">공개 (18)</button>
+          <button class="status-tab" aria-pressed="false">비공개 (6)</button>
+        </div>
+
+        <!-- Actions -->
+        <div class="shelf-owner-toolbar__actions">
+          <label for="shelf-sort" class="sr-only">정렬 기준</label>
+          <select id="shelf-sort" class="sort-select" aria-label="정렬 기준">
+            <option value="createdAt">최신 등록순</option>
+            <option value="title">이름순</option>
+            <option value="price">가격순</option>
+          </select>
+          <a href="/dashboard/items/new" class="btn btn--primary btn--sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            새 상품 등록
+          </a>
+        </div>
+      </div>
+
+      <!-- Items Grid -->
+      <div class="shelf-grid" role="list" aria-label="내 상품 목록">
+
+        <!-- Published Item -->
+        <article class="item-card item-card--owner" role="listitem">
+          <!-- Owner overlay controls -->
+          <div class="item-card-overlay" aria-label="상품 관리">
+            <a href="/dashboard/items/1/edit" class="item-card-overlay__btn" aria-label="수정">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+            <button class="item-card-overlay__btn item-card-overlay__btn--danger" aria-label="삭제">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+
+          <a href="/items/1" class="item-card__link" aria-label="Figma UI 키트 프로 상세보기">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">🖼</div>
+              <div class="item-card__badge">
+                <span class="badge badge--purchase">구매</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <h3 class="item-card__title">Figma UI 키트 프로 - 200개 이상의 컴포넌트</h3>
+              <div class="item-card__footer">
+                <span class="item-card__price">12,000원</span>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  2.4k
+                </div>
+              </div>
+            </div>
+          </a>
+
+          <!-- Toggle (공개/비공개) -->
+          <div class="publish-toggle" style="padding: 0 var(--space-4) var(--space-3);">
+            <label class="toggle-switch" aria-label="공개 여부 전환">
+              <input type="checkbox" checked aria-checked="true">
+              <span class="toggle-switch__track"></span>
+            </label>
+            <span class="publish-toggle__label">공개</span>
+          </div>
+        </article>
+
+        <!-- Published Item 2 -->
+        <article class="item-card item-card--owner" role="listitem">
+          <div class="item-card-overlay" aria-label="상품 관리">
+            <a href="/dashboard/items/2/edit" class="item-card-overlay__btn" aria-label="수정">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+            <button class="item-card-overlay__btn item-card-overlay__btn--danger" aria-label="삭제">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+
+          <a href="/items/2" class="item-card__link" aria-label="아이콘 라이브러리 상세보기">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">✦</div>
+              <div class="item-card__badge">
+                <span class="badge badge--subscribe">구독</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <h3 class="item-card__title">미니멀 아이콘 라이브러리 1,200개</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price-from">부터</span>
+                  <span class="item-card__price">9,900원</span>
+                  <span class="item-card__price-sub">/월</span>
+                </div>
+              </div>
+            </div>
+          </a>
+          <div class="publish-toggle" style="padding: 0 var(--space-4) var(--space-3);">
+            <label class="toggle-switch" aria-label="공개 여부 전환">
+              <input type="checkbox" checked aria-checked="true">
+              <span class="toggle-switch__track"></span>
+            </label>
+            <span class="publish-toggle__label">공개</span>
+          </div>
+        </article>
+
+        <!-- DRAFT Item (비공개) -->
+        <article class="item-card item-card--owner item-card--draft" role="listitem">
+          <div class="item-card-overlay" aria-label="상품 관리">
+            <a href="/dashboard/items/3/edit" class="item-card-overlay__btn" aria-label="수정">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+            <button class="item-card-overlay__btn item-card-overlay__btn--danger" aria-label="삭제">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+
+          <a href="/items/3" class="item-card__link" aria-label="모바일 UI 키트 (비공개) 상세보기">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true" style="position:static;display:flex;align-items:center;justify-content:center;height:100px;">📱</div>
+              <div class="item-card__badge">
+                <span class="badge badge--neutral">비공개</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <h3 class="item-card__title">iOS/Android 모바일 UI 키트 (작업 중)</h3>
+              <div class="item-card__footer">
+                <span class="item-card__price">19,800원</span>
+              </div>
+            </div>
+          </a>
+          <div class="publish-toggle" style="padding: 0 var(--space-4) var(--space-3);">
+            <label class="toggle-switch" aria-label="공개 여부 전환">
+              <input type="checkbox" aria-checked="false">
+              <span class="toggle-switch__track"></span>
+            </label>
+            <span class="publish-toggle__label" style="color: var(--color-text-disabled);">비공개</span>
+          </div>
+        </article>
+
+        <!-- Published Item 4 -->
+        <article class="item-card item-card--owner" role="listitem">
+          <div class="item-card-overlay" aria-label="상품 관리">
+            <a href="/dashboard/items/4/edit" class="item-card-overlay__btn" aria-label="수정">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+            <button class="item-card-overlay__btn item-card-overlay__btn--danger" aria-label="삭제">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>
+          </div>
+
+          <a href="/items/4" class="item-card__link" aria-label="타이포그래피 시스템 상세보기">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">T</div>
+              <div class="item-card__badge">
+                <span class="badge badge--both">구매+구독</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <h3 class="item-card__title">타이포그래피 스케일 시스템 Figma</h3>
+              <div class="item-card__footer">
+                <span class="item-card__price">6,500원</span>
+              </div>
+            </div>
+          </a>
+          <div class="publish-toggle" style="padding: 0 var(--space-4) var(--space-3);">
+            <label class="toggle-switch" aria-label="공개 여부 전환">
+              <input type="checkbox" checked aria-checked="true">
+              <span class="toggle-switch__track"></span>
+            </label>
+            <span class="publish-toggle__label">공개</span>
+          </div>
+        </article>
+
+      </div><!-- /shelf-grid -->
+
+      <!-- Pagination -->
+      <nav class="pagination" aria-label="페이지 이동">
+        <button class="pagination__item pagination__item--disabled" aria-label="이전 페이지" aria-disabled="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="pagination__item pagination__item--active" aria-label="1 페이지" aria-current="page">1</button>
+        <button class="pagination__item" aria-label="2 페이지">2</button>
+        <button class="pagination__item" aria-label="다음 페이지">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </nav>
+
+    </div><!-- /shelf-layout -->
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" role="contentinfo">
+    <div class="footer__inner">
+      <div class="footer__bottom">
+        <p class="footer__copy">© 2026 Shelfy. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

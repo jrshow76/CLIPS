@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shelfy - 당신의 선반을 세상에 공개하세요</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="./common.css">
+  <style>
+    /* ==========================================================================
+       01_landing.html - 메인(랜딩) 페이지 전용 스타일
+       SCR-001 홈 (탐색 피드)
+       ========================================================================== */
+
+    /* --------------------------------------------------------------------------
+       Hero Section
+       -------------------------------------------------------------------------- */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background-color: var(--color-bg-base);
+      padding: var(--space-20) 0 var(--space-16);
+    }
+
+    .hero__bg-texture {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .hero__bg-texture::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      right: -80px;
+      width: 560px;
+      height: 560px;
+      border-radius: var(--radius-full);
+      background: radial-gradient(
+        circle at center,
+        rgba(200, 92, 61, 0.08) 0%,
+        rgba(200, 92, 61, 0.03) 50%,
+        transparent 70%
+      );
+    }
+    .hero__bg-texture::after {
+      content: '';
+      position: absolute;
+      bottom: -80px;
+      left: -60px;
+      width: 400px;
+      height: 400px;
+      border-radius: var(--radius-full);
+      background: radial-gradient(
+        circle at center,
+        rgba(61, 90, 200, 0.06) 0%,
+        transparent 65%
+      );
+    }
+
+    .hero__inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-16);
+      align-items: center;
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+    }
+
+    .hero__content {}
+
+    .hero__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-1) var(--space-3);
+      background-color: var(--color-primary-10);
+      border: 1px solid rgba(200, 92, 61, 0.20);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-primary);
+      letter-spacing: var(--letter-spacing-wide);
+      text-transform: uppercase;
+      margin-bottom: var(--space-5);
+    }
+    .hero__eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-primary);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.6; transform: scale(0.85); }
+    }
+
+    .hero__title {
+      font-size: var(--font-size-5xl);
+      font-weight: var(--font-weight-extrabold);
+      color: var(--color-text-primary);
+      letter-spacing: var(--letter-spacing-tight);
+      line-height: 1.1;
+      margin-bottom: var(--space-6);
+    }
+    .hero__title-accent {
+      color: var(--color-primary);
+      position: relative;
+    }
+    .hero__title-accent::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background-color: var(--color-primary);
+      border-radius: var(--radius-full);
+      opacity: 0.25;
+    }
+
+    .hero__desc {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-secondary);
+      line-height: var(--line-height-relaxed);
+      margin-bottom: var(--space-8);
+      max-width: 460px;
+    }
+
+    .hero__cta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .hero__stats {
+      display: flex;
+      align-items: center;
+      gap: var(--space-6);
+      margin-top: var(--space-10);
+      padding-top: var(--space-8);
+      border-top: 1px solid var(--color-border-default);
+    }
+    .hero__stat {}
+    .hero__stat-value {
+      font-size: var(--font-size-2xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+      letter-spacing: var(--letter-spacing-tight);
+      line-height: 1;
+    }
+    .hero__stat-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+      margin-top: var(--space-1);
+    }
+    .hero__stat-divider {
+      width: 1px;
+      height: 36px;
+      background-color: var(--color-border-default);
+    }
+
+    /* Hero Visual */
+    .hero__visual {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero__shelf-mockup {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      background-color: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl);
+    }
+    .hero__shelf-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-6);
+      padding-bottom: var(--space-4);
+      border-bottom: 1px solid var(--color-border-default);
+    }
+    .hero__shelf-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-full);
+      background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary-dark));
+      flex-shrink: 0;
+    }
+    .hero__shelf-info {}
+    .hero__shelf-name {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary);
+    }
+    .hero__shelf-meta {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+      margin-top: 2px;
+    }
+
+    .hero__shelf-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-3);
+    }
+    .hero__shelf-item {
+      aspect-ratio: 1;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background-color: var(--color-bg-muted);
+      position: relative;
+    }
+    .hero__shelf-item--1 { background: linear-gradient(135deg, #F5E6D3 0%, #E8CDB0 100%); }
+    .hero__shelf-item--2 { background: linear-gradient(135deg, #D3E8F5 0%, #B0CFE8 100%); }
+    .hero__shelf-item--3 { background: linear-gradient(135deg, #F5D3E8 0%, #E8B0CF 100%); }
+    .hero__shelf-item--4 { background: linear-gradient(135deg, #D3F5D3 0%, #B0E8B0 100%); }
+    .hero__shelf-item--5 { background: linear-gradient(135deg, #F5F5D3 0%, #E8E8B0 100%); }
+    .hero__shelf-item--6 { background: linear-gradient(135deg, #E8D3F5 0%, #CFB0E8 100%); }
+
+    .hero__shelf-item-label {
+      position: absolute;
+      bottom: var(--space-2);
+      left: var(--space-2);
+      right: var(--space-2);
+      background-color: rgba(255,255,255,0.90);
+      border-radius: var(--radius-sm);
+      padding: 3px var(--space-2);
+      font-size: var(--font-size-2xs);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hero__shelf-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background-color: var(--color-primary);
+      color: var(--color-text-inverse);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-semibold);
+      box-shadow: var(--shadow-md);
+      white-space: nowrap;
+    }
+
+    /* --------------------------------------------------------------------------
+       Category Tab Bar
+       -------------------------------------------------------------------------- */
+    .category-bar {
+      position: sticky;
+      top: var(--gnb-height);
+      z-index: 10;
+      background-color: var(--color-bg-base);
+      border-bottom: 1px solid var(--color-border-default);
+      padding: var(--space-3) 0;
+    }
+    .category-bar__inner {
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+    }
+    .category-bar__scroll {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding-bottom: 2px;
+    }
+    .category-bar__scroll::-webkit-scrollbar { display: none; }
+
+    .category-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-secondary);
+      background-color: transparent;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition-base);
+      flex-shrink: 0;
+    }
+    .category-tab:hover {
+      color: var(--color-text-primary);
+      background-color: var(--color-bg-muted);
+    }
+    .category-tab--active {
+      color: var(--color-primary);
+      background-color: var(--color-primary-10);
+      border-color: rgba(200, 92, 61, 0.25);
+    }
+    .category-tab__icon {
+      font-size: 1em;
+    }
+
+    /* --------------------------------------------------------------------------
+       Sort & Filter Toolbar
+       -------------------------------------------------------------------------- */
+    .browse-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      padding: var(--space-6) 0 var(--space-4);
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+    }
+
+    .browse-toolbar__count {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+    }
+    .browse-toolbar__count strong {
+      color: var(--color-text-primary);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .browse-toolbar__actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .sort-select {
+      height: 36px;
+      padding: 0 var(--space-8) 0 var(--space-3);
+      background-color: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239B948C' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right var(--space-2) center;
+      appearance: none;
+    }
+    .sort-select:focus {
+      border-color: var(--color-primary);
+      outline: none;
+    }
+
+    /* --------------------------------------------------------------------------
+       Items Grid Section
+       -------------------------------------------------------------------------- */
+    .items-section {
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+      padding-bottom: var(--space-20);
+    }
+
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-5);
+    }
+
+    /* --------------------------------------------------------------------------
+       Featured Section (추천 선반)
+       -------------------------------------------------------------------------- */
+    .featured-section {
+      background-color: var(--color-bg-muted);
+      padding: var(--space-16) 0;
+      margin: var(--space-12) 0;
+    }
+    .featured-section__inner {
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      padding-inline: var(--container-padding);
+    }
+
+    .seller-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-5);
+    }
+
+    .seller-card {
+      background-color: var(--color-bg-surface);
+      border: 1px solid var(--color-border-default);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      transition: box-shadow var(--transition-slow), transform var(--transition-slow);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .seller-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+
+    .seller-card__top {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+    }
+    .seller-card__avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .seller-card__avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-full);
+      object-fit: cover;
+    }
+    .seller-card__avatar-placeholder {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-xl);
+      color: var(--color-text-inverse);
+      flex-shrink: 0;
+    }
+    .seller-card__avatar-placeholder--1 { background: linear-gradient(135deg, #C85C3D, #A34428); }
+    .seller-card__avatar-placeholder--2 { background: linear-gradient(135deg, #3D5AC8, #2A3D8C); }
+    .seller-card__avatar-placeholder--3 { background: linear-gradient(135deg, #7C3DBF, #5A2D8C); }
+
+    .seller-card__info {}
+    .seller-card__name {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-primary);
+    }
+    .seller-card__meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-top: var(--space-1);
+    }
+    .seller-card__meta-item {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-tertiary);
+    }
+    .seller-card__meta-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: var(--radius-full);
+      background-color: var(--color-border-strong);
+    }
+
+    .seller-card__bio {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      line-height: var(--line-height-relaxed);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .seller-card__preview {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-2);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .seller-card__preview-item {
+      aspect-ratio: 1;
+      background-color: var(--color-bg-muted);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .seller-card__preview-item--a { background: linear-gradient(135deg, #F5E6D3 0%, #E8CDB0 100%); }
+    .seller-card__preview-item--b { background: linear-gradient(135deg, #D3E8F5 0%, #B0CFE8 100%); }
+    .seller-card__preview-item--c { background: linear-gradient(135deg, #F5D3E8 0%, #E8B0CF 100%); }
+    .seller-card__preview-item--d { background: linear-gradient(135deg, #D3F5D3 0%, #B0E8B0 100%); }
+    .seller-card__preview-item--e { background: linear-gradient(135deg, #F5F5D3 0%, #E8E8B0 100%); }
+    .seller-card__preview-item--f { background: linear-gradient(135deg, #E8D3F5 0%, #CFB0E8 100%); }
+
+    .seller-card__follow-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* --------------------------------------------------------------------------
+       CTA Banner
+       -------------------------------------------------------------------------- */
+    .cta-banner {
+      background: linear-gradient(
+        135deg,
+        var(--color-primary) 0%,
+        var(--color-primary-dark) 60%,
+        #7C2D1E 100%
+      );
+      border-radius: var(--radius-2xl);
+      padding: var(--space-16) var(--space-12);
+      margin: 0 auto var(--space-20);
+      max-width: var(--container-xl);
+      margin-inline: auto;
+      overflow: hidden;
+      position: relative;
+      text-align: center;
+    }
+    .cta-banner__bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .cta-banner__bg::before {
+      content: '';
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 300px;
+      height: 300px;
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,0.05);
+    }
+    .cta-banner__bg::after {
+      content: '';
+      position: absolute;
+      bottom: -80px;
+      left: -40px;
+      width: 240px;
+      height: 240px;
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,0.04);
+    }
+    .cta-banner__content {
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner__eyebrow {
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-semibold);
+      color: rgba(255,255,255,0.70);
+      letter-spacing: var(--letter-spacing-wider);
+      text-transform: uppercase;
+      margin-bottom: var(--space-4);
+    }
+    .cta-banner__title {
+      font-size: var(--font-size-4xl);
+      font-weight: var(--font-weight-extrabold);
+      color: var(--color-text-inverse);
+      letter-spacing: var(--letter-spacing-tight);
+      margin-bottom: var(--space-4);
+      line-height: 1.15;
+    }
+    .cta-banner__desc {
+      font-size: var(--font-size-lg);
+      color: rgba(255,255,255,0.80);
+      margin-bottom: var(--space-8);
+      max-width: 480px;
+      margin-inline: auto;
+      line-height: var(--line-height-relaxed);
+    }
+    .cta-banner__actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+    .btn--inverse {
+      background-color: var(--color-text-inverse);
+      color: var(--color-primary);
+      border-color: var(--color-text-inverse);
+      font-weight: var(--font-weight-bold);
+    }
+    .btn--inverse:hover {
+      background-color: rgba(255,255,255,0.92);
+    }
+    .btn--outline-inverse {
+      background-color: transparent;
+      color: var(--color-text-inverse);
+      border-color: rgba(255,255,255,0.50);
+    }
+    .btn--outline-inverse:hover {
+      background-color: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.80);
+    }
+
+    /* --------------------------------------------------------------------------
+       Responsive
+       -------------------------------------------------------------------------- */
+    @media (max-width: 1024px) {
+      .hero__inner { gap: var(--space-10); }
+      .hero__title { font-size: var(--font-size-4xl); }
+      .items-grid { grid-template-columns: repeat(3, 1fr); }
+      .seller-cards { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .hero__inner {
+        grid-template-columns: 1fr;
+        gap: var(--space-10);
+      }
+      .hero__visual { display: none; }
+      .hero__title { font-size: var(--font-size-3xl); }
+      .hero__desc { font-size: var(--font-size-base); }
+      .hero { padding: var(--space-12) 0 var(--space-10); }
+
+      .items-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+      .seller-cards { grid-template-columns: 1fr; }
+
+      .cta-banner { padding: var(--space-12) var(--space-6); border-radius: 0; }
+      .cta-banner__title { font-size: var(--font-size-2xl); }
+      .cta-banner__desc { font-size: var(--font-size-base); }
+    }
+
+    @media (max-width: 480px) {
+      .items-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+      .hero__cta { flex-direction: column; align-items: flex-start; }
+      .hero__stats { gap: var(--space-4); }
+      .cta-banner__actions { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================
+       GNB (Global Navigation Bar)
+       ========================================================= -->
+  <header class="gnb" role="banner">
+    <div class="gnb__inner">
+
+      <!-- Logo -->
+      <a href="/" class="gnb__logo" aria-label="Shelfy 홈">
+        <div class="gnb__logo-mark" aria-hidden="true">S</div>
+        <span class="gnb__logo-text">Shelfy</span>
+      </a>
+
+      <!-- Search -->
+      <div class="gnb__search" role="search">
+        <label for="gnb-search" class="sr-only">상품 검색</label>
+        <svg class="gnb__search-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          id="gnb-search"
+          type="search"
+          class="gnb__search-input"
+          placeholder="상품명, 셀러, 태그로 검색"
+          autocomplete="off"
+        >
+      </div>
+
+      <!-- Navigation -->
+      <nav class="gnb__nav" aria-label="주요 메뉴">
+        <a href="/auth/login" class="btn btn--ghost btn--sm">로그인</a>
+        <a href="/auth/signup" class="btn btn--primary btn--sm">시작하기</a>
+      </nav>
+
+      <!-- Mobile menu -->
+      <button class="gnb__mobile-menu-btn btn btn--ghost btn--icon" aria-label="메뉴 열기" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- =========================================================
+       Page Body
+       ========================================================= -->
+  <main class="page-body">
+
+    <!-- -------------------------------------------------------
+         Hero Section
+         ------------------------------------------------------- -->
+    <section class="hero" aria-label="히어로 섹션">
+      <div class="hero__bg-texture" aria-hidden="true"></div>
+      <div class="hero__inner">
+
+        <!-- Content -->
+        <div class="hero__content">
+          <div class="hero__eyebrow">
+            <span class="hero__eyebrow-dot" aria-hidden="true"></span>
+            새로운 디지털 마켓플레이스
+          </div>
+
+          <h1 class="hero__title">
+            당신의 선반을<br>
+            <span class="hero__title-accent">세상에 공개</span>하세요
+          </h1>
+
+          <p class="hero__desc">
+            창작물, 디지털 콘텐츠, 강의, 템플릿을 선반에 올려 판매하거나 구독 서비스로 제공하세요.
+            전 세계 바이어가 당신의 선반을 기다리고 있습니다.
+          </p>
+
+          <div class="hero__cta">
+            <a href="/auth/signup" class="btn btn--primary btn--lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+              무료로 선반 만들기
+            </a>
+            <a href="#browse" class="btn btn--secondary btn--lg">둘러보기</a>
+          </div>
+
+          <div class="hero__stats" role="list" aria-label="서비스 통계">
+            <div class="hero__stat" role="listitem">
+              <div class="hero__stat-value">12,400+</div>
+              <div class="hero__stat-label">등록된 상품</div>
+            </div>
+            <div class="hero__stat-divider" aria-hidden="true"></div>
+            <div class="hero__stat" role="listitem">
+              <div class="hero__stat-value">3,200+</div>
+              <div class="hero__stat-label">셀러</div>
+            </div>
+            <div class="hero__stat-divider" aria-hidden="true"></div>
+            <div class="hero__stat" role="listitem">
+              <div class="hero__stat-value">98%</div>
+              <div class="hero__stat-label">구매자 만족도</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Mockup -->
+        <div class="hero__visual" aria-hidden="true">
+          <div class="hero__shelf-mockup">
+            <div class="hero__shelf-badge">신규 상품 +24</div>
+            <div class="hero__shelf-header">
+              <div class="hero__shelf-avatar"></div>
+              <div class="hero__shelf-info">
+                <div class="hero__shelf-name">design_mia</div>
+                <div class="hero__shelf-meta">상품 24개 · 구독자 1.2k</div>
+              </div>
+            </div>
+            <div class="hero__shelf-grid">
+              <div class="hero__shelf-item hero__shelf-item--1">
+                <span class="hero__shelf-item-label">UI 키트</span>
+              </div>
+              <div class="hero__shelf-item hero__shelf-item--2">
+                <span class="hero__shelf-item-label">사진 팩</span>
+              </div>
+              <div class="hero__shelf-item hero__shelf-item--3">
+                <span class="hero__shelf-item-label">폰트 번들</span>
+              </div>
+              <div class="hero__shelf-item hero__shelf-item--4">
+                <span class="hero__shelf-item-label">템플릿</span>
+              </div>
+              <div class="hero__shelf-item hero__shelf-item--5">
+                <span class="hero__shelf-item-label">아이콘 셋</span>
+              </div>
+              <div class="hero__shelf-item hero__shelf-item--6">
+                <span class="hero__shelf-item-label">BGM 팩</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------
+         Category Tab Bar
+         ------------------------------------------------------- -->
+    <nav class="category-bar" aria-label="카테고리 필터">
+      <div class="category-bar__inner">
+        <div class="category-bar__scroll" role="tablist">
+          <button class="category-tab category-tab--active" role="tab" aria-selected="true" data-category="ALL">
+            <span class="category-tab__icon" aria-hidden="true">✦</span>
+            전체
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="DIGITAL_CONTENT">
+            <span class="category-tab__icon" aria-hidden="true">💾</span>
+            디지털 콘텐츠
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="COURSE">
+            <span class="category-tab__icon" aria-hidden="true">🎓</span>
+            강의/교육
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="TEMPLATE">
+            <span class="category-tab__icon" aria-hidden="true">📄</span>
+            템플릿/자료
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="PHOTO">
+            <span class="category-tab__icon" aria-hidden="true">📷</span>
+            사진/그래픽
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="MUSIC">
+            <span class="category-tab__icon" aria-hidden="true">🎵</span>
+            음악/사운드
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="SOFTWARE">
+            <span class="category-tab__icon" aria-hidden="true">⚙️</span>
+            소프트웨어/앱
+          </button>
+          <button class="category-tab" role="tab" aria-selected="false" data-category="OTHER">
+            <span class="category-tab__icon" aria-hidden="true">📦</span>
+            기타
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- -------------------------------------------------------
+         Browse Toolbar
+         ------------------------------------------------------- -->
+    <div class="browse-toolbar" id="browse">
+      <p class="browse-toolbar__count">
+        <strong>12,400</strong>개의 상품
+      </p>
+      <div class="browse-toolbar__actions">
+        <label for="sort-select" class="sr-only">정렬 기준</label>
+        <select id="sort-select" class="sort-select" aria-label="정렬 기준 선택">
+          <option value="latest">최신순</option>
+          <option value="popular">인기순</option>
+          <option value="lowPrice">낮은 가격순</option>
+          <option value="highPrice">높은 가격순</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------
+         Items Grid
+         ------------------------------------------------------- -->
+    <section class="items-section" aria-label="상품 목록">
+      <div class="items-grid" role="list">
+
+        <!-- Item Card 1 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/1" class="item-card__link" aria-label="Figma UI 키트 프로 - 12,000원">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">🖼</div>
+              <div class="item-card__badge">
+                <span class="badge badge--purchase">구매</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">design_mia</span>
+              </div>
+              <h3 class="item-card__title">Figma UI 키트 프로 - 200개 이상의 컴포넌트</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price">12,000원</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>2.4k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 2 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/2" class="item-card__link" aria-label="월간 사진 구독 - 월 9,900원부터">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">📷</div>
+              <div class="item-card__badge">
+                <span class="badge badge--subscribe">구독</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">photo_noah</span>
+              </div>
+              <h3 class="item-card__title">월간 고품질 사진 구독 - 매달 50장 이상</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price-from">부터</span>
+                  <span class="item-card__price">9,900원</span>
+                  <span class="item-card__price-sub">/월</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>1.8k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 3 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/3" class="item-card__link" aria-label="리액트 마스터 강의 - 89,000원">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">🎓</div>
+              <div class="item-card__badge">
+                <span class="badge badge--both">구매+구독</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">dev_james</span>
+              </div>
+              <h3 class="item-card__title">리액트 18 완전 정복 - 실무 프로젝트 포함</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price">89,000원</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>5.2k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 4 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/4" class="item-card__link" aria-label="BGM 사운드 팩 - 29,000원">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">🎵</div>
+              <div class="item-card__badge">
+                <span class="badge badge--purchase">구매</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">sound_yuna</span>
+              </div>
+              <h3 class="item-card__title">유튜브 채널용 BGM 사운드 팩 100곡</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price">29,000원</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>3.1k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 5 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/5" class="item-card__link" aria-label="노션 템플릿 번들 - 19,800원">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">📄</div>
+              <div class="item-card__badge">
+                <span class="badge badge--purchase">구매</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">notion_sora</span>
+              </div>
+              <h3 class="item-card__title">노션 완벽 템플릿 번들 - 20종 세트</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price">19,800원</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>4.7k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 6 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/6" class="item-card__link" aria-label="월간 일러스트 구독 - 월 14,900원부터">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">🎨</div>
+              <div class="item-card__badge">
+                <span class="badge badge--subscribe">구독</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">illust_kai</span>
+              </div>
+              <h3 class="item-card__title">월간 캐릭터 일러스트 구독 - 매달 업데이트</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price-from">부터</span>
+                  <span class="item-card__price">14,900원</span>
+                  <span class="item-card__price-sub">/월</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>892</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 7 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/7" class="item-card__link" aria-label="아이콘 라이브러리 - 8,900원">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">✦</div>
+              <div class="item-card__badge">
+                <span class="badge badge--purchase">구매</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">icon_leo</span>
+              </div>
+              <h3 class="item-card__title">미니멀 아이콘 라이브러리 1,200개 - SVG/PNG</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price">8,900원</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>6.9k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+        <!-- Item Card 8 -->
+        <article class="item-card" role="listitem">
+          <a href="/items/8" class="item-card__link" aria-label="주간 마케팅 레터 구독 - 월 4,900원">
+            <div class="item-card__thumb">
+              <div class="item-card__thumb-placeholder" aria-hidden="true">📬</div>
+              <div class="item-card__badge">
+                <span class="badge badge--subscribe">구독</span>
+              </div>
+            </div>
+            <div class="item-card__body">
+              <div class="item-card__seller">
+                <div class="item-card__seller-avatar" aria-hidden="true"></div>
+                <span class="item-card__seller-name">mkt_hana</span>
+              </div>
+              <h3 class="item-card__title">주간 마케팅 인사이트 뉴스레터 - 트렌드 분석</h3>
+              <div class="item-card__footer">
+                <div>
+                  <span class="item-card__price-from">부터</span>
+                  <span class="item-card__price">4,900원</span>
+                  <span class="item-card__price-sub">/월</span>
+                </div>
+                <div class="item-card__meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>2.3k</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </article>
+
+      </div>
+
+      <!-- Load More / Pagination -->
+      <div style="text-align: center; margin-top: var(--space-12);">
+        <button class="btn btn--secondary btn--lg">
+          더 보기
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------
+         Featured Sellers Section
+         ------------------------------------------------------- -->
+    <section class="featured-section" aria-label="추천 셀러">
+      <div class="featured-section__inner">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">인기 셀러의 선반</h2>
+            <p class="section-subtitle">검증된 크리에이터들의 선반을 구독해보세요</p>
+          </div>
+          <a href="/search?sort=popular" class="section-link">전체 보기</a>
+        </div>
+
+        <div class="seller-cards">
+
+          <!-- Seller Card 1 -->
+          <a href="/shelf/design_mia" class="seller-card" aria-label="design_mia의 선반 보기">
+            <div class="seller-card__top">
+              <div class="seller-card__avatar-wrap">
+                <div class="seller-card__avatar-placeholder seller-card__avatar-placeholder--1" aria-hidden="true">M</div>
+              </div>
+              <div class="seller-card__info">
+                <div class="seller-card__name">design_mia</div>
+                <div class="seller-card__meta">
+                  <span class="seller-card__meta-item">상품 24개</span>
+                  <span class="seller-card__meta-dot" aria-hidden="true"></span>
+                  <span class="seller-card__meta-item">구독자 1,240명</span>
+                </div>
+              </div>
+            </div>
+            <p class="seller-card__bio">UI/UX 디자이너. Figma 키트, 아이콘 세트, 디자인 리소스를 공유합니다.</p>
+            <div class="seller-card__preview" aria-hidden="true">
+              <div class="seller-card__preview-item seller-card__preview-item--a"></div>
+              <div class="seller-card__preview-item seller-card__preview-item--b"></div>
+              <div class="seller-card__preview-item seller-card__preview-item--c"></div>
+            </div>
+          </a>
+
+          <!-- Seller Card 2 -->
+          <a href="/shelf/dev_james" class="seller-card" aria-label="dev_james의 선반 보기">
+            <div class="seller-card__top">
+              <div class="seller-card__avatar-wrap">
+                <div class="seller-card__avatar-placeholder seller-card__avatar-placeholder--2" aria-hidden="true">J</div>
+              </div>
+              <div class="seller-card__info">
+                <div class="seller-card__name">dev_james</div>
+                <div class="seller-card__meta">
+                  <span class="seller-card__meta-item">상품 12개</span>
+                  <span class="seller-card__meta-dot" aria-hidden="true"></span>
+                  <span class="seller-card__meta-item">구독자 3,580명</span>
+                </div>
+              </div>
+            </div>
+            <p class="seller-card__bio">풀스택 개발자. React, Next.js 강의와 보일러플레이트 코드를 제공합니다.</p>
+            <div class="seller-card__preview" aria-hidden="true">
+              <div class="seller-card__preview-item seller-card__preview-item--d"></div>
+              <div class="seller-card__preview-item seller-card__preview-item--e"></div>
+              <div class="seller-card__preview-item seller-card__preview-item--f"></div>
+            </div>
+          </a>
+
+          <!-- Seller Card 3 -->
+          <a href="/shelf/photo_noah" class="seller-card" aria-label="photo_noah의 선반 보기">
+            <div class="seller-card__top">
+              <div class="seller-card__avatar-wrap">
+                <div class="seller-card__avatar-placeholder seller-card__avatar-placeholder--3" aria-hidden="true">N</div>
+              </div>
+              <div class="seller-card__info">
+                <div class="seller-card__name">photo_noah</div>
+                <div class="seller-card__meta">
+                  <span class="seller-card__meta-item">상품 36개</span>
+                  <span class="seller-card__meta-dot" aria-hidden="true"></span>
+                  <span class="seller-card__meta-item">구독자 2,100명</span>
+                </div>
+              </div>
+            </div>
+            <p class="seller-card__bio">상업 사진작가. 고품질 스톡 사진과 라이트룸 프리셋을 판매합니다.</p>
+            <div class="seller-card__preview" aria-hidden="true">
+              <div class="seller-card__preview-item seller-card__preview-item--b"></div>
+              <div class="seller-card__preview-item seller-card__preview-item--a"></div>
+              <div class="seller-card__preview-item seller-card__preview-item--e"></div>
+            </div>
+          </a>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------
+         CTA Banner
+         ------------------------------------------------------- -->
+    <div style="padding: 0 var(--container-padding); max-width: calc(var(--container-xl) + var(--container-padding) * 2); margin: 0 auto var(--space-20);">
+      <div class="cta-banner" role="complementary" aria-label="시작하기 CTA">
+        <div class="cta-banner__bg" aria-hidden="true"></div>
+        <div class="cta-banner__content">
+          <p class="cta-banner__eyebrow">지금 바로 시작하세요</p>
+          <h2 class="cta-banner__title">
+            당신만의 선반을<br>오늘 만들어보세요
+          </h2>
+          <p class="cta-banner__desc">
+            가입은 무료. 수수료는 판매 시 10%만 청구됩니다.
+            지금 선반을 열고 창작물로 수익을 만들어보세요.
+          </p>
+          <div class="cta-banner__actions">
+            <a href="/auth/signup" class="btn btn--inverse btn--xl">무료로 시작하기</a>
+            <a href="/search" class="btn btn--outline-inverse btn--xl">상품 둘러보기</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- =========================================================
+       Footer
+       ========================================================= -->
+  <footer class="footer" role="contentinfo">
+    <div class="footer__inner">
+      <div class="footer__top">
+        <div class="footer__brand">
+          <div class="footer__brand-name">Shelfy</div>
+          <p class="footer__brand-desc">당신의 선반을 세상에 공개하세요. 창작물로 수익을 만드는 가장 쉬운 방법.</p>
+        </div>
+        <nav class="footer__links" aria-label="푸터 링크">
+          <div class="footer__link-group">
+            <div class="footer__link-title">서비스</div>
+            <ul class="footer__link-list">
+              <li><a href="/search" class="footer__link">상품 둘러보기</a></li>
+              <li><a href="/auth/signup" class="footer__link">셀러 시작하기</a></li>
+              <li><a href="/auth/login" class="footer__link">로그인</a></li>
+            </ul>
+          </div>
+          <div class="footer__link-group">
+            <div class="footer__link-title">지원</div>
+            <ul class="footer__link-list">
+              <li><a href="#" class="footer__link">공지사항</a></li>
+              <li><a href="#" class="footer__link">자주 묻는 질문</a></li>
+              <li><a href="#" class="footer__link">고객센터</a></li>
+            </ul>
+          </div>
+          <div class="footer__link-group">
+            <div class="footer__link-title">법적 고지</div>
+            <ul class="footer__link-list">
+              <li><a href="/legal/terms" class="footer__link">이용약관</a></li>
+              <li><a href="/legal/terms#privacy" class="footer__link">개인정보처리방침</a></li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+      <div class="footer__bottom">
+        <p class="footer__copy">© 2026 Shelfy. All rights reserved.</p>
+        <p class="footer__copy">사업자등록번호: 000-00-00000</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

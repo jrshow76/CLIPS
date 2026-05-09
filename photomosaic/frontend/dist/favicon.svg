@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- 포토모자이크 아이콘: 격자 형태의 이미지 타일 -->
+  <rect width="32" height="32" rx="6" fill="#3b82f6"/>
+  <rect x="4" y="4" width="10" height="10" rx="1.5" fill="#93c5fd"/>
+  <rect x="18" y="4" width="10" height="10" rx="1.5" fill="#bfdbfe"/>
+  <rect x="4" y="18" width="10" height="10" rx="1.5" fill="#dbeafe"/>
+  <rect x="18" y="18" width="10" height="10" rx="1.5" fill="#eff6ff"/>
+</svg>

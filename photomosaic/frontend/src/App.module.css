@@ -1,0 +1,151 @@
+/* 전체 앱 레이아웃: 헤더 + 메인 + 푸터 */
+.appWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+}
+
+/* 헤더 */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.headerInner {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 0.875rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* 로고 */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logoIcon {
+  font-size: 1.5rem;
+  color: #3b82f6;
+}
+
+.logoTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* 단계 인디케이터 */
+.stepNav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stepItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+/* 완료된 단계 */
+.stepDone {
+  color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.stepDone .stepNumber {
+  background-color: #16a34a;
+  color: #fff;
+}
+
+/* 현재 단계 */
+.stepActive {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.stepActive .stepNumber {
+  background-color: #3b82f6;
+  color: #fff;
+}
+
+/* 미도달 단계 */
+.stepPending {
+  color: #9ca3af;
+}
+
+.stepPending .stepNumber {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* 단계 번호 원형 */
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* 단계 레이블: 소형 화면에서 숨김 */
+.stepLabel {
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .stepLabel {
+    display: none;
+  }
+
+  .stepItem {
+    padding: 0.3125rem;
+  }
+}
+
+/* 메인 콘텐츠 */
+.main {
+  flex: 1;
+  padding: 1.5rem 1rem;
+}
+
+.contentWrapper {
+  max-width: 90rem;
+  margin: 0 auto;
+}
+
+/* 푸터 */
+.footer {
+  background-color: #fff;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem 1.5rem;
+  text-align: center;
+}
+
+.footer p {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  margin: 0;
+}

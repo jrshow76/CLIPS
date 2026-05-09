@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sand Pixel</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#111;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'Segoe UI',Arial,sans-serif;color:#fff;
+}
+/* ── 업로드 화면 ── */
+#upload{text-align:center}
+h1{font-size:18px;letter-spacing:5px;font-weight:300;margin-bottom:6px;color:#ccc}
+.sub{color:#3a3a3a;font-size:11px;margin-bottom:22px;letter-spacing:1px}
+
+/* 캔버스 크기 설정 */
+.size-row{
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;margin-bottom:16px;
+}
+.size-row label{color:#444;font-size:11px;letter-spacing:1px}
+.size-input{
+  width:62px;padding:5px 8px;background:#1a1a1a;
+  border:1px solid #2e2e2e;border-radius:5px;
+  color:#aaa;font-size:12px;text-align:center;outline:none;
+  transition:border-color .2s;
+}
+.size-input:focus{border-color:#555;color:#fff}
+.size-sep{color:#333;font-size:14px}
+.presets{display:flex;gap:6px;justify-content:center;margin-bottom:20px}
+.preset{
+  padding:4px 12px;background:transparent;
+  border:1px solid #222;border-radius:4px;
+  color:#333;font-size:10px;cursor:pointer;letter-spacing:1px;
+  transition:all .2s;
+}
+.preset:hover{border-color:#444;color:#777}
+.preset.active{border-color:#555;color:#aaa;background:#1a1a1a}
+
+/* 드롭존 */
+#dz{
+  border:2px dashed #272727;border-radius:12px;
+  padding:36px 60px;cursor:pointer;transition:all .25s;
+}
+#dz:hover,#dz.on{border-color:#555;background:rgba(255,255,255,.025)}
+.ico{font-size:36px;margin-bottom:12px}
+#dz p{color:#3a3a3a;font-size:12px;margin:5px 0}
+#fi{display:none}
+.btn{
+  display:inline-block;margin-top:12px;
+  padding:9px 26px;background:#1a1a1a;border:1px solid #2e2e2e;
+  border-radius:7px;cursor:pointer;font-size:12px;color:#888;
+  transition:all .2s;
+}
+.btn:hover{border-color:#555;color:#ddd;background:#222}
+
+/* ── 애니메이션 화면 ── */
+#app{display:none;flex-direction:column;align-items:center}
+canvas{display:block}
+#info{
+  margin-top:12px;display:flex;align-items:center;gap:10px;
+  font-size:11px;color:#3a3a3a;letter-spacing:1px;
+}
+.dot{
+  width:6px;height:6px;border-radius:50%;background:#2e2e2e;
+  animation:blink 1.6s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:.1;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+#pbar-wrap{
+  margin-top:8px;height:2px;background:#1a1a1a;border-radius:1px;overflow:hidden;
+}
+#pbar{height:100%;width:0%;background:#444;transition:width .1s linear;border-radius:1px}
+#nb{
+  margin-top:14px;padding:6px 18px;
+  background:transparent;border:1px solid #1e1e1e;
+  border-radius:6px;color:#2e2e2e;cursor:pointer;font-size:11px;
+  transition:all .2s;letter-spacing:1px;
+}
+#nb:hover{border-color:#3a3a3a;color:#666}
+</style>
+</head>
+<body>
+
+<!-- ── 업로드 화면 ────────────────────────────── -->
+<div id="upload">
+  <h1>SAND PIXEL</h1>
+  <p class="sub">픽셀이 모래처럼 흩어지고 재조립됩니다</p>
+
+  <div class="size-row">
+    <label>캔버스</label>
+    <input class="size-input" id="inp-w" type="number" value="600" min="300" max="900" step="50">
+    <span class="size-sep">×</span>
+    <input class="size-input" id="inp-h" type="number" value="600" min="300" max="900" step="50">
+    <label style="color:#333">px</label>
+  </div>
+  <div class="presets">
+    <button class="preset" data-w="400" data-h="400">400</button>
+    <button class="preset active" data-w="600" data-h="600">600</button>
+    <button class="preset" data-w="800" data-h="800">800</button>
+  </div>
+
+  <div id="dz">
+    <div class="ico">🌊</div>
+    <p>이미지를 드래그하거나</p>
+    <label class="btn" for="fi">파일 선택</label>
+    <input type="file" id="fi" accept="image/*">
+    <p style="font-size:10px;color:#252525;margin-top:12px">JPG · PNG · GIF · WebP</p>
+  </div>
+</div>
+
+<!-- ── 애니메이션 화면 ────────────────────────── -->
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="info">
+    <div class="dot"></div>
+    <span id="st">준비 중</span>
+  </div>
+  <div id="pbar-wrap"><div id="pbar"></div></div>
+  <button id="nb">다른 이미지</button>
+</div>
+
+<script>
+'use strict';
+
+// ─── 물리 상수 ───────────────────────────────────────────────
+const S        = 3;      // 파티클 크기 (S×S px)
+const GR       = 0.045;  // 중력 (낮을수록 천천히 낙하)
+const DMP      = 0.95;   // 재조립 스프링 감쇠 (높을수록 천천히 수렴)
+const SHOW_T   = 2600;   // 이미지 표시 시간 ms
+const FWAIT    = 2000;   // 낙하 후 재조립 전 최소 대기 ms
+const MAXFALL  = 28000;  // 낙하 최대 허용 시간 ms
+const FMIN     = 0.86;   // 정착 비율 임계값
+const AMIN     = 0.97;   // 재조립 완료 비율 임계값
+
+// ─── DOM ────────────────────────────────────────────────────
+const uploadEl = document.getElementById('upload');
+const appEl    = document.getElementById('app');
+const cv       = document.getElementById('c');
+const cx       = cv.getContext('2d');
+const stEl     = document.getElementById('st');
+const pbEl     = document.getElementById('pbar');
+const pbWrap   = document.getElementById('pbar-wrap');
+const dz       = document.getElementById('dz');
+const fi       = document.getElementById('fi');
+const nb       = document.getElementById('nb');
+const inpW     = document.getElementById('inp-w');
+const inpH     = document.getElementById('inp-h');
+
+// ─── 캔버스 설정 ─────────────────────────────────────────────
+let CW = 600;   // 캔버스 전체 너비
+let CH = 600;   // 캔버스 전체 높이
+let IH = 300;   // 이미지 영역 높이 = CH/2 (상단 절반)
+let COLS = 0;
+
+// ─── 런타임 상태 ─────────────────────────────────────────────
+let pts     = [];    // 파티클 배열
+let floor   = null;  // 컬럼별 모래 쌓임 높이 (Float32Array)
+let imgData = null;  // 재사용 ImageData (매 프레임 재할당 방지)
+let bgBuf   = null;  // 배경 픽셀 버퍼 (Uint8ClampedArray)
+let state   = 'IDLE';
+let t0      = 0;
+let flipped = false;
+let aid     = null;
+
+// ─── 파티클 생성 ─────────────────────────────────────────────
+function mkPt(x, y, r, g, b, a) {
+  return {
+    x, y, vx: 0, vy: 0,
+    r, g, b, a,
+    ox: x, oy: y,   // 원본 위치
+    fx: x, fy: 0,   // 반전 위치 (fy는 loadImg에서 설정)
+    tx: x, ty: y,   // 현재 이동 목표
+    settled: false,
+    delay: 0, age: 0
+  };
+}
+
+// ─── 배경 버퍼 초기화 ────────────────────────────────────────
+// 상단(이미지 영역): 약간 밝은 배경 / 하단(모래 영역): 어두운 배경
+function buildBackground() {
+  bgBuf = new Uint8ClampedArray(CW * CH * 4);
+  for (let y = 0; y < CH; y++) {
+    const isTop = y < IH;
+    const base  = isTop ? 18 : 12;
+    // 이미지/모래 경계선
+    const atDiv = (y === IH - 1 || y === IH);
+    const v     = atDiv ? 38 : base;
+    for (let x = 0; x < CW; x++) {
+      const k = (y * CW + x) << 2;
+      bgBuf[k] = v; bgBuf[k+1] = v; bgBuf[k+2] = v; bgBuf[k+3] = 255;
+    }
+  }
+}
+
+// ─── 이미지 로드 & 파티클 생성 ───────────────────────────────
+function loadImg(src) {
+  const img = new Image();
+  img.onload = () => {
+    // 캔버스 크기 확정 (S 배수 정렬)
+    CW   = Math.floor(+inpW.value / S) * S || 600;
+    CH   = Math.floor(+inpH.value / S) * S || 600;
+    IH   = Math.floor(CH / 2 / S) * S;   // 이미지 영역 = 상단 절반
+    COLS = Math.ceil(CW / S);
+
+    cv.width  = CW;
+    cv.height = CH;
+    pbWrap.style.width = CW + 'px';
+
+    // 이미지를 이미지 영역(CW × IH)에 맞게 스케일 (종횡비 유지, 최대 1배)
+    const sc  = Math.min(CW / img.width, IH / img.height, 1);
+    const iw  = Math.floor(img.width  * sc / S) * S;
+    const ih  = Math.floor(img.height * sc / S) * S;
+    // 이미지 영역 내 중앙 정렬
+    const offX = Math.floor((CW - iw) / 2 / S) * S;
+    const offY = Math.floor((IH - ih) / 2 / S) * S;
+
+    // 오프스크린 캔버스로 픽셀 추출
+    const off  = Object.assign(document.createElement('canvas'), {width: iw, height: ih});
+    const oc   = off.getContext('2d');
+    oc.drawImage(img, 0, 0, iw, ih);
+    const pd = oc.getImageData(0, 0, iw, ih).data;
+
+    pts = [];
+    for (let y = 0; y < ih; y += S) {
+      for (let x = 0; x < iw; x += S) {
+        const i = (y * iw + x) * 4;
+        if (pd[i + 3] < 20) continue;    // 투명 픽셀 제외
+        const canX = offX + x;
+        const canY = offY + y;           // 캔버스 y (0 ~ IH-S 범위)
+        const p = mkPt(canX, canY, pd[i], pd[i+1], pd[i+2], pd[i+3]);
+        p.fx = canX;
+        p.fy = IH - S - canY;            // 이미지 영역 내 수직 반전
+        pts.push(p);
+      }
+    }
+
+    floor = new Float32Array(COLS);
+    buildBackground();
+    imgData = cx.createImageData(CW, CH);  // 재사용 ImageData
+
+    uploadEl.style.display = 'none';
+    appEl.style.display    = 'flex';
+    flipped = false;
+    enterShow();
+    if (aid) cancelAnimationFrame(aid);
+    aid = requestAnimationFrame(tick);
+  };
+  img.src = src;
+}
+
+// ─── 상태 전환 ───────────────────────────────────────────────
+function enterShow() {
+  state = 'SHOW';
+  t0    = performance.now();
+  const f = flipped;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i];
+    p.x = f ? p.fx : p.ox;
+    p.y = f ? p.fy : p.oy;
+    p.vx = 0; p.vy = 0; p.settled = false;
+  }
+  stEl.textContent   = f ? '반전 이미지' : '원본 이미지';
+  pbEl.style.width   = '0%';
+}
+
+function enterFall() {
+  state = 'FALL';
+  t0    = performance.now();
+  floor.fill(CH);    // 모래 바닥 = 캔버스 최하단 (CH) 에서 위로 쌓임
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i];
+    p.settled = false;
+    p.delay   = (Math.random() * 160) | 0;  // 0~159 프레임 랜덤 지연
+    p.age     = 0;
+    p.vx      = (Math.random() - 0.5) * 0.5;
+    p.vy      = Math.random() * 0.2 - 0.3; // 약한 초기 속도
+  }
+  stEl.textContent = '흩어지는 중...';
+}
+
+function enterAssemble() {
+  state = 'ASSEMBLE';
+  t0    = performance.now();
+  const toFlip = !flipped;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i];
+    p.tx = toFlip ? p.fx : p.ox;
+    p.ty = toFlip ? p.fy : p.oy;   // 항상 상단 이미지 영역으로
+    p.settled = false; p.age = 0;
+  }
+  stEl.textContent = (toFlip ? '반전' : '원본') + ' 이미지로 재조립 중...';
+}
+
+// ─── 물리: 낙하 & 모래 쌓임 ─────────────────────────────────
+function updateFall() {
+  let ns = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i];
+    if (p.settled) { ns++; continue; }
+
+    p.age++;
+    if (p.age < p.delay) continue;
+
+    // 중력 적용
+    p.vy += GR;
+    p.vx *= 0.997;
+    p.x  += p.vx;
+    p.y  += p.vy;
+
+    // 좌우 경계
+    if      (p.x < 0)     { p.x = 0;     p.vx =  Math.abs(p.vx) * 0.4; }
+    else if (p.x > CW-S)  { p.x = CW-S;  p.vx = -Math.abs(p.vx) * 0.4; }
+
+    // 모래 쌓임: 컬럼별 높이 추적
+    const col = Math.min(Math.floor(p.x / S), COLS - 1);
+    const fl  = floor[col];
+
+    if (p.y + S >= fl) {
+      p.y  = fl - S;
+      p.vy = -p.vy * 0.11;   // 약한 바운스
+      p.vx *= 0.62;
+
+      if (Math.abs(p.vy) < 0.16 && Math.abs(p.vx) < 0.16) {
+        // 인접 컬럼 슬라이딩 — 자연스러운 모래 더미 형성
+        const lh   = col > 0      ? floor[col-1] : -Infinity;
+        const rh   = col < COLS-1 ? floor[col+1] : -Infinity;
+        const maxH = Math.max(lh, rh);  // 인접 중 바닥이 더 낮은(여유있는) 쪽
+
+        if (maxH > fl + S * 1.5) {
+          // 더 낮은 쪽으로 미끄러짐
+          p.vx = (lh >= rh ? -1 : 1) * (Math.random() * 0.9 + 0.3);
+          p.vy = -0.06;
+        } else {
+          // 현재 위치에 정착 (겹쳐 쌓임 허용)
+          p.settled  = true;
+          floor[col] = p.y;  // 컬럼 높이 갱신 → 다음 파티클이 그 위에 쌓임
+          ns++;
+        }
+      }
+    }
+  }
+  return ns;
+}
+
+// ─── 물리: 재조립 (스프링) ───────────────────────────────────
+function updateAssemble() {
+  let nd = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p  = pts[i];
+    const dx = p.tx - p.x;
+    const dy = p.ty - p.y;
+    if (dx*dx + dy*dy < 0.25) {
+      p.x = p.tx; p.y = p.ty; p.vx = 0; p.vy = 0;
+      nd++; continue;
+    }
+    p.vx = (p.vx + dx * 0.012) * DMP;
+    p.vy = (p.vy + dy * 0.012) * DMP;
+    p.x += p.vx;
+    p.y += p.vy;
+  }
+  return nd;
+}
+
+// ─── 렌더링 ──────────────────────────────────────────────────
+// imgData를 재사용하고 매 프레임 bgBuf를 복사해서 배경을 초기화
+function draw() {
+  const d = imgData.data;
+  d.set(bgBuf);   // 배경 복원 (zone 구분 + 경계선 포함)
+
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p  = pts[i];
+    const px = Math.round(p.x);
+    const py = Math.round(p.y);
+
+    for (let dy = 0; dy < S; dy++) {
+      const row = py + dy;
+      if (row < 0 || row >= CH) continue;
+      const rowOff = row * CW;
+      for (let dx = 0; dx < S; dx++) {
+        const col = px + dx;
+        if (col < 0 || col >= CW) continue;
+        const k = (rowOff + col) << 2;
+        d[k]   = p.r;
+        d[k+1] = p.g;
+        d[k+2] = p.b;
+        d[k+3] = p.a;
+      }
+    }
+  }
+  cx.putImageData(imgData, 0, 0);
+}
+
+// ─── 메인 루프 ───────────────────────────────────────────────
+function tick() {
+  const dt = performance.now() - t0;
+  const n  = pts.length;
+
+  if (state === 'SHOW') {
+    draw();
+    pbEl.style.width = Math.min(dt / SHOW_T * 100, 100) + '%';
+    if (dt > SHOW_T) enterFall();
+
+  } else if (state === 'FALL') {
+    const ns = updateFall();
+    draw();
+    pbEl.style.width = Math.min(ns / n * 100, 100) + '%';
+    if ((ns >= n * FMIN && dt > FWAIT) || dt > MAXFALL) enterAssemble();
+
+  } else if (state === 'ASSEMBLE') {
+    const nd = updateAssemble();
+    draw();
+    pbEl.style.width = Math.min(nd / n * 100, 100) + '%';
+    if (nd >= n * AMIN && dt > 700) {
+      flipped = !flipped;
+      enterShow();
+    }
+  }
+  aid = requestAnimationFrame(tick);
+}
+
+// ─── UI 이벤트 ───────────────────────────────────────────────
+function readFile(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = e => loadImg(e.target.result);
+  r.readAsDataURL(f);
+}
+
+fi.addEventListener('change', e => readFile(e.target.files[0]));
+
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('on'); });
+dz.addEventListener('dragleave', ()  => dz.classList.remove('on'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('on');
+  readFile(e.dataTransfer.files[0]);
+});
+
+nb.addEventListener('click', () => {
+  if (aid) { cancelAnimationFrame(aid); aid = null; }
+  state = 'IDLE';
+  appEl.style.display    = 'none';
+  uploadEl.style.display = 'block';
+  fi.value = '';
+  pts = [];
+});
+
+// 프리셋 버튼
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    inpW.value = btn.dataset.w;
+    inpH.value = btn.dataset.h;
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// 크기 직접 입력 시 active 프리셋 해제
+[inpW, inpH].forEach(inp => {
+  inp.addEventListener('input', () => {
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+  });
+});
+</script>
+</body>
+</html>

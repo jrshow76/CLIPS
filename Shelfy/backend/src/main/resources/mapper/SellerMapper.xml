@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.shelfy.seller.mapper.SellerMapper">
+
+    <!-- 셀러별 총 판매액 (COMPLETED 주문만) -->
+    <select id="sumCompletedOrderAmount" resultType="long">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM orders
+        WHERE seller_id = #{sellerId}
+          AND status = 'COMPLETED'
+    </select>
+
+    <!-- 셀러별 완료 주문 수 -->
+    <select id="countCompletedOrders" resultType="long">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE seller_id = #{sellerId}
+          AND status = 'COMPLETED'
+    </select>
+
+    <!-- 셀러별 활성 구독자 수 -->
+    <select id="countActiveSubscribers" resultType="long">
+        SELECT COUNT(DISTINCT s.subscriber_id)
+        FROM subscriptions s
+        INNER JOIN subscription_plans sp ON s.plan_id = sp.id
+        INNER JOIN items i ON sp.item_id = i.id
+        WHERE i.seller_id = #{sellerId}
+          AND s.status = 'ACTIVE'
+    </select>
+
+    <!-- 연도별 월별 수익 집계 -->
+    <!--
+        GROUP BY 월 기준으로 집계.
+        month 컬럼은 'YYYY-MM' 형식으로 반환 (예: '2026-01').
+        fee는 10% 수수료 적용.
+    -->
+    <select id="selectMonthlyRevenue"
+            resultType="com.shelfy.seller.dto.MonthlyRevenueResponse$MonthlyRevenue">
+        SELECT TO_CHAR(paid_at, 'YYYY-MM')  AS month,
+               COALESCE(SUM(amount), 0)     AS revenue,
+               COALESCE(SUM(amount) / 10, 0) AS fee,
+               COALESCE(SUM(amount) - SUM(amount) / 10, 0) AS netRevenue
+        FROM orders
+        WHERE seller_id = #{sellerId}
+          AND status = 'COMPLETED'
+          AND EXTRACT(YEAR FROM paid_at) = #{year}
+        GROUP BY TO_CHAR(paid_at, 'YYYY-MM')
+        ORDER BY month ASC
+    </select>
+
+    <!-- 셀러의 PUBLISHED 상품 수 -->
+    <select id="countPublishedItems" resultType="int">
+        SELECT COUNT(*)
+        FROM items
+        WHERE seller_id = #{sellerId}
+          AND status = 'PUBLISHED'
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 셀러의 PUBLISHED 상품 목록 (공개 프로필용, 페이지네이션) -->
+    <!--
+        썸네일은 sort_order = 0이고 is_thumbnail = true인 첫 번째 이미지 URL을 사용.
+    -->
+    <select id="selectPublishedItems"
+            resultType="com.shelfy.seller.dto.SellerPublicProfileResponse$SellerItemSummary">
+        SELECT i.id         AS itemId,
+               i.title      AS title,
+               i.price      AS price,
+               i.sale_type  AS saleType,
+               (SELECT img.image_url
+                FROM item_images img
+                WHERE img.item_id = i.id
+                  AND img.is_thumbnail = true
+                LIMIT 1)    AS thumbnailUrl
+        FROM items i
+        WHERE i.seller_id = #{sellerId}
+          AND i.status = 'PUBLISHED'
+          AND i.deleted_at IS NULL
+        ORDER BY i.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 셀러 전체 구독자 수 (공개 프로필 표시용, ACTIVE + CANCEL_REQUESTED 포함) -->
+    <select id="countTotalSubscribers" resultType="long">
+        SELECT COUNT(DISTINCT s.subscriber_id)
+        FROM subscriptions s
+        INNER JOIN subscription_plans sp ON s.plan_id = sp.id
+        INNER JOIN items i ON sp.item_id = i.id
+        WHERE i.seller_id = #{sellerId}
+          AND s.status IN ('ACTIVE', 'CANCEL_REQUESTED')
+    </select>
+
+</mapper>

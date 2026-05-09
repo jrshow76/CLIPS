@@ -1,0 +1,62 @@
+# ===== 환경변수 (절대 커밋 금지) =====
+.env
+.env.local
+.env.*.local
+backend/.env*
+frontend/.env.local
+
+# ===== Backend (Gradle / Java) =====
+backend/.gradle/
+backend/build/
+backend/out/
+backend/.idea/
+backend/*.iml
+backend/*.iws
+backend/*.ipr
+*.class
+*.jar
+!gradle-wrapper.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ===== Frontend (Node.js / Next.js) =====
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.cache/
+frontend/.DS_Store
+frontend/.npm
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# ===== OS =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# ===== Docker =====
+.docker/
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== Test 결과 =====
+backend/src/test/resources/*.yml
+backend/src/test/resources/*.yaml
