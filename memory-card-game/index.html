@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="theme-color" content="#1a1d2e" />
+    <title>Memory Card Game</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1 class="app-title">Memory Card Game</h1>
+      <p class="app-subtitle">짝맞추기 카드 게임 · Phaser 3</p>
+    </header>
+
+    <main class="app-main">
+      <div id="game-container" class="game-container"></div>
+    </main>
+
+    <footer class="app-footer">
+      <span>키보드 단축키: R = 재시작, M = 메뉴, S = 사운드 토글</span>
+    </footer>
+
+    <!-- Phaser CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+    <!-- 설정 및 상수 (먼저 로드되어 전역 MCG 네임스페이스를 만든다) -->
+    <script src="js/config.js"></script>
+
+    <!-- 공용 모듈 -->
+    <script src="js/modules/ScoreManager.js"></script>
+    <script src="js/modules/SoundManager.js"></script>
+    <script src="js/modules/CardFactory.js"></script>
+
+    <!-- 씬 -->
+    <script src="js/scenes/TitleScene.js"></script>
+    <script src="js/scenes/GameScene.js"></script>
+    <script src="js/scenes/ResultScene.js"></script>
+
+    <!-- 엔트리 포인트 -->
+    <script src="js/main.js"></script>
+  </body>
+</html>
