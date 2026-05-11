@@ -18,6 +18,29 @@ import { useMemo, type ReactNode } from 'react';
 import { useTheme } from '@/providers/ThemeProvider';
 
 /**
+ * 도메인별 가시화 권한.
+ *
+ * 각 도메인 메뉴는 사용자 scope에 따라 노출 여부가 결정된다.
+ * 빈 배열은 "스코프 검사 면제"(모두 노출)를 의미한다.
+ */
+const DOMAIN_SCOPES: Record<string, string[]> = {
+  dashboard: [],
+  acq: ['acq:read'],
+  cat: ['cat:read'],
+  cir: ['cir:read'],
+  col: ['col:read'],
+  access: ['member:read'],
+  facility: ['tenant:read'],
+  codes: ['code:read'],
+};
+
+/** 사용자 scope 중 하나라도 일치하면 노출. 요구 scope가 비면 항상 노출. */
+function hasAny(userScopes: string[], required: string[]): boolean {
+  if (required.length === 0) return true;
+  return required.some((s) => userScopes.includes(s));
+}
+
+/**
  * 관리자 AppShell — Sidebar + Header + Main
  * DSN-03 §6.1 AdminShell 템플릿을 구현.
  */
@@ -28,17 +51,61 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const displayName = user?.name ?? '게스트';
 
-  const sidebarItems: SidebarItem[] = useMemo(
-    () => [
+  const userScopes = user?.scopes ?? [];
+
+  const sidebarItems: SidebarItem[] = useMemo(() => {
+    const all: (SidebarItem & { domain: keyof typeof DOMAIN_SCOPES })[] = [
       {
         id: 'dashboard',
+        domain: 'dashboard',
         label: '대시보드',
         accent: '#DB2777',
         href: '/dashboard',
         active: pathname === '/dashboard',
       },
       {
+        id: 'access',
+        domain: 'access',
+        label: '회원/이용 (ACS)',
+        accent: '#EF4444',
+        href: '/access/members',
+        active: pathname.startsWith('/access'),
+        children: [
+          {
+            id: 'access-members',
+            label: '회원 관리',
+            href: '/access/members',
+            active: pathname.startsWith('/access/members'),
+          },
+        ],
+      },
+      {
+        id: 'facility',
+        domain: 'facility',
+        label: '시설 (FAC)',
+        accent: '#14B8A6',
+        href: '/facility/libraries',
+        active: pathname.startsWith('/facility'),
+        children: [
+          {
+            id: 'facility-libraries',
+            label: '도서관 관리',
+            href: '/facility/libraries',
+            active: pathname.startsWith('/facility/libraries'),
+          },
+        ],
+      },
+      {
+        id: 'codes',
+        domain: 'codes',
+        label: '코드 관리',
+        accent: '#6366F1',
+        href: '/codes',
+        active: pathname.startsWith('/codes'),
+      },
+      {
         id: 'acq',
+        domain: 'acq',
         label: '수서 (ACQ)',
         accent: '#F97316',
         href: '/acquisition',
@@ -46,6 +113,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       },
       {
         id: 'cat',
+        domain: 'cat',
         label: '목록 (CAT)',
         accent: '#8B5CF6',
         href: '/cataloging',
@@ -53,6 +121,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       },
       {
         id: 'cir',
+        domain: 'cir',
         label: '열람 (CIR)',
         accent: '#0EA5E9',
         href: '/circulation',
@@ -60,28 +129,18 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       },
       {
         id: 'col',
+        domain: 'col',
         label: '장서 (COL)',
         accent: '#84CC16',
         href: '/collection',
         active: pathname.startsWith('/collection'),
       },
-      {
-        id: 'acs',
-        label: '출입 (ACS)',
-        accent: '#EF4444',
-        href: '/access',
-        active: pathname.startsWith('/access'),
-      },
-      {
-        id: 'fac',
-        label: '시설 (FAC)',
-        accent: '#14B8A6',
-        href: '/facility',
-        active: pathname.startsWith('/facility'),
-      },
-    ],
-    [pathname],
-  );
+    ];
+
+    return all
+      .filter((item) => hasAny(userScopes, DOMAIN_SCOPES[item.domain] ?? []))
+      .map(({ domain: _domain, ...rest }) => rest);
+  }, [pathname, userScopes]);
 
   return (
     <div className="flex min-h-dvh w-full">
