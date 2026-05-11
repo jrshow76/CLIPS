@@ -11,6 +11,15 @@ Phaser 3 기반 1인용 짝맞추기 카드 게임. 빌드 도구 없이 Vanilla
 
 ## 실행 방법
 
+### 온라인 (GitHub Pages)
+
+`main` 브랜치에 머지되면 자동 배포된다.
+
+- 배포 URL: `https://jrshow76.github.io/CLIPS/`
+- 워크플로: [`.github/workflows/pages.yml`](../.github/workflows/pages.yml)
+
+### 로컬
+
 브라우저의 `file://` 정책으로 일부 기능이 막힐 수 있으므로 간단한 정적 서버를 추천한다.
 
 ```bash
