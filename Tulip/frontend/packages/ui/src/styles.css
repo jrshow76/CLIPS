@@ -1,0 +1,38 @@
+/**
+ * Tulip+ UI 전역 스타일
+ *
+ * 앱은 자체 Tailwind 진입 CSS에서 `@import '@tulip/ui/styles.css'`로 포함.
+ * (디자인 토큰 CSS 변수는 별도 import: `@tulip/design-tokens/tokens.css`)
+ *
+ * 본 파일은 Tailwind `@layer` 지시문을 사용하지 않고 일반 CSS로 작성한다.
+ * `@layer base/utilities`는 앱의 globals.css에서 직접 사용한다.
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--surface-app);
+  color: var(--color-neutral-900);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  line-height: 1.55;
+}
+
+/* 키보드 포커스 링 강제 — 디자인 가이드 §6.2 */
+:where(:focus-visible) {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: 6px;
+}
+
+/* tabular-nums for stats/tables */
+table,
+.tabular,
+.text-tabular {
+  font-variant-numeric: tabular-nums;
+}

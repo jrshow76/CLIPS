@@ -1,0 +1,38 @@
+{
+  "name": "@tulip/auth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tulip+ OAuth2 PKCE 인증 클라이언트 (Keycloak 호환)",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@tulip/config": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@tulip/eslint-config": "workspace:*",
+    "@tulip/tsconfig": "workspace:*",
+    "@types/react": "^18.3.10",
+    "react": "^18.3.1",
+    "tsup": "^8.3.0",
+    "typescript": "^5.5.4"
+  }
+}

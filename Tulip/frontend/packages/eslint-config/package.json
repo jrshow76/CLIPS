@@ -1,0 +1,20 @@
+{
+  "name": "@tulip/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "공유 ESLint 설정",
+  "main": "index.cjs",
+  "files": ["index.cjs", "react.cjs", "next.cjs"],
+  "peerDependencies": {
+    "eslint": "^8.57.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.30.0",
+    "eslint-plugin-react": "^7.36.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-jsx-a11y": "^6.10.0"
+  }
+}

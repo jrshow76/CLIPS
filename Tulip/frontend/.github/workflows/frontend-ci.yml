@@ -1,0 +1,57 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'Tulip/frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    paths:
+      - 'Tulip/frontend/**'
+
+defaults:
+  run:
+    working-directory: Tulip/frontend
+
+jobs:
+  build:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: Tulip/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build packages (workspace)
+        run: pnpm -r --filter "./packages/*" run build
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+        continue-on-error: false
+
+      - name: Build apps
+        run: pnpm -r --filter "./apps/*" run build
+        env:
+          NEXT_PUBLIC_APP_ENV: production
+          NEXT_PUBLIC_API_BASE_URL: https://api.tulip.example.com/api/v1
+          NEXT_PUBLIC_AUTH_ISSUER: https://iam.tulip.example.com/realms/tulip
+          NEXT_PUBLIC_AUTH_CLIENT_ID: tulip-admin

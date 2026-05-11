@@ -1,0 +1,8 @@
+{
+  "name": "@tulip/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "description": "공유 TypeScript 설정 프리셋",
+  "files": ["base.json", "react-library.json", "nextjs.json"],
+  "main": "base.json"
+}
