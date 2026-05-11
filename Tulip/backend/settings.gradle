@@ -1,0 +1,25 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'tulip-backend'
+
+include ':common:common-core'
+include ':common:common-web'
+include ':common:common-security'
+include ':common:common-tenant'
+include ':common:common-data'
+include ':common:common-test'

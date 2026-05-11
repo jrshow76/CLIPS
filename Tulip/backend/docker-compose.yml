@@ -1,0 +1,178 @@
+# =====================================================================
+# Tulip+ Backend — Local Development Infrastructure (Phase 1-A)
+# ---------------------------------------------------------------------
+# 본 compose 파일은 개발자 PC에서 한 번에 모든 의존 인프라를 기동한다.
+# 운영 환경은 K8s/Helm 으로 별도 배포한다 (01_architecture_overview §7).
+# =====================================================================
+
+networks:
+  tulip-net:
+    name: tulip-net
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  kafka-data:
+  minio-data:
+  keycloak-data:
+  prometheus-data:
+  grafana-data:
+
+services:
+  # -------------------------------------------------------------------
+  # PostgreSQL 15 — 주 데이터스토어 (RLS / pgcrypto / pg_trgm)
+  # -------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: tulip-postgres
+    environment:
+      POSTGRES_DB: tulip
+      POSTGRES_USER: tulip
+      POSTGRES_PASSWORD: tulip
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tulip -d tulip"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # Redis 7 — 캐시 / 세션 / Rate Limit / JWT 블랙리스트
+  # -------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: tulip-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # Kafka (KRaft mode) — 도메인 이벤트 버스
+  # -------------------------------------------------------------------
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: tulip-kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # Keycloak 24 — OAuth2 / OIDC IdP (Phase 1-A 개발 인증용)
+  # -------------------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: tulip-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: dev-file
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "8088:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # MinIO — S3 호환 객체 스토리지 (file-service 용)
+  # -------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    container_name: tulip-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # MailHog — 개발용 SMTP (Notification Service 검증)
+  # -------------------------------------------------------------------
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: tulip-mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # Prometheus — 메트릭 수집
+  # -------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: tulip-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [tulip-net]
+
+  # -------------------------------------------------------------------
+  # Grafana — 대시보드 (Prometheus datasource 자동 프로비저닝)
+  # -------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: tulip-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks: [tulip-net]

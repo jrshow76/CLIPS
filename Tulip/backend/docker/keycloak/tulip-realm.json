@@ -1,0 +1,68 @@
+{
+  "realm": "tulip",
+  "enabled": true,
+  "displayName": "Tulip+ Dev Realm",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 43200,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "PLATFORM_ADMIN" },
+      { "name": "TENANT_ADMIN" },
+      { "name": "LIBRARIAN_HEAD" },
+      { "name": "LIBRARIAN_CATALOGER" },
+      { "name": "LIBRARIAN_ACQ" },
+      { "name": "LIBRARIAN_CIR" },
+      { "name": "PATRON_REGULAR" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "tulip-admin-web",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3001/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "tulip-opac-web",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:3002/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "tulip-internal",
+      "publicClient": false,
+      "secret": "tulip-internal-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "admin-dev",
+      "enabled": true,
+      "email": "admin-dev@tulip.local",
+      "firstName": "Admin",
+      "lastName": "Dev",
+      "credentials": [
+        { "type": "password", "value": "admin-dev", "temporary": false }
+      ],
+      "realmRoles": ["PLATFORM_ADMIN"]
+    }
+  ]
+}

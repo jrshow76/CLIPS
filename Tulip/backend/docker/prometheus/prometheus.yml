@@ -1,0 +1,15 @@
+# Tulip+ — Prometheus 기본 설정 (개발용)
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Phase 1-B 이후 서비스가 추가되면 본 섹션 확장
+  - job_name: "tulip-services"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: []   # 예: "service-auth:8080", "service-tenant:8080"
