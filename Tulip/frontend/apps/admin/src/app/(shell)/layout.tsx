@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuth } from '@tulip/auth';
 import {
   AppHeader,
   AppSidebar,
@@ -24,6 +25,8 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { user, logout } = useAuth();
+  const displayName = user?.name ?? '게스트';
 
   const sidebarItems: SidebarItem[] = useMemo(
     () => [
@@ -152,7 +155,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
                     className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-neutral-700 hover:bg-neutral-100 focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     <Icon as={UserRound} size="sm" />
-                    Mock 사용자
+                    {displayName}
                   </button>
                 )}
                 items={[
@@ -163,7 +166,14 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
                     icon: <Icon as={Settings} size="sm" />,
                     onSelect: () => router.push('/settings'),
                   },
-                  { id: 'logout', label: '로그아웃', danger: true },
+                  {
+                    id: 'logout',
+                    label: '로그아웃',
+                    danger: true,
+                    onSelect: () => {
+                      void logout().then(() => router.replace('/login'));
+                    },
+                  },
                 ]}
               />
             </>

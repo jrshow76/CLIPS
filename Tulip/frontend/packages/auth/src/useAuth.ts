@@ -1,3 +1,5 @@
+'use client';
+
 import { useContext } from 'react';
 
 import { AuthContext, type AuthContextValue } from './context';
@@ -17,8 +19,7 @@ export function useAuth(): AuthContextValue {
 
 /** 인증 여부만 빠르게 확인 */
 export function useIsAuthenticated(): boolean {
-  const { status } = useAuth();
-  return status === 'authenticated';
+  return useAuth().isAuthenticated;
 }
 
 /** 특정 scope 보유 여부 검사 */

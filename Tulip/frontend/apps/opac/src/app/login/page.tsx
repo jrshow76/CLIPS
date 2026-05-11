@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { LoginForm } from './_components/LoginForm';
 
 export const metadata = { title: '로그인 — Tulip+ OPAC' };
@@ -14,7 +16,10 @@ export default function LoginPage() {
           회원 번호 또는 통합ID로 로그인하세요.
         </p>
       </header>
-      <LoginForm />
+      {/* useSearchParams를 사용하므로 Suspense boundary 필요 */}
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }

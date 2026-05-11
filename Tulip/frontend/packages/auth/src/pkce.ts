@@ -1,8 +1,11 @@
 /**
- * PKCE (RFC 7636) 유틸
+ * PKCE (RFC 7636) 유틸 — **Deprecated (Phase 1-B)**
  *
- * - code_verifier: 43~128자 random
- * - code_challenge = BASE64URL(SHA-256(code_verifier))
+ * Phase 1-B에서 BFF 패턴으로 전환되어 PKCE state/verifier는
+ * iam-service가 보관·검증한다. 본 모듈은 호환성을 위해 유지하되
+ * `@tulip/auth`의 기본 export에서 제외된다 (`index.ts` 참조).
+ *
+ * 신규 코드에서는 사용하지 말 것. `AuthClient.initiateLogin`를 사용한다.
  */
 import type { PkceChallenge } from './types';
 
@@ -29,13 +32,14 @@ function urlSafe(length: number): string {
   return base64UrlEncode(randomBytes(length)).slice(0, length);
 }
 
+/** @deprecated Phase 1-B에서는 iam-service가 verifier를 보관한다. */
 export function generateCodeVerifier(): string {
   return urlSafe(PKCE_VERIFIER_LENGTH);
 }
 
+/** @deprecated */
 export async function generateCodeChallenge(verifier: string): Promise<string> {
   if (typeof globalThis.crypto?.subtle === 'undefined') {
-    // SSR 환경 등 SubtleCrypto 부재 시 plain 챌린지(권장X). 클라이언트 사용 전제.
     return verifier;
   }
   const encoded = new TextEncoder().encode(verifier);
@@ -43,6 +47,7 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
   return base64UrlEncode(digest);
 }
 
+/** @deprecated */
 export async function generatePkceChallenge(): Promise<PkceChallenge> {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);

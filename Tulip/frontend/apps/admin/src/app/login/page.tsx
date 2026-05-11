@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 
 import { LoginForm } from './_components/LoginForm';
 
@@ -17,7 +18,10 @@ export default function LoginPage() {
             사서·관리자 계정으로 로그인하세요.
           </p>
         </header>
-        <LoginForm />
+        {/* useSearchParams를 사용하므로 Suspense boundary 필요 */}
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </div>
     </main>
   );

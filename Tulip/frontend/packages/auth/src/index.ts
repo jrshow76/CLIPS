@@ -1,12 +1,16 @@
 /**
- * @tulip/auth — OAuth2 Authorization Code + PKCE 클라이언트
+ * @tulip/auth — iam-service `/api/v1/auth/*` 위임 인증 클라이언트
  *
- * - DEV-05 §2 보안 정책에 따라 access token은 메모리, refresh token은 HttpOnly Cookie 권장.
- * - Phase 1-A 본 단계에서는 인터페이스와 mock 구현을 제공.
- * - 실제 IAM(Keycloak) 연동은 Phase 1-B에서 토큰 엔드포인트 호출로 교체.
+ * Phase 1-B: BFF 패턴 — PKCE state/verifier는 iam-service가 보관하고
+ * SPA는 단순히 `/login/initiate`, `/login/callback`, `/refresh`, `/me`, `/logout`을
+ * 호출한다. accessToken은 메모리, refreshToken은 HttpOnly Secure 쿠키.
+ *
+ * 보안 표준은 DEV-05 §2 (`05_security_and_auth.md`)를 따른다.
+ *
+ * NOTE: 클라이언트 측 PKCE 유틸(`pkce.ts`)은 deprecated 처리되어
+ * 본 모듈에서 re-export 하지 않는다. 필요한 경우 직접 import.
  */
 export * from './types';
-export * from './pkce';
 export * from './storage';
 export * from './client';
 export * from './context';
