@@ -12,57 +12,227 @@
   "sslRequired": "none",
   "roles": {
     "realm": [
-      { "name": "PLATFORM_ADMIN" },
-      { "name": "TENANT_ADMIN" },
-      { "name": "LIBRARIAN_HEAD" },
+      { "name": "SYS_ADMIN", "description": "Tulip+ 플랫폼 시스템 관리자" },
+      { "name": "PLATFORM_ADMIN", "description": "플랫폼 운영자 (multi-tenant 전환 가능)" },
+      { "name": "TENANT_ADMIN", "description": "테넌트 관리자" },
+      { "name": "LIB_ADMIN", "description": "도서관 관장(LIBRARIAN_HEAD 별칭)" },
+      { "name": "LIBRARIAN", "description": "사서 일반(LIBRARIAN_CIR 별칭)" },
+      { "name": "LIBRARIAN_HEAD", "description": "팀장 사서" },
       { "name": "LIBRARIAN_CATALOGER" },
       { "name": "LIBRARIAN_ACQ" },
       { "name": "LIBRARIAN_CIR" },
-      { "name": "PATRON_REGULAR" }
+      { "name": "MEMBER", "description": "정회원 이용자" },
+      { "name": "PATRON_REGULAR" },
+      { "name": "HARDWARE_GATEWAY", "description": "하드웨어 게이트웨이 디바이스" }
     ]
   },
+  "clientScopes": [
+    {
+      "name": "tulip-tenant",
+      "protocol": "openid-connect",
+      "description": "Tulip+ tenantId/branchIds 커스텀 클레임 매퍼 묶음",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "tenantId",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "branch_ids",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "branch_ids",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "branchIds",
+            "jsonType.label": "String",
+            "multivalued": "true"
+          }
+        },
+        {
+          "name": "primary_branch_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "primary_branch_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "primaryBranchId",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "member_type",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "member_type",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "memberType",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "tulip-tenant"
+  ],
   "clients": [
     {
-      "clientId": "tulip-admin-web",
+      "clientId": "admin-web",
+      "name": "Tulip+ Admin Web (Next.js)",
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:3001/*"],
-      "webOrigins": ["+"],
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/api/auth/callback",
+        "http://localhost:3000/api/auth/callback/*"
+      ],
+      "webOrigins": ["http://localhost:3000"],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
-      }
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email",
+        "tulip-tenant"
+      ]
     },
     {
-      "clientId": "tulip-opac-web",
+      "clientId": "opac-web",
+      "name": "Tulip+ OPAC Web (Next.js)",
       "publicClient": true,
       "standardFlowEnabled": true,
-      "redirectUris": ["http://localhost:3002/*"],
-      "webOrigins": ["+"],
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3001/api/auth/callback",
+        "http://localhost:3001/api/auth/callback/*"
+      ],
+      "webOrigins": ["http://localhost:3001"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3001/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email",
+        "tulip-tenant"
+      ]
+    },
+    {
+      "clientId": "iam-service",
+      "name": "Tulip+ IAM Service (BFF)",
+      "publicClient": false,
+      "secret": "iam-service-dev-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:8101/api/v1/auth/login/callback"
+      ],
+      "webOrigins": ["http://localhost:8101"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
-      }
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email",
+        "tulip-tenant"
+      ]
     },
     {
       "clientId": "tulip-internal",
+      "name": "(deprecated) legacy internal client",
       "publicClient": false,
       "secret": "tulip-internal-secret",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false
+      "directAccessGrantsEnabled": false,
+      "enabled": false
     }
   ],
   "users": [
     {
-      "username": "admin-dev",
+      "username": "librarian@demo-tenant-1",
       "enabled": true,
-      "email": "admin-dev@tulip.local",
-      "firstName": "Admin",
-      "lastName": "Dev",
+      "email": "librarian@demo-tenant-1.tulip.local",
+      "emailVerified": true,
+      "firstName": "데모",
+      "lastName": "사서",
       "credentials": [
-        { "type": "password", "value": "admin-dev", "temporary": false }
+        { "type": "password", "value": "Tulip!2026", "temporary": false }
       ],
-      "realmRoles": ["PLATFORM_ADMIN"]
+      "attributes": {
+        "tenant_id": ["demo-tenant-1"],
+        "branch_ids": ["demo-tenant-1-main"],
+        "primary_branch_id": ["demo-tenant-1-main"],
+        "member_type": ["STAFF"]
+      },
+      "realmRoles": ["LIBRARIAN", "LIBRARIAN_CIR"]
+    },
+    {
+      "username": "admin@demo-tenant-1",
+      "enabled": true,
+      "email": "admin@demo-tenant-1.tulip.local",
+      "emailVerified": true,
+      "firstName": "데모",
+      "lastName": "관장",
+      "credentials": [
+        { "type": "password", "value": "Tulip!2026", "temporary": false }
+      ],
+      "attributes": {
+        "tenant_id": ["demo-tenant-1"],
+        "branch_ids": ["demo-tenant-1-main", "demo-tenant-1-east"],
+        "primary_branch_id": ["demo-tenant-1-main"],
+        "member_type": ["STAFF"]
+      },
+      "realmRoles": ["LIB_ADMIN", "TENANT_ADMIN", "LIBRARIAN_HEAD"]
+    },
+    {
+      "username": "platform-admin",
+      "enabled": true,
+      "email": "platform-admin@tulip.local",
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "Tulip!2026", "temporary": false }
+      ],
+      "attributes": {
+        "tenant_id": ["*"],
+        "member_type": ["PLATFORM_ADMIN"]
+      },
+      "realmRoles": ["SYS_ADMIN", "PLATFORM_ADMIN"]
     }
   ]
 }

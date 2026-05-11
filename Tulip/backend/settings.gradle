@@ -3,6 +3,10 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
     }
+    plugins {
+        id 'org.springframework.boot' version '3.3.5'
+        id 'io.spring.dependency-management' version '1.1.6'
+    }
 }
 
 plugins {
@@ -23,3 +27,6 @@ include ':common:common-security'
 include ':common:common-tenant'
 include ':common:common-data'
 include ':common:common-test'
+
+include ':services:api-gateway'
+include ':services:iam-service'

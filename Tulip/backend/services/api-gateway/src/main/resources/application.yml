@@ -1,0 +1,163 @@
+# =====================================================================
+# Tulip+ API Gateway — application.yml (Sprint 1-B)
+# ---------------------------------------------------------------------
+# Spring Cloud Gateway (WebFlux) 라우팅 및 CORS / Rate Limit 설정.
+# Phase 1-C 에서 tenant-service / member-service / code-policy-service
+# 가 구현되면 placeholder URI 를 실제 서비스로 교체한다.
+# =====================================================================
+
+server:
+  port: 9100
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: api-gateway
+  jackson:
+    default-property-inclusion: non_null
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+        - AddResponseHeader=X-Content-Type-Options, nosniff
+        - AddResponseHeader=Referrer-Policy, strict-origin-when-cross-origin
+        - AddResponseHeader=Strict-Transport-Security, max-age=31536000; includeSubDomains
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowedOrigins:
+              - "http://localhost:3000"     # admin-web
+              - "http://localhost:3001"     # opac-web
+              - "http://localhost:9100"     # gateway self
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD]
+            allowedHeaders: "*"
+            exposedHeaders: ["X-Trace-Id", "ETag", "Location", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"]
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        # ---------------------------------------------------------------
+        # 1) IAM(BFF) — 인증·로그인·세션
+        # ---------------------------------------------------------------
+        - id: iam-service
+          uri: http://localhost:8101
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@anonymousKeyResolver}"
+
+        # ---------------------------------------------------------------
+        # 2) Tenant 서비스 (Phase 1-C 에서 실제 구현)
+        # ---------------------------------------------------------------
+        - id: tenant-service
+          uri: http://localhost:8102
+          predicates:
+            - Path=/api/v1/tenants/**,/api/v1/libraries/**,/api/v1/branches/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@userKeyResolver}"
+
+        # ---------------------------------------------------------------
+        # 3) Member 서비스 (Phase 1-C 에서 실제 구현)
+        # ---------------------------------------------------------------
+        - id: member-service
+          uri: http://localhost:8103
+          predicates:
+            - Path=/api/v1/members/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@userKeyResolver}"
+
+        # ---------------------------------------------------------------
+        # 4) Code/Policy 서비스 (Phase 1-C 에서 실제 구현)
+        # ---------------------------------------------------------------
+        - id: code-policy-service
+          uri: http://localhost:8104
+          predicates:
+            - Path=/api/v1/codes/**,/api/v1/policies/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@userKeyResolver}"
+
+        # ---------------------------------------------------------------
+        # 5) Keycloak passthrough — /oauth2/**, /realms/**
+        # ---------------------------------------------------------------
+        - id: keycloak-passthrough
+          uri: http://localhost:8088
+          predicates:
+            - Path=/realms/**,/oauth2/**
+
+        # ---------------------------------------------------------------
+        # 6) OpenAPI 문서 집계 (각 서비스 v3/api-docs 프록시)
+        # ---------------------------------------------------------------
+        - id: iam-openapi
+          uri: http://localhost:8101
+          predicates:
+            - Path=/v3/api-docs/iam-service
+          filters:
+            - RewritePath=/v3/api-docs/iam-service,/v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: iam-service
+        url: /v3/api-docs/iam-service
+
+# ---------------------------------------------------------------------
+# Tulip+ Gateway 전용 properties
+# ---------------------------------------------------------------------
+tulip:
+  gateway:
+    security:
+      issuer-uri: http://localhost:8088/realms/tulip
+      jwks-uri: http://localhost:8088/realms/tulip/protocol/openid-connect/certs
+      expected-audiences:
+        - admin-web
+        - opac-web
+        - iam-service
+        - account
+      public-paths:
+        - /actuator/**
+        - /api/v1/auth/login/initiate
+        - /api/v1/auth/login/callback
+        - /api/v1/auth/refresh
+        - /api/v1/auth/logout
+        - /v3/api-docs/**
+        - /swagger-ui.html
+        - /swagger-ui/**
+        - /oauth2/**
+        - /realms/**
+
+logging:
+  level:
+    root: INFO
+    com.tulip: DEBUG
+    org.springframework.cloud.gateway: INFO

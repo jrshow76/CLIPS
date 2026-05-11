@@ -1,0 +1,21 @@
+# =====================================================================
+# Tulip+ IAM Service — Federation 어댑터 설정 (Phase 1-B 스텁)
+# ---------------------------------------------------------------------
+# 본 파일은 외부 SSO Federation 기능의 활성화 플래그만 정의한다.
+# iam-service 메인 application.yml 이 BackendSenior 에 의해 생성되면
+# spring.profiles.include 또는 yml 머지 방식으로 본 섹션을 흡수한다.
+#
+# Phase 1-B 의 기본값은 모두 false. Phase 3 에서 운영기관 요구에 따라
+# 환경변수로 활성화한다 (TULIP_FEDERATION_SAML_ENABLED 등).
+# =====================================================================
+tulip:
+  federation:
+    saml:
+      # SAML 2.0 어댑터 활성화. true 일 때만 SamlFederationProvider 빈이 등록된다.
+      enabled: ${TULIP_FEDERATION_SAML_ENABLED:false}
+    oidc:
+      # OpenID Connect 어댑터 활성화.
+      enabled: ${TULIP_FEDERATION_OIDC_ENABLED:false}
+    ldap:
+      # LDAP / Active Directory 어댑터 활성화.
+      enabled: ${TULIP_FEDERATION_LDAP_ENABLED:false}
