@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tulip.tenant.infra.mapper.OutboxMapper">
+
+    <resultMap id="OutboxResult" type="com.tulip.tenant.outbox.OutboxEntry">
+        <id     property="id"             column="id"/>
+        <result property="aggregateType"  column="aggregate_type"/>
+        <result property="aggregateId"    column="aggregate_id"/>
+        <result property="eventType"      column="event_type"/>
+        <result property="payload"        column="payload"/>
+        <result property="tenantId"       column="tenant_id"/>
+        <result property="occurredAt"     column="occurred_at"/>
+        <result property="processedAt"    column="processed_at"/>
+        <result property="retryCount"     column="retry_count"/>
+        <result property="status"         column="status"
+                javaType="com.tulip.tenant.outbox.OutboxEntry$Status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="lastError"      column="last_error"/>
+        <result property="traceId"        column="trace_id"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.tulip.tenant.outbox.OutboxEntry"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO tnt_outbox (
+            aggregate_type, aggregate_id, event_type, payload, tenant_id,
+            occurred_at, status, retry_count, trace_id
+        ) VALUES (
+            #{aggregateType}, #{aggregateId}, #{eventType},
+            CAST(#{payload} AS jsonb),
+            #{tenantId},
+            COALESCE(#{occurredAt}, now()),
+            #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            #{retryCount},
+            #{traceId}
+        )
+    </insert>
+
+    <!--
+        Polling Publisher 가 PENDING 행을 잠금 획득.
+        SKIP LOCKED 로 다중 인스턴스 분산 처리 안전.
+        잠금 직후 PROCESSING 으로 마킹하여 다른 트랜잭션에서 중복 픽을 차단한다.
+    -->
+    <select id="pickPending" resultMap="OutboxResult">
+        WITH picked AS (
+            SELECT id
+            FROM tnt_outbox
+            WHERE status = 'PENDING'
+            ORDER BY occurred_at ASC
+            LIMIT #{limit}
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE tnt_outbox o
+           SET status = 'PROCESSING'
+          FROM picked
+         WHERE o.id = picked.id
+        RETURNING o.id, o.aggregate_type, o.aggregate_id, o.event_type,
+                  o.payload::text AS payload,
+                  o.tenant_id, o.occurred_at, o.processed_at, o.retry_count,
+                  o.status, o.last_error, o.trace_id
+    </select>
+
+    <update id="markCompleted">
+        UPDATE tnt_outbox
+           SET status = 'COMPLETED',
+               processed_at = now(),
+               last_error = NULL
+         WHERE id = #{id}
+    </update>
+
+    <update id="markRetry">
+        UPDATE tnt_outbox
+           SET status = 'PENDING',
+               retry_count = #{retryCount},
+               last_error = #{error}
+         WHERE id = #{id}
+    </update>
+
+    <update id="markFailed">
+        UPDATE tnt_outbox
+           SET status = 'FAILED',
+               processed_at = now(),
+               retry_count = #{retryCount},
+               last_error = #{error}
+         WHERE id = #{id}
+    </update>
+
+</mapper>

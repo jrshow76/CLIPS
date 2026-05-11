@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    회원증(mbr_member_card) Mapper. RLS 로 tenant_id 격리.
+-->
+<mapper namespace="com.tulip.member.infra.mapper.MemberCardMapper">
+
+    <resultMap id="CardResult" type="com.tulip.member.domain.MemberCard">
+        <id     property="id"           column="id"/>
+        <result property="tenantId"     column="tenant_id"/>
+        <result property="memberId"     column="member_id"/>
+        <result property="cardNo"       column="card_no"/>
+        <result property="cardType"     column="card_type"/>
+        <result property="status"       column="status"/>
+        <result property="issuedDate"   column="issued_date"/>
+        <result property="expireDate"   column="expire_date"/>
+        <result property="issuedReason" column="issued_reason"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="createdBy"    column="created_by"/>
+        <result property="updatedAt"    column="updated_at"/>
+        <result property="updatedBy"    column="updated_by"/>
+        <result property="version"      column="version"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="c.id">
+        INSERT INTO mbr_member_card (
+            tenant_id, member_id, card_no, card_type, status,
+            issued_date, expire_date, issued_reason,
+            created_at, created_by, updated_at, updated_by, version
+        ) VALUES (
+            #{c.tenantId}, #{c.memberId}, #{c.cardNo}, #{c.cardType},
+            COALESCE(#{c.status},'ACTIVE'),
+            COALESCE(#{c.issuedDate}, CURRENT_DATE),
+            #{c.expireDate}, #{c.issuedReason},
+            now(), #{c.createdBy}, now(), #{c.createdBy}, 0
+        )
+    </insert>
+
+    <update id="updateById">
+        UPDATE mbr_member_card SET
+            status        = COALESCE(#{c.status}, status),
+            expire_date   = COALESCE(#{c.expireDate}, expire_date),
+            issued_reason = COALESCE(#{c.issuedReason}, issued_reason),
+            updated_at    = now(),
+            updated_by    = #{c.updatedBy}
+        WHERE id = #{c.id}
+    </update>
+
+    <select id="findById" resultMap="CardResult">
+        SELECT * FROM mbr_member_card WHERE id = #{id} LIMIT 1
+    </select>
+
+    <select id="findByMemberId" resultMap="CardResult">
+        SELECT * FROM mbr_member_card
+        WHERE member_id = #{memberId}
+        ORDER BY issued_date DESC, id DESC
+    </select>
+
+    <select id="countActiveByMemberId" resultType="int">
+        SELECT COUNT(*) FROM mbr_member_card
+        WHERE member_id = #{memberId}
+          AND status = 'ACTIVE'
+    </select>
+</mapper>

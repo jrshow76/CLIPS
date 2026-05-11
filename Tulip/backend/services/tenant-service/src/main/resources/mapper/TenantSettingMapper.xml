@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tulip.tenant.infra.mapper.TenantSettingMapper">
+
+    <resultMap id="SettingResult" type="com.tulip.tenant.domain.TenantSetting">
+        <id     property="id"           column="id"/>
+        <result property="tenantId"     column="tenant_id"/>
+        <result property="key"          column="key"/>
+        <result property="valueJson"    column="value_json"/>
+        <result property="description"  column="description"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="createdBy"    column="created_by"/>
+        <result property="updatedAt"    column="updated_at"/>
+        <result property="updatedBy"    column="updated_by"/>
+        <result property="deletedAt"    column="deleted_at"/>
+        <result property="version"      column="version"/>
+    </resultMap>
+
+    <sql id="Columns">
+        id, tenant_id, key, value_json, description,
+        created_at, created_by, updated_at, updated_by, deleted_at, version
+    </sql>
+
+    <insert id="insert" parameterType="com.tulip.tenant.domain.TenantSetting"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO tnt_tenant_setting (
+            tenant_id, key, value_json, description, created_by, updated_by
+        ) VALUES (
+            #{tenantId}, #{key},
+            CAST(#{valueJson} AS jsonb),
+            #{description}, #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.tulip.tenant.domain.TenantSetting">
+        UPDATE tnt_tenant_setting SET
+            value_json  = CAST(#{valueJson} AS jsonb),
+            description = #{description},
+            updated_by  = #{updatedBy}
+        WHERE id = #{id} AND version = #{version}
+    </update>
+
+    <select id="findByKey" resultMap="SettingResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_tenant_setting
+        WHERE tenant_id = #{tenantId}
+          AND key = #{key}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="findAllByTenant" resultMap="SettingResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_tenant_setting
+        WHERE tenant_id = #{tenantId}
+          AND deleted_at IS NULL
+        ORDER BY key ASC
+    </select>
+
+</mapper>

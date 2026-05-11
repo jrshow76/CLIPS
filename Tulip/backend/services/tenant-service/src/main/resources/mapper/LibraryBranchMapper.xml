@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tulip.tenant.infra.mapper.LibraryBranchMapper">
+
+    <resultMap id="BranchResult" type="com.tulip.tenant.domain.LibraryBranch">
+        <id     property="id"           column="id"/>
+        <result property="publicId"     column="public_id"/>
+        <result property="tenantId"     column="tenant_id"/>
+        <result property="libraryId"    column="library_id"/>
+        <result property="code"         column="code"/>
+        <result property="name"         column="name"/>
+        <result property="status"       column="status"
+                javaType="com.tulip.tenant.domain.TenantStatus"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="addressJson"  column="address_json"/>
+        <result property="contactJson"  column="contact_json"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="createdBy"    column="created_by"/>
+        <result property="updatedAt"    column="updated_at"/>
+        <result property="updatedBy"    column="updated_by"/>
+        <result property="deletedAt"    column="deleted_at"/>
+        <result property="version"      column="version"/>
+    </resultMap>
+
+    <sql id="Columns">
+        id, public_id, tenant_id, library_id, code, name, status,
+        address_json, contact_json,
+        created_at, created_by, updated_at, updated_by, deleted_at, version
+    </sql>
+
+    <insert id="insert" parameterType="com.tulip.tenant.domain.LibraryBranch"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO tnt_library_branch (
+            public_id, tenant_id, library_id, code, name, status,
+            address_json, contact_json, created_by, updated_by
+        ) VALUES (
+            #{publicId}, #{tenantId}, #{libraryId}, #{code}, #{name},
+            #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            CAST(#{addressJson} AS jsonb),
+            CAST(#{contactJson} AS jsonb),
+            #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.tulip.tenant.domain.LibraryBranch">
+        UPDATE tnt_library_branch SET
+            name         = #{name},
+            status       = #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            address_json = CAST(#{addressJson} AS jsonb),
+            contact_json = CAST(#{contactJson} AS jsonb),
+            deleted_at   = #{deletedAt},
+            updated_by   = #{updatedBy}
+        WHERE id = #{id} AND version = #{version}
+    </update>
+
+    <select id="findById" resultMap="BranchResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_library_branch
+        WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+
+    <select id="findByLibrary" resultMap="BranchResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_library_branch
+        WHERE library_id = #{libraryId} AND deleted_at IS NULL
+        ORDER BY id ASC
+    </select>
+
+    <select id="countActiveByLibrary" resultType="int">
+        SELECT COUNT(*) FROM tnt_library_branch
+        WHERE library_id = #{libraryId}
+          AND deleted_at IS NULL
+          AND status = 'ACTIVE'
+    </select>
+
+    <select id="countByCodeInLibrary" resultType="int">
+        SELECT COUNT(*) FROM tnt_library_branch
+        WHERE library_id = #{libraryId}
+          AND LOWER(code) = LOWER(#{code})
+          AND deleted_at IS NULL
+    </select>
+
+</mapper>

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    코드 그룹/코드 (cd_code_group, cd_code) Mapper.
+    글로벌 코드는 tenant_id IS NULL 로 저장된다.
+-->
+<mapper namespace="com.tulip.codepolicy.infra.mapper.CodeMapper">
+
+    <resultMap id="GroupResult" type="com.tulip.codepolicy.domain.CodeGroup">
+        <id     property="id"           column="id"/>
+        <result property="tenantId"     column="tenant_id"/>
+        <result property="groupCode"    column="group_code"/>
+        <result property="groupName"    column="group_name"/>
+        <result property="description"  column="description"/>
+        <result property="editable"     column="editable"/>
+        <result property="hierarchical" column="hierarchical"/>
+        <result property="createdAt"    column="created_at"/>
+        <result property="updatedAt"    column="updated_at"/>
+        <result property="version"      column="version"/>
+    </resultMap>
+
+    <resultMap id="ItemResult" type="com.tulip.codepolicy.domain.CodeItem">
+        <id     property="id"          column="id"/>
+        <result property="tenantId"    column="tenant_id"/>
+        <result property="groupId"     column="group_id"/>
+        <result property="groupCode"   column="group_code"/>
+        <result property="code"        column="code"/>
+        <result property="name"        column="name"/>
+        <result property="description" column="description"/>
+        <result property="parentId"    column="parent_id"/>
+        <result property="sortOrder"   column="sort_order"/>
+        <result property="active"      column="active"/>
+        <result property="attributesJson" column="attributes_json"
+                typeHandler="com.tulip.common.data.handler.JsonbTypeHandler"/>
+        <result property="createdAt"   column="created_at"/>
+        <result property="updatedAt"   column="updated_at"/>
+        <result property="version"     column="version"/>
+    </resultMap>
+
+    <select id="listGroups" resultMap="GroupResult">
+        SELECT * FROM cd_code_group
+        <where>
+            (tenant_id IS NULL
+            <if test="tenantId != null">OR tenant_id = #{tenantId}</if>
+            )
+        </where>
+        ORDER BY tenant_id NULLS FIRST, group_code ASC
+    </select>
+
+    <select id="findGroupByCode" resultMap="GroupResult">
+        SELECT * FROM cd_code_group
+        WHERE group_code = #{groupCode}
+          AND (tenant_id IS NULL
+                <if test="tenantId != null">OR tenant_id = #{tenantId}</if>
+              )
+        ORDER BY tenant_id NULLS LAST
+        LIMIT 1
+    </select>
+
+    <select id="listItemsByGroup" resultMap="ItemResult">
+        SELECT
+            c.id, c.tenant_id, c.group_id, g.group_code,
+            c.code, c.name, c.description, c.parent_id, c.sort_order, c.active,
+            c.attributes_json, c.created_at, c.updated_at, c.version
+        FROM cd_code c
+        JOIN cd_code_group g ON g.id = c.group_id
+        WHERE g.group_code = #{groupCode}
+          AND (c.tenant_id IS NULL
+                <if test="tenantId != null">OR c.tenant_id = #{tenantId}</if>
+              )
+        ORDER BY c.parent_id NULLS FIRST, c.sort_order ASC, c.code ASC
+    </select>
+
+    <select id="findItemById" resultMap="ItemResult">
+        SELECT
+            c.id, c.tenant_id, c.group_id, g.group_code,
+            c.code, c.name, c.description, c.parent_id, c.sort_order, c.active,
+            c.attributes_json, c.created_at, c.updated_at, c.version
+        FROM cd_code c
+        JOIN cd_code_group g ON g.id = c.group_id
+        WHERE c.id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="findItem" resultMap="ItemResult">
+        SELECT
+            c.id, c.tenant_id, c.group_id, g.group_code,
+            c.code, c.name, c.description, c.parent_id, c.sort_order, c.active,
+            c.attributes_json, c.created_at, c.updated_at, c.version
+        FROM cd_code c
+        JOIN cd_code_group g ON g.id = c.group_id
+        WHERE g.group_code = #{groupCode}
+          AND c.code = #{code}
+          AND (c.tenant_id IS NULL
+                <if test="tenantId != null">OR c.tenant_id = #{tenantId}</if>
+              )
+        ORDER BY c.tenant_id NULLS LAST
+        LIMIT 1
+    </select>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="i.id">
+        INSERT INTO cd_code (
+            tenant_id, group_id, code, name, description, parent_id, sort_order, active,
+            attributes_json, created_at, updated_at, version
+        ) VALUES (
+            #{i.tenantId}, #{i.groupId}, #{i.code}, #{i.name}, #{i.description},
+            #{i.parentId}, COALESCE(#{i.sortOrder}, 0), COALESCE(#{i.active}, true),
+            <choose>
+                <when test="i.attributesJson != null">
+                    #{i.attributesJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler}
+                </when>
+                <otherwise>'{}'::jsonb</otherwise>
+            </choose>,
+            now(), now(), 0
+        )
+    </insert>
+
+    <update id="updateItem">
+        UPDATE cd_code SET
+            name            = COALESCE(#{i.name}, name),
+            description     = COALESCE(#{i.description}, description),
+            parent_id       = COALESCE(#{i.parentId}, parent_id),
+            sort_order      = COALESCE(#{i.sortOrder}, sort_order),
+            active          = COALESCE(#{i.active}, active),
+            attributes_json = CASE
+                WHEN #{i.attributesJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler} IS NULL THEN attributes_json
+                ELSE #{i.attributesJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler}
+            END,
+            updated_at      = now()
+        WHERE id = #{i.id}
+    </update>
+
+    <delete id="deleteItem">
+        DELETE FROM cd_code WHERE id = #{id}
+    </delete>
+
+    <select id="countItemByCode" resultType="int">
+        SELECT COUNT(*) FROM cd_code
+        WHERE group_id = #{groupId}
+          AND code = #{code}
+          <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>
+    </select>
+</mapper>

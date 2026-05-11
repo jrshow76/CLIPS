@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    회원(mbr_member) Mapper.
+    - PII(전화/주소): pgp_sym_encrypt / pgp_sym_decrypt 적용.
+    - 정규화 컬럼(name_normalized/email_lower/phone_normalized) 는 INSERT/UPDATE 시 계산.
+    - RLS 정책으로 tenant_id 가 자동 격리되며 별도 WHERE 절은 생략한다.
+-->
+<mapper namespace="com.tulip.member.infra.mapper.MemberMapper">
+
+    <!-- ===== ResultMap ===== -->
+    <resultMap id="MemberResult" type="com.tulip.member.domain.Member">
+        <id     property="id"               column="id"/>
+        <result property="tenantId"         column="tenant_id"/>
+        <result property="libraryId"        column="library_id"/>
+        <result property="publicId"         column="public_id"/>
+        <result property="memberNo"         column="member_no"/>
+        <result property="name"             column="name"/>
+        <result property="nameNormalized"   column="name_normalized"/>
+        <result property="email"            column="email"/>
+        <result property="emailLower"       column="email_lower"/>
+        <result property="phone"            column="phone_plain"/>
+        <result property="phoneNormalized"  column="phone_normalized"/>
+        <result property="birthdate"        column="birthdate"/>
+        <result property="memberTypeCode"   column="member_type_code"/>
+        <result property="status"           column="status"/>
+        <result property="addressJson"      column="address_json"
+                typeHandler="com.tulip.common.data.handler.JsonbTypeHandler"/>
+        <result property="suspendedAt"      column="suspended_at"/>
+        <result property="suspendedReason"  column="suspended_reason"/>
+        <result property="createdAt"        column="created_at"/>
+        <result property="createdBy"        column="created_by"/>
+        <result property="updatedAt"        column="updated_at"/>
+        <result property="updatedBy"        column="updated_by"/>
+        <result property="deletedAt"        column="deleted_at"/>
+        <result property="version"          column="version"/>
+    </resultMap>
+
+    <!-- ===== INSERT ===== -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="m.id">
+        <!-- 회원 등록: PII 컬럼은 pgp_sym_encrypt 로 암호화하여 phone_enc/address_enc 컬럼에 저장한다고 가정. -->
+        INSERT INTO mbr_member (
+            tenant_id, library_id, public_id, member_no, name, name_normalized,
+            email, email_lower, phone_enc, phone_normalized, birthdate,
+            member_type_code, status, address_json, created_at, created_by, updated_at, updated_by, version
+        ) VALUES (
+            #{m.tenantId},
+            #{m.libraryId},
+            #{m.publicId},
+            #{m.memberNo},
+            #{m.name},
+            lower(#{m.nameNormalized}),
+            #{m.email},
+            lower(#{m.emailLower}),
+            CASE WHEN #{m.phone} IS NULL THEN NULL
+                 ELSE pgp_sym_encrypt(#{m.phone}, #{pass}) END,
+            #{m.phoneNormalized},
+            #{m.birthdate},
+            #{m.memberTypeCode},
+            COALESCE(#{m.status},'ACTIVE'),
+            <choose>
+                <when test="m.addressJson != null">
+                    #{m.addressJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler}
+                </when>
+                <otherwise>'{}'::jsonb</otherwise>
+            </choose>,
+            now(), #{m.createdBy}, now(), #{m.createdBy}, 0
+        )
+    </insert>
+
+    <!-- ===== UPDATE ===== -->
+    <update id="updateById">
+        UPDATE mbr_member SET
+            library_id        = COALESCE(#{m.libraryId}, library_id),
+            name              = COALESCE(#{m.name}, name),
+            name_normalized   = COALESCE(lower(#{m.nameNormalized}), name_normalized),
+            email             = COALESCE(#{m.email}, email),
+            email_lower       = COALESCE(lower(#{m.emailLower}), email_lower),
+            phone_enc         = CASE WHEN #{m.phone} IS NULL THEN phone_enc
+                                     ELSE pgp_sym_encrypt(#{m.phone}, #{pass}) END,
+            phone_normalized  = COALESCE(#{m.phoneNormalized}, phone_normalized),
+            birthdate         = COALESCE(#{m.birthdate}, birthdate),
+            member_type_code  = COALESCE(#{m.memberTypeCode}, member_type_code),
+            status            = COALESCE(#{m.status}, status),
+            address_json      = CASE WHEN #{m.addressJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler} IS NULL THEN address_json
+                                     ELSE #{m.addressJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler} END,
+            updated_at        = now(),
+            updated_by        = #{m.updatedBy}
+        WHERE id = #{m.id}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="updateStatus">
+        UPDATE mbr_member SET
+            status = #{status},
+            suspended_at = CASE WHEN #{status} = 'SUSPENDED' THEN now() ELSE NULL END,
+            suspended_reason = CASE WHEN #{status} = 'SUSPENDED' THEN #{reason} ELSE NULL END,
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE mbr_member SET
+            deleted_at = now(),
+            status = 'SUSPENDED',
+            updated_at = now()
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- ===== SELECT ===== -->
+    <sql id="selectCols">
+        SELECT
+            id, tenant_id, library_id, public_id, member_no, name, name_normalized,
+            email, email_lower,
+            CASE WHEN phone_enc IS NULL THEN NULL
+                 ELSE pgp_sym_decrypt(phone_enc, #{pass}) END AS phone_plain,
+            phone_normalized, birthdate, member_type_code, status, address_json,
+            suspended_at, suspended_reason, created_at, created_by,
+            updated_at, updated_by, deleted_at, version
+        FROM mbr_member
+    </sql>
+
+    <select id="findById" resultMap="MemberResult">
+        <include refid="selectCols"/>
+        WHERE id = #{id}
+        <if test="!includeDeleted">AND deleted_at IS NULL</if>
+        LIMIT 1
+    </select>
+
+    <select id="findByMemberNo" resultMap="MemberResult">
+        <include refid="selectCols"/>
+        WHERE member_no = #{memberNo}
+          AND deleted_at IS NULL
+        LIMIT 1
+    </select>
+
+    <select id="search" resultMap="MemberResult">
+        <include refid="selectCols"/>
+        <where>
+            deleted_at IS NULL
+            <if test="c.status != null and c.status != ''">AND status = #{c.status}</if>
+            <if test="c.libraryId != null">AND library_id = #{c.libraryId}</if>
+            <if test="c.memberTypeCode != null and c.memberTypeCode != ''">AND member_type_code = #{c.memberTypeCode}</if>
+            <if test="c.q != null and c.q != ''">
+                AND (
+                    name_normalized ILIKE '%' || lower(#{c.q}) || '%'
+                    OR email_lower    ILIKE '%' || lower(#{c.q}) || '%'
+                    OR phone_normalized ILIKE '%' || #{c.q} || '%'
+                    OR member_no = #{c.q}
+                )
+            </if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*) FROM mbr_member
+        <where>
+            deleted_at IS NULL
+            <if test="c.status != null and c.status != ''">AND status = #{c.status}</if>
+            <if test="c.libraryId != null">AND library_id = #{c.libraryId}</if>
+            <if test="c.memberTypeCode != null and c.memberTypeCode != ''">AND member_type_code = #{c.memberTypeCode}</if>
+            <if test="c.q != null and c.q != ''">
+                AND (
+                    name_normalized ILIKE '%' || lower(#{c.q}) || '%'
+                    OR email_lower    ILIKE '%' || lower(#{c.q}) || '%'
+                    OR phone_normalized ILIKE '%' || #{c.q} || '%'
+                    OR member_no = #{c.q}
+                )
+            </if>
+        </where>
+    </select>
+
+    <select id="countByEmail" resultType="int">
+        SELECT COUNT(*) FROM mbr_member
+        WHERE email_lower = lower(#{email})
+          AND deleted_at IS NULL
+          <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>
+    </select>
+
+    <select id="countByMemberNo" resultType="int">
+        SELECT COUNT(*) FROM mbr_member
+        WHERE member_no = #{memberNo}
+          AND deleted_at IS NULL
+    </select>
+</mapper>

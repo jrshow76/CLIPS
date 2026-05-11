@@ -30,3 +30,6 @@ include ':common:common-test'
 
 include ':services:api-gateway'
 include ':services:iam-service'
+include ':services:tenant-service'
+include ':services:member-service'
+include ':services:code-policy-service'

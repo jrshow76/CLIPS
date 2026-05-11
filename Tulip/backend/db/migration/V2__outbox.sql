@@ -1,0 +1,84 @@
+-- =====================================================================
+-- Tulip+ — V2 Outbox 패턴 공통 마이그레이션 (Sprint 1-C.7)
+-- ---------------------------------------------------------------------
+-- 작성자 : DBA Agent
+-- 작성일 : 2026-05-11
+-- 변경요약: 도메인 서비스별 Outbox 테이블의 표준 템플릿/참조 정의
+-- ---------------------------------------------------------------------
+-- 본 파일은 "참조용 템플릿" 이다.
+-- 실제 Outbox 테이블은 각 서비스 V1 마이그레이션에 도메인 prefix(tnt_/mbr_/cd_)
+-- 로 복제되어 있으며, Flyway 가 각 서비스 DB 에 자동 적용한다.
+--
+-- 본 파일을 실제로 적용해야 하는 시나리오:
+--   (1) 새로운 서비스가 추가되어 신규 prefix 가 필요한 경우, 본 템플릿을
+--       참고하여 해당 서비스 V1 마이그레이션 끝에 추가한다.
+--   (2) Outbox 폴링 publisher 가 모니터링 대시보드를 만들 때, 본 파일에
+--       정의된 status 와 인덱스 패턴을 그대로 따른다.
+-- =====================================================================
+
+-- ----- 참조용 Outbox 테이블 스키마 (서비스별 prefix 적용) -----
+--
+-- CREATE TABLE <prefix>_outbox (
+--     id              BIGSERIAL PRIMARY KEY,
+--     aggregate_type  VARCHAR(64)  NOT NULL,
+--     aggregate_id    VARCHAR(64)  NOT NULL,
+--     event_type      VARCHAR(128) NOT NULL,
+--     payload         JSONB        NOT NULL,
+--     tenant_id       BIGINT,                     -- 글로벌 이벤트 허용
+--     occurred_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
+--     processed_at    TIMESTAMPTZ,
+--     retry_count     INTEGER      NOT NULL DEFAULT 0,
+--     status          VARCHAR(16)  NOT NULL DEFAULT 'PENDING'
+--                        CHECK (status IN ('PENDING','PROCESSING','COMPLETED','FAILED')),
+--     last_error      TEXT,
+--     trace_id        VARCHAR(64)
+-- );
+--
+-- -- 폴링 패턴 인덱스
+-- CREATE INDEX ix_<prefix>_outbox_status_occurred
+--     ON <prefix>_outbox (status, occurred_at)
+--     WHERE status IN ('PENDING','PROCESSING');
+-- CREATE INDEX ix_<prefix>_outbox_tenant_occurred
+--     ON <prefix>_outbox (tenant_id, occurred_at DESC);
+--
+-- -- RLS (테넌트 격리 + 글로벌 이벤트 SYS 허용)
+-- ALTER TABLE <prefix>_outbox ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE <prefix>_outbox FORCE  ROW LEVEL SECURITY;
+-- CREATE POLICY pol_<prefix>_outbox_sel ON <prefix>_outbox
+--     FOR SELECT USING (tenant_id = fn_current_tenant_id() OR tenant_id IS NULL);
+-- ... (INSERT/UPDATE/DELETE 동일 패턴)
+
+-- ----- 운영 가이드 -----
+--
+-- 1. publisher 폴링 쿼리(권장):
+--      SELECT id, aggregate_type, aggregate_id, event_type, payload, tenant_id
+--      FROM <prefix>_outbox
+--      WHERE status = 'PENDING'
+--      ORDER BY occurred_at
+--      FOR UPDATE SKIP LOCKED
+--      LIMIT 100;
+--    -- 발행 성공 시:
+--      UPDATE <prefix>_outbox
+--      SET status='COMPLETED', processed_at=now()
+--      WHERE id = ANY($1::bigint[]);
+--    -- 실패 시: status='FAILED', retry_count=retry_count+1, last_error=$err
+--
+-- 2. 정리 정책: status='COMPLETED' 이면서 processed_at < now() - INTERVAL '7 days'
+--    인 행은 야간 배치로 DELETE (또는 보존이 필요하면 cold storage 로 이관).
+--
+-- 3. 모니터링 지표:
+--    - PENDING 행수 (warning: >1000, critical: >10000)
+--    - 최오래 PENDING occurred_at 와 현재 시각 차이 (SLA 30초)
+--    - FAILED 누적 (retry_count >= 5 인 행)
+--
+-- 4. Listen/Notify 보완:
+--    INSERT 트리거에서 pg_notify('outbox_event', tenant_id::text) 발행 시
+--    publisher 가 즉시 polling. (리스크 R-C2 대응)
+--
+-- =====================================================================
+
+-- 본 파일은 DDL 을 직접 실행하지 않는다. (No-op 마이그레이션)
+-- Flyway 가 본 파일을 적용 대상으로 인식하지 않도록 별도 디렉토리에서 관리하거나,
+-- 본 영역(backend/db/migration) 은 참조 라이브러리 용도로만 사용한다.
+
+SELECT 'outbox template documented' AS info;

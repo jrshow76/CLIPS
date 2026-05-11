@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    개인정보 처리 동의(mbr_member_consent) Mapper.
+-->
+<mapper namespace="com.tulip.member.infra.mapper.MemberConsentMapper">
+
+    <resultMap id="ConsentResult" type="com.tulip.member.domain.MemberConsent">
+        <id     property="id"          column="id"/>
+        <result property="tenantId"    column="tenant_id"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="consentType" column="consent_type"/>
+        <result property="granted"     column="granted"/>
+        <result property="version"     column="version"/>
+        <result property="grantedAt"   column="granted_at"/>
+        <result property="revokedAt"   column="revoked_at"/>
+        <result property="channel"     column="channel"/>
+        <result property="collectedBy" column="collected_by"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="c.id">
+        INSERT INTO mbr_member_consent (
+            tenant_id, member_id, consent_type, granted, version,
+            granted_at, revoked_at, channel, collected_by, created_at
+        ) VALUES (
+            #{c.tenantId}, #{c.memberId}, #{c.consentType}, #{c.granted}, #{c.version},
+            CASE WHEN #{c.granted} = true THEN COALESCE(#{c.grantedAt}, now()) ELSE NULL END,
+            CASE WHEN #{c.granted} = false THEN COALESCE(#{c.revokedAt}, now()) ELSE NULL END,
+            #{c.channel}, #{c.collectedBy}, now()
+        )
+    </insert>
+
+    <select id="findByMemberId" resultMap="ConsentResult">
+        SELECT * FROM mbr_member_consent
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC, id DESC
+    </select>
+</mapper>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    cd_outbox Mapper. member-service 와 동일 구조 복제 (Phase 2 에 공통화).
+-->
+<mapper namespace="com.tulip.codepolicy.infra.mapper.OutboxMapper">
+
+    <resultMap id="OutboxResult" type="com.tulip.codepolicy.domain.OutboxEvent">
+        <id     property="id"            column="id"/>
+        <result property="tenantId"      column="tenant_id"/>
+        <result property="aggregateType" column="aggregate_type"/>
+        <result property="aggregateId"   column="aggregate_id"/>
+        <result property="eventType"     column="event_type"/>
+        <result property="payload"       column="payload"
+                typeHandler="com.tulip.common.data.handler.JsonbTypeHandler"/>
+        <result property="headers"       column="headers"
+                typeHandler="com.tulip.common.data.handler.JsonbTypeHandler"/>
+        <result property="traceId"       column="trace_id"/>
+        <result property="occurredAt"    column="occurred_at"/>
+        <result property="publishedAt"   column="published_at"/>
+        <result property="retryCount"    column="retry_count"/>
+        <result property="status"        column="status"/>
+        <result property="lastError"     column="last_error"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="e.id">
+        INSERT INTO cd_outbox (
+            tenant_id, aggregate_type, aggregate_id, event_type,
+            payload, headers, trace_id, occurred_at, retry_count, status
+        ) VALUES (
+            #{e.tenantId}, #{e.aggregateType}, #{e.aggregateId}, #{e.eventType},
+            #{e.payload, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler},
+            #{e.headers, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler},
+            #{e.traceId}, COALESCE(#{e.occurredAt}, now()), 0, 'PENDING'
+        )
+    </insert>
+
+    <select id="pollPending" resultMap="OutboxResult">
+        SELECT * FROM cd_outbox
+        WHERE status = 'PENDING'
+        ORDER BY occurred_at ASC, id ASC
+        LIMIT #{limit}
+        FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="markPublished">
+        UPDATE cd_outbox
+        SET status = 'PUBLISHED',
+            published_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="markFailed">
+        UPDATE cd_outbox
+        SET retry_count = #{retryCount},
+            last_error  = #{error},
+            status      = CASE WHEN #{retryCount} >= 5 THEN 'DEAD' ELSE 'PENDING' END
+        WHERE id = #{id}
+    </update>
+</mapper>

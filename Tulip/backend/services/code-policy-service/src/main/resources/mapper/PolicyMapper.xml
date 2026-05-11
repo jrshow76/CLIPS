@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    정책(pol_policy, pol_policy_assignment) Mapper.
+-->
+<mapper namespace="com.tulip.codepolicy.infra.mapper.PolicyMapper">
+
+    <resultMap id="PolicyResult" type="com.tulip.codepolicy.domain.Policy">
+        <id     property="id"             column="id"/>
+        <result property="tenantId"       column="tenant_id"/>
+        <result property="policyCode"     column="policy_code"/>
+        <result property="name"           column="name"/>
+        <result property="description"    column="description"/>
+        <result property="policyVersion"  column="policy_version"/>
+        <result property="rulesJson"      column="rules_json"
+                typeHandler="com.tulip.common.data.handler.JsonbTypeHandler"/>
+        <result property="effectiveFrom"  column="effective_from"/>
+        <result property="effectiveTo"    column="effective_to"/>
+        <result property="active"         column="active"/>
+        <result property="createdAt"      column="created_at"/>
+        <result property="updatedAt"      column="updated_at"/>
+        <result property="version"        column="version"/>
+    </resultMap>
+
+    <resultMap id="AssignmentResult" type="com.tulip.codepolicy.domain.PolicyAssignment">
+        <id     property="id"         column="id"/>
+        <result property="tenantId"   column="tenant_id"/>
+        <result property="policyId"   column="policy_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId"   column="target_id"/>
+        <result property="priority"   column="priority"/>
+        <result property="createdAt"  column="created_at"/>
+    </resultMap>
+
+    <select id="list" resultMap="PolicyResult">
+        SELECT * FROM pol_policy
+        <where>
+            <if test="policyCode != null and policyCode != ''">AND policy_code = #{policyCode}</if>
+            <if test="active != null">AND active = #{active}</if>
+        </where>
+        ORDER BY policy_code ASC, effective_from DESC NULLS LAST, id DESC
+    </select>
+
+    <select id="findById" resultMap="PolicyResult">
+        SELECT * FROM pol_policy WHERE id = #{id} LIMIT 1
+    </select>
+
+    <select id="findByPolicyCode" resultMap="PolicyResult">
+        SELECT * FROM pol_policy WHERE policy_code = #{policyCode} ORDER BY id DESC LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="p.id">
+        INSERT INTO pol_policy (
+            tenant_id, policy_code, name, description, policy_version,
+            rules_json, effective_from, effective_to, active,
+            created_at, updated_at, version
+        ) VALUES (
+            #{p.tenantId}, #{p.policyCode}, #{p.name}, #{p.description},
+            COALESCE(#{p.policyVersion}, '1.0'),
+            #{p.rulesJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler},
+            #{p.effectiveFrom}, #{p.effectiveTo}, COALESCE(#{p.active}, true),
+            now(), now(), 0
+        )
+    </insert>
+
+    <update id="updateById">
+        UPDATE pol_policy SET
+            name           = COALESCE(#{p.name}, name),
+            description    = COALESCE(#{p.description}, description),
+            policy_version = COALESCE(#{p.policyVersion}, policy_version),
+            rules_json     = CASE
+                WHEN #{p.rulesJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler} IS NULL THEN rules_json
+                ELSE #{p.rulesJson, typeHandler=com.tulip.common.data.handler.JsonbTypeHandler}
+            END,
+            effective_from = COALESCE(#{p.effectiveFrom}, effective_from),
+            effective_to   = COALESCE(#{p.effectiveTo}, effective_to),
+            active         = COALESCE(#{p.active}, active),
+            updated_at     = now()
+        WHERE id = #{p.id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM pol_policy WHERE id = #{id}
+    </delete>
+
+    <select id="countByPolicyCode" resultType="int">
+        SELECT COUNT(*) FROM pol_policy
+        WHERE policy_code = #{policyCode}
+        <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>
+    </select>
+
+    <!-- ===== Assignment ===== -->
+
+    <select id="listAssignments" resultMap="AssignmentResult">
+        SELECT * FROM pol_policy_assignment
+        WHERE policy_id = #{policyId}
+        ORDER BY COALESCE(priority, 0) DESC, id ASC
+    </select>
+
+    <delete id="deleteAssignmentsByPolicy">
+        DELETE FROM pol_policy_assignment WHERE policy_id = #{policyId}
+    </delete>
+
+    <insert id="insertAssignment" useGeneratedKeys="true" keyProperty="a.id">
+        INSERT INTO pol_policy_assignment (
+            tenant_id, policy_id, target_type, target_id, priority, created_at
+        ) VALUES (
+            #{a.tenantId}, #{a.policyId}, #{a.targetType}, #{a.targetId},
+            COALESCE(#{a.priority}, 0), now()
+        )
+    </insert>
+
+    <select id="countAssignmentsByPolicy" resultType="int">
+        SELECT COUNT(*) FROM pol_policy_assignment WHERE policy_id = #{policyId}
+    </select>
+
+    <select id="findEffectiveCandidates" resultMap="PolicyResult">
+        SELECT p.* FROM pol_policy p
+        JOIN pol_policy_assignment a ON a.policy_id = p.id
+        WHERE p.policy_code = #{policyCode}
+          AND p.active = true
+          AND (p.effective_from IS NULL OR p.effective_from &lt;= CURRENT_DATE)
+          AND (p.effective_to   IS NULL OR p.effective_to   &gt;= CURRENT_DATE)
+          AND (
+                (a.target_type = #{targetType} AND a.target_id = #{targetId})
+                OR a.target_type = 'GLOBAL'
+              )
+        ORDER BY
+            CASE a.target_type
+                WHEN 'LIBRARY' THEN 1
+                WHEN 'MEMBER_TYPE' THEN 2
+                WHEN 'MATERIAL_TYPE' THEN 3
+                WHEN 'GLOBAL' THEN 9
+                ELSE 5
+            END ASC,
+            COALESCE(a.priority, 0) DESC,
+            p.id DESC
+    </select>
+</mapper>

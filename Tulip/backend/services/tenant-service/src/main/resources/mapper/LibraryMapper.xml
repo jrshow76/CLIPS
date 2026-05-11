@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tulip.tenant.infra.mapper.LibraryMapper">
+
+    <resultMap id="LibraryResult" type="com.tulip.tenant.domain.Library">
+        <id     property="id"               column="id"/>
+        <result property="publicId"         column="public_id"/>
+        <result property="tenantId"         column="tenant_id"/>
+        <result property="code"             column="code"/>
+        <result property="name"             column="name"/>
+        <result property="type"             column="type"
+                javaType="com.tulip.tenant.domain.LibraryType"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="status"           column="status"
+                javaType="com.tulip.tenant.domain.TenantStatus"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="addressJson"      column="address_json"/>
+        <result property="contactJson"      column="contact_json"/>
+        <result property="openingHoursJson" column="opening_hours_json"/>
+        <result property="createdAt"        column="created_at"/>
+        <result property="createdBy"        column="created_by"/>
+        <result property="updatedAt"        column="updated_at"/>
+        <result property="updatedBy"        column="updated_by"/>
+        <result property="deletedAt"        column="deleted_at"/>
+        <result property="version"          column="version"/>
+    </resultMap>
+
+    <sql id="Columns">
+        id, public_id, tenant_id, code, name, type, status,
+        address_json, contact_json, opening_hours_json,
+        created_at, created_by, updated_at, updated_by, deleted_at, version
+    </sql>
+
+    <insert id="insert" parameterType="com.tulip.tenant.domain.Library"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO tnt_library (
+            public_id, tenant_id, code, name, type, status,
+            address_json, contact_json, opening_hours_json,
+            created_by, updated_by
+        ) VALUES (
+            #{publicId}, #{tenantId}, #{code}, #{name},
+            #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            CAST(#{addressJson} AS jsonb),
+            CAST(#{contactJson} AS jsonb),
+            CAST(#{openingHoursJson} AS jsonb),
+            #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.tulip.tenant.domain.Library">
+        UPDATE tnt_library SET
+            name               = #{name},
+            status             = #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            address_json       = CAST(#{addressJson} AS jsonb),
+            contact_json       = CAST(#{contactJson} AS jsonb),
+            opening_hours_json = CAST(#{openingHoursJson} AS jsonb),
+            deleted_at         = #{deletedAt},
+            updated_by         = #{updatedBy}
+        WHERE id = #{id}
+          AND version = #{version}
+    </update>
+
+    <select id="findById" resultMap="LibraryResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_library
+        WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+
+    <select id="countByCode" resultType="int">
+        SELECT COUNT(*) FROM tnt_library
+        WHERE LOWER(code) = LOWER(#{code}) AND deleted_at IS NULL
+    </select>
+
+    <sql id="searchWhere">
+        WHERE deleted_at IS NULL
+        <if test="name != null and name != ''">
+            AND name ILIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+    </sql>
+
+    <select id="search" resultMap="LibraryResult"
+            parameterType="com.tulip.tenant.infra.mapper.params.LibrarySearchParam">
+        SELECT <include refid="Columns"/>
+        FROM tnt_library
+        <include refid="searchWhere"/>
+        ORDER BY id DESC
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="countSearch" resultType="long"
+            parameterType="com.tulip.tenant.infra.mapper.params.LibrarySearchParam">
+        SELECT COUNT(*) FROM tnt_library
+        <include refid="searchWhere"/>
+    </select>
+
+</mapper>

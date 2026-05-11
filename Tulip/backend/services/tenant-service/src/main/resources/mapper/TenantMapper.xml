@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tulip.tenant.infra.mapper.TenantMapper">
+
+    <resultMap id="TenantResult" type="com.tulip.tenant.domain.Tenant">
+        <id     property="id"               column="id"/>
+        <result property="publicId"         column="public_id"/>
+        <result property="code"             column="code"/>
+        <result property="name"             column="name"/>
+        <result property="status"           column="status"
+                javaType="com.tulip.tenant.domain.TenantStatus"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="plan"             column="plan"/>
+        <result property="primaryLocale"    column="primary_locale"/>
+        <result property="primaryTimezone"  column="primary_timezone"/>
+        <result property="contactJson"      column="contact_json"/>
+        <result property="createdAt"        column="created_at"/>
+        <result property="createdBy"        column="created_by"/>
+        <result property="updatedAt"        column="updated_at"/>
+        <result property="updatedBy"        column="updated_by"/>
+        <result property="deletedAt"        column="deleted_at"/>
+        <result property="version"          column="version"/>
+    </resultMap>
+
+    <sql id="Columns">
+        id, public_id, code, name, status, plan,
+        primary_locale, primary_timezone, contact_json,
+        created_at, created_by, updated_at, updated_by, deleted_at, version
+    </sql>
+
+    <insert id="insert" parameterType="com.tulip.tenant.domain.Tenant"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO tnt_tenant (
+            public_id, code, name, status, plan,
+            primary_locale, primary_timezone, contact_json,
+            created_by, updated_by
+        ) VALUES (
+            #{publicId}, #{code}, #{name},
+            #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            #{plan},
+            #{primaryLocale}, #{primaryTimezone},
+            CAST(#{contactJson} AS jsonb),
+            #{createdBy}, #{updatedBy}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.tulip.tenant.domain.Tenant">
+        UPDATE tnt_tenant SET
+            name             = #{name},
+            status           = #{status,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            plan             = #{plan},
+            primary_locale   = #{primaryLocale},
+            primary_timezone = #{primaryTimezone},
+            contact_json     = CAST(#{contactJson} AS jsonb),
+            deleted_at       = #{deletedAt},
+            updated_by       = #{updatedBy}
+        WHERE id = #{id}
+          AND version = #{version}
+    </update>
+
+    <select id="findById" resultMap="TenantResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_tenant
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="findByCode" resultMap="TenantResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_tenant
+        WHERE LOWER(code) = LOWER(#{code})
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="findByPublicId" resultMap="TenantResult">
+        SELECT <include refid="Columns"/>
+        FROM tnt_tenant
+        WHERE public_id = #{publicId}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="countByCode" resultType="int">
+        SELECT COUNT(*) FROM tnt_tenant
+        WHERE LOWER(code) = LOWER(#{code}) AND deleted_at IS NULL
+    </select>
+
+    <sql id="searchWhere">
+        WHERE deleted_at IS NULL
+        <if test="code != null and code != ''">
+            AND LOWER(code) LIKE LOWER(CONCAT('%', #{code}, '%'))
+        </if>
+        <if test="name != null and name != ''">
+            AND name ILIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+    </sql>
+
+    <select id="search" resultMap="TenantResult"
+            parameterType="com.tulip.tenant.infra.mapper.params.TenantSearchParam">
+        SELECT <include refid="Columns"/>
+        FROM tnt_tenant
+        <include refid="searchWhere"/>
+        ORDER BY id DESC
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="countSearch" resultType="long"
+            parameterType="com.tulip.tenant.infra.mapper.params.TenantSearchParam">
+        SELECT COUNT(*) FROM tnt_tenant
+        <include refid="searchWhere"/>
+    </select>
+
+</mapper>
