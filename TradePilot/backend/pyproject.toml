@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradepilot-backend"
+version = "1.0.0"
+description = "TradePilot 자동주식매매 백엔드 (FastAPI)"
+authors = [{ name = "TradePilot Team" }]
+requires-python = ">=3.11,<3.13"
+readme = "README.md"
+
+dependencies = [
+    # 웹 프레임워크
+    "fastapi==0.110.*",
+    "uvicorn[standard]==0.29.*",
+    "python-multipart==0.0.9",
+
+    # 검증/설정
+    "pydantic==2.6.*",
+    "pydantic-settings==2.2.*",
+    "email-validator==2.1.*",
+
+    # DB
+    "sqlalchemy[asyncio]==2.0.*",
+    "asyncpg==0.29.*",
+    "alembic==1.13.*",
+
+    # Redis / Celery
+    "redis==5.0.*",
+    "celery==5.3.*",
+
+    # HTTP 클라이언트
+    "httpx==0.27.*",
+    "tenacity==8.2.*",
+
+    # 보안
+    "pyjwt==2.8.*",
+    "passlib[bcrypt]==1.7.4",
+    "cryptography==42.0.*",
+
+    # 데이터/지표
+    "pandas==2.2.*",
+    "numpy==1.26.*",
+    "pandas-ta==0.3.14b0",
+    "scikit-learn==1.4.*",
+
+    # 로그/관측
+    "structlog==24.1.*",
+    "prometheus-client==0.20.*",
+
+    # 스케줄러
+    "apscheduler==3.10.*",
+
+    # 유틸
+    "python-dateutil==2.9.*",
+    "orjson==3.9.*",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.1.*",
+    "pytest-asyncio==0.23.*",
+    "pytest-cov==4.1.*",
+    "ruff==0.3.*",
+    "black==24.3.*",
+    "mypy==1.9.*",
+    "httpx==0.27.*",
+    "asgi-lifespan==2.1.*",
+    "faker==24.4.*",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "C4"]
+ignore = ["E501", "B008"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q --strict-markers"
+markers = [
+    "unit: 단위 테스트",
+    "integration: 통합 테스트 (DB/Redis 필요)",
+    "slow: 느린 테스트",
+]
