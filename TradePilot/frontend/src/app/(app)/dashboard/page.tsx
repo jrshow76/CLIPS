@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,21 +17,29 @@ import {
   usePortfolioSummary,
   useTopRecommendations,
 } from '@/lib/api/queries/dashboard';
+import { useNotifications, useMarkAllNotificationsRead } from '@/lib/api/queries/notifications';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils/cn';
+import { formatRelativeKR } from '@/lib/utils/date';
 import { formatCurrency, formatPct, formatPnl, formatVolumeKR, pnlArrow, pnlClass } from '@/lib/utils/format';
 import { useTradeModeStore } from '@/stores/trade-mode-store';
 
 /**
- * 대시보드 페이지.
- * Designer의 dashboard.html을 1:1 변환하되, KPI/보유/시그널/추천을 TanStack Query로 연동.
+ * 대시보드 페이지 (강화).
+ * - 보유종목 행 클릭 → 차트로 이동.
+ * - 추천 TOP5 클릭 → 상세 페이지.
+ * - 시그널 클릭 → 시그널 상세.
+ * - 알림은 useNotifications와 연결.
  */
 export default function DashboardPage() {
+  const router = useRouter();
   const summary = usePortfolioSummary();
   const holdings = useHoldings();
   const market = useMarketSummary();
   const signals = useActiveSignals();
   const recos = useTopRecommendations();
+  const notis = useNotifications();
+  const markAll = useMarkAllNotificationsRead();
   const mode = useTradeModeStore((s) => s.mode);
 
   return (
@@ -45,16 +54,14 @@ export default function DashboardPage() {
             새로고침
           </Button>
           <Link href={ROUTES.AUTO_TRADING}>
-            <Button variant="primary" size="sm">
-              자동매매 시작
-            </Button>
+            <Button variant="primary" size="sm">자동매매 시작</Button>
           </Link>
         </div>
       </div>
 
       {/* KPI 4종 */}
       <section className="grid-cols-4 mb-6">
-        <KpiCard label="평가자산">
+        <Card><Card.Body>
           {summary.data ? (
             <Kpi
               label="평가자산"
@@ -66,16 +73,15 @@ export default function DashboardPage() {
               }
               delta={
                 <span className={pnlClass(summary.data.daily_pnl)}>
-                  {pnlArrow(summary.data.daily_pnl)} {formatPnl(summary.data.daily_pnl)} (
-                  {formatPct(summary.data.daily_pnl_pct)})
+                  {pnlArrow(summary.data.daily_pnl)} {formatPnl(summary.data.daily_pnl)} ({formatPct(summary.data.daily_pnl_pct)})
                 </span>
               }
             />
           ) : (
             <KpiSkeleton />
           )}
-        </KpiCard>
-        <KpiCard label="금일 손익">
+        </Card.Body></Card>
+        <Card><Card.Body>
           {summary.data ? (
             <Kpi
               label="금일 손익"
@@ -86,22 +92,18 @@ export default function DashboardPage() {
                 </span>
               }
             />
-          ) : (
-            <KpiSkeleton />
-          )}
-        </KpiCard>
-        <KpiCard label="누적 수익률">
+          ) : <KpiSkeleton />}
+        </Card.Body></Card>
+        <Card><Card.Body>
           {summary.data ? (
             <Kpi
               label="누적 수익률"
               value={<span className={pnlClass(summary.data.total_pnl_pct)}>{formatPct(summary.data.total_pnl_pct)}</span>}
               delta={<span className="text-up">▲ 0.32%p (vs 어제)</span>}
             />
-          ) : (
-            <KpiSkeleton />
-          )}
-        </KpiCard>
-        <KpiCard label="활성 전략 / 시그널">
+          ) : <KpiSkeleton />}
+        </Card.Body></Card>
+        <Card><Card.Body>
           {summary.data ? (
             <Kpi
               label="활성 전략 / 시그널"
@@ -113,10 +115,8 @@ export default function DashboardPage() {
               }
               delta={<Badge variant={mode === 'LIVE' ? 'live' : 'sim'} dot>{mode === 'LIVE' ? 'LIVE 모드' : 'SIM 모드'}</Badge>}
             />
-          ) : (
-            <KpiSkeleton />
-          )}
-        </KpiCard>
+          ) : <KpiSkeleton />}
+        </Card.Body></Card>
       </section>
 
       {/* 3컬럼 본문 */}
@@ -125,30 +125,34 @@ export default function DashboardPage() {
         style={{ gridTemplateColumns: '5fr 4fr 3fr', gap: 'var(--space-4)' }}
         data-grid="dashboard-main"
       >
-        {/* ===== 좌: 보유 종목 ===== */}
+        {/* 좌: 보유 종목 */}
         <Card as="article">
           <Card.Header
             title="보유 종목"
             subtitle={`총 ${summary.data?.holdings_count ?? 0}종목 · 평가금액 ${formatCurrency(summary.data?.total_asset)}`}
             right={
-              <Button variant="ghost" size="sm">
-                전체 보기 →
-              </Button>
+              <Link href={ROUTES.REPORT}>
+                <Button variant="ghost" size="sm">전체 보기 →</Button>
+              </Link>
             }
           />
           <Card.Body style={{ paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-2)' }}>
             {holdings.isLoading && <SkeletonStockList />}
             {holdings.isError && <ErrorCard message="보유 종목을 불러올 수 없습니다." />}
             {holdings.data?.map((h) => (
-              <div key={h.code} className="stock-row">
+              <button
+                key={h.code}
+                type="button"
+                onClick={() => router.push(ROUTES.CHART(h.code))}
+                className="stock-row"
+                style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none' }}
+              >
                 <div className="stack">
                   <span className="stock-row__name">{h.name}</span>
                   <span className="stock-row__code">
                     {h.code} · {h.sector ?? '-'}
                     {h.delayed && (
-                      <Badge variant="warning" className="ml-2 text-xs">
-                        지연
-                      </Badge>
+                      <Badge variant="warning" className="ml-2 text-xs">지연</Badge>
                     )}
                   </span>
                 </div>
@@ -162,12 +166,15 @@ export default function DashboardPage() {
                     {pnlArrow(h.pnl_pct)} {formatPct(Math.abs(h.pnl_pct))}
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
+            {holdings.data && holdings.data.length === 0 && (
+              <p className="text-subtle p-4 center">보유 종목이 없습니다.</p>
+            )}
           </Card.Body>
         </Card>
 
-        {/* ===== 중: 시장 + 시그널 ===== */}
+        {/* 중: 시장 + 시그널 */}
         <div className="stack gap-4">
           <Card as="article">
             <Card.Header title="시장 요약" right={<span className="text-subtle text-xs">5초마다 갱신</span>} />
@@ -218,33 +225,33 @@ export default function DashboardPage() {
               title="진행중 시그널"
               right={
                 <Link href={ROUTES.SIGNALS}>
-                  <Button variant="ghost" size="sm">
-                    전체 보기 →
-                  </Button>
+                  <Button variant="ghost" size="sm">전체 보기 →</Button>
                 </Link>
               }
             />
             <Card.Body style={{ paddingTop: 'var(--space-2)' }}>
               <ul className="stack gap-3">
                 {signals.data?.map((s) => (
-                  <li key={s.id} className="row items-center justify-between">
-                    <div className="row items-center gap-3">
-                      <Badge variant={s.action === 'BUY' ? 'up' : 'down'}>
-                        {s.action === 'BUY' ? '매수' : '매도'}
-                      </Badge>
-                      <div className="stack">
-                        <span className="text-strong fw-semibold">{s.name}</span>
-                        <span className="text-xs text-subtle">
-                          {s.strategy_name ?? s.source} · {new Date(s.created_at).toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                  <li key={s.id}>
+                    <Link href={ROUTES.SIGNAL_DETAIL(s.id)} className="row items-center justify-between">
+                      <div className="row items-center gap-3">
+                        <Badge variant={s.action === 'BUY' ? 'up' : 'down'}>
+                          {s.action === 'BUY' ? '매수' : '매도'}
+                        </Badge>
+                        <div className="stack">
+                          <span className="text-strong fw-semibold">{s.name}</span>
+                          <span className="text-xs text-subtle">
+                            {s.strategy_name ?? s.source} · {new Date(s.created_at).toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-num">{s.price.toLocaleString('ko-KR')}</div>
-                      <div className={cn('text-xs', s.action === 'BUY' ? 'text-up' : 'text-info')}>
-                        신뢰도 {s.confidence}%
+                      <div className="text-right">
+                        <div className="text-num">{s.price.toLocaleString('ko-KR')}</div>
+                        <div className={cn('text-xs', s.action === 'BUY' ? 'text-up' : 'text-info')}>
+                          신뢰도 {s.confidence}%
+                        </div>
                       </div>
-                    </div>
+                    </Link>
                   </li>
                 ))}
                 {signals.isLoading && <SkeletonStockList />}
@@ -253,33 +260,33 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* ===== 우: 추천주 TOP5 ===== */}
+        {/* 우: 추천주 TOP5 + 알림 */}
         <div className="stack gap-4">
           <Card as="article">
             <Card.Header
               title="추천주 TOP 5"
               right={
                 <Link href={ROUTES.RECOMMENDATIONS}>
-                  <Button variant="ghost" size="sm">
-                    →
-                  </Button>
+                  <Button variant="ghost" size="sm">→</Button>
                 </Link>
               }
             />
             <Card.Body style={{ paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-2)' }}>
               <ol className="stack">
                 {recos.data?.map((r, i) => (
-                  <li key={r.code} className="stock-row">
-                    <div className="stack">
-                      <span className="stock-row__name">
-                        {i + 1}. {r.name}
-                      </span>
-                      <span className="stock-row__code">
-                        {r.code} · {r.reason_text}
-                      </span>
-                    </div>
-                    <Badge variant="success">{r.score}</Badge>
-                    <span className={cn('text-num', pnlClass(r.change_pct))}>{formatPct(r.change_pct)}</span>
+                  <li key={r.code}>
+                    <Link href={ROUTES.RECOMMENDATION_DETAIL(r.code)} className="stock-row">
+                      <div className="stack">
+                        <span className="stock-row__name">
+                          {i + 1}. {r.name}
+                        </span>
+                        <span className="stock-row__code">
+                          {r.code} · {r.reason_text}
+                        </span>
+                      </div>
+                      <Badge variant="success">{r.score}</Badge>
+                      <span className={cn('text-num', pnlClass(r.change_pct))}>{formatPct(r.change_pct)}</span>
+                    </Link>
                   </li>
                 ))}
                 {recos.isLoading && <SkeletonStockList />}
@@ -288,31 +295,32 @@ export default function DashboardPage() {
           </Card>
 
           <Card as="article">
-            <Card.Header title="최근 알림" right={<Button variant="ghost" size="sm">모두 읽음</Button>} />
+            <Card.Header
+              title="최근 알림"
+              right={
+                <Button variant="ghost" size="sm" onClick={() => markAll.mutate()} loading={markAll.isPending}>
+                  모두 읽음
+                </Button>
+              }
+            />
             <Card.Body style={{ paddingTop: 'var(--space-2)' }}>
               <ul className="stack gap-3">
-                <li>
-                  <div className="row items-center gap-2 mb-1">
-                    <Badge variant="info">시그널</Badge>
-                    <span className="text-xs text-subtle">14:21</span>
-                  </div>
-                  <p className="text-sm">삼성전자 골든크로스 시그널 발생</p>
-                </li>
-                <li>
-                  <div className="row items-center gap-2 mb-1">
-                    <Badge variant="warning">한도</Badge>
-                    <span className="text-xs text-subtle">11:08</span>
-                  </div>
-                  <p className="text-sm">일일 매수 한도의 80% 사용</p>
-                </li>
-                <li>
-                  <div className="row items-center gap-2 mb-1">
-                    <Badge variant="success">체결</Badge>
-                    <span className="text-xs text-subtle">09:32</span>
-                  </div>
-                  <p className="text-sm">현대차 10주 매수 체결 (235,000원)</p>
-                </li>
+                {notis.data?.slice(0, 4).map((n) => (
+                  <li key={n.id}>
+                    {n.link ? (
+                      <Link href={n.link} className="stack gap-1">
+                        <NotificationRow noti={n} />
+                      </Link>
+                    ) : (
+                      <NotificationRow noti={n} />
+                    )}
+                  </li>
+                ))}
+                {notis.isLoading && <SkeletonStockList />}
               </ul>
+              <Link href={ROUTES.NOTIFICATIONS} className="text-sm mt-3 inline-block" style={{ color: 'var(--color-brand-300)' }}>
+                전체 알림 보기 →
+              </Link>
             </Card.Body>
           </Card>
         </div>
@@ -320,28 +328,36 @@ export default function DashboardPage() {
 
       <style jsx>{`
         @media (max-width: 1280px) {
-          section[data-grid='dashboard-main'] {
-            grid-template-columns: 6fr 6fr !important;
-          }
-          section[data-grid='dashboard-main'] > div:last-child {
-            grid-column: 1 / -1;
-          }
+          section[data-grid='dashboard-main'] { grid-template-columns: 6fr 6fr !important; }
+          section[data-grid='dashboard-main'] > div:last-child { grid-column: 1 / -1; }
         }
         @media (max-width: 768px) {
-          section[data-grid='dashboard-main'] {
-            grid-template-columns: 1fr !important;
-          }
+          section[data-grid='dashboard-main'] { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </>
   );
 }
 
-function KpiCard({ children }: { children: React.ReactNode; label?: string }) {
+function NotificationRow({ noti }: { noti: { variant: string; title: string; created_at: string; read: boolean } }) {
+  const variantBadge: Record<string, { variant: 'up' | 'down' | 'info' | 'success' | 'warning' | 'danger' | 'default'; label: string }> = {
+    SIGNAL: { variant: 'info', label: '시그널' },
+    FILL: { variant: 'success', label: '체결' },
+    LIMIT: { variant: 'warning', label: '한도' },
+    SYSTEM: { variant: 'default', label: '시스템' },
+    BACKTEST: { variant: 'info', label: '백테스트' },
+    NEWS: { variant: 'default', label: '뉴스' },
+  };
+  const b = variantBadge[noti.variant] ?? variantBadge.SYSTEM!;
   return (
-    <Card>
-      <Card.Body>{children}</Card.Body>
-    </Card>
+    <div className="stack gap-1">
+      <div className="row items-center gap-2">
+        <Badge variant={b.variant}>{b.label}</Badge>
+        <span className="text-xs text-subtle">{formatRelativeKR(noti.created_at)}</span>
+        {!noti.read && <span className="badge badge-dot ml-auto" style={{ background: 'var(--color-brand-500)' }} />}
+      </div>
+      <p className="text-sm">{noti.title}</p>
+    </div>
   );
 }
 

@@ -1,22 +1,29 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ErrorCard } from '@/components/ui/error-card';
+import { Field, Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StatRow } from '@/components/ui/stat-row';
 import { Tabs } from '@/components/ui/tabs';
 import { IndicatorPanel } from '@/components/charts/IndicatorPanel';
+import { StockSearchInput } from '@/components/forms/StockSearchInput';
+import { OrderModal } from '@/components/orders/OrderModal';
 import { useCandles, useQuote, useStockDetail } from '@/lib/api/queries/stocks';
+import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils/cn';
 import { formatPct, pnlArrow, pnlClass } from '@/lib/utils/format';
+import type { OrderSide } from '@/types/order';
 import type { CandleInterval } from '@/types/stock';
 
-// lightweight-charts는 SSR 불가 → 클라이언트 전용 로드
 const CandlestickChart = dynamic(
   () => import('@/components/charts/CandlestickChart').then((m) => m.CandlestickChart),
   { ssr: false, loading: () => <Skeleton height={420} /> },
@@ -32,13 +39,38 @@ const INTERVALS: { value: CandleInterval; label: string }[] = [
   { value: 'M', label: '월' },
 ];
 
+type Indicators = { rsi: boolean; macd: boolean; stoch: boolean; bbands: boolean };
+
 export default function ChartPage() {
+  const router = useRouter();
   const params = useParams<{ code: string }>();
   const code = params?.code;
   const [interval, setInterval] = useState<CandleInterval>('D');
+  const [indicators, setIndicators] = useState<Indicators>({ rsi: true, macd: true, stoch: false, bbands: false });
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [orderSide, setOrderSide] = useState<OrderSide>('BUY');
+  const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT'>('LIMIT');
+  const [qty, setQty] = useState<number>(1);
+  const [price, setPrice] = useState<number>(0);
+
   const stock = useStockDetail(code);
   const quote = useQuote(code);
   const candles = useCandles(code, interval);
+
+  function onSelectFromSearch(s: { code: string; name: string }) {
+    router.push(ROUTES.CHART(s.code));
+  }
+
+  function openOrder(side: OrderSide) {
+    setOrderSide(side);
+    setPrice(quote.data?.price ?? 0);
+    setOrderOpen(true);
+  }
+
+  function submitQuick() {
+    setPrice((p) => (p > 0 ? p : quote.data?.price ?? 0));
+    setOrderOpen(true);
+  }
 
   return (
     <>
@@ -60,50 +92,149 @@ export default function ChartPage() {
             </p>
           )}
         </div>
-        <div className="row gap-2">
-          <Tabs
-            variant="pill"
-            value={interval}
-            onChange={(v) => setInterval(v as CandleInterval)}
-            items={INTERVALS}
-          />
+        <div className="row gap-2" style={{ minWidth: 280 }}>
+          <StockSearchInput onSelect={onSelectFromSearch} placeholder="다른 종목 검색" />
         </div>
       </div>
 
-      <Card className="mb-4">
-        <Card.Body className="p-3">
-          {candles.isError && <ErrorCard message="캔들 데이터를 불러올 수 없습니다." />}
-          {candles.data && <CandlestickChart data={candles.data} height={460} />}
-          {candles.isLoading && <Skeleton height={420} />}
-        </Card.Body>
-      </Card>
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: '1fr 320px', gap: 'var(--space-4)', alignItems: 'flex-start' }}
+        data-grid="chart-layout"
+      >
+        {/* ===== 좌측: 차트 + 지표 ===== */}
+        <div className="stack gap-4">
+          <Card>
+            <Card.Header
+              title="가격 차트"
+              right={
+                <Tabs
+                  variant="pill"
+                  value={interval}
+                  onChange={(v) => setInterval(v as CandleInterval)}
+                  items={INTERVALS}
+                />
+              }
+            />
+            <Card.Body className="p-3">
+              {candles.isError && <ErrorCard message="캔들 데이터를 불러올 수 없습니다." />}
+              {candles.data && <CandlestickChart data={candles.data} height={460} />}
+              {candles.isLoading && <Skeleton height={420} />}
+            </Card.Body>
+          </Card>
 
-      <div className="grid-cols-3">
+          {/* 지표 토글 */}
+          <Card>
+            <Card.Header title="기술 지표" />
+            <Card.Body>
+              <div className="row gap-4 flex-wrap mb-3">
+                <Checkbox checked={indicators.rsi} onChange={(v) => setIndicators((s) => ({ ...s, rsi: v }))} label="RSI(14)" />
+                <Checkbox checked={indicators.macd} onChange={(v) => setIndicators((s) => ({ ...s, macd: v }))} label="MACD(12,26,9)" />
+                <Checkbox checked={indicators.stoch} onChange={(v) => setIndicators((s) => ({ ...s, stoch: v }))} label="Stochastic(14)" />
+                <Checkbox checked={indicators.bbands} onChange={(v) => setIndicators((s) => ({ ...s, bbands: v }))} label="볼린저밴드" />
+              </div>
+              <div className="grid-cols-3">
+                {indicators.rsi && (
+                  <Card><Card.Header title="RSI(14)" /><Card.Body className="p-2">
+                    {candles.data ? <IndicatorPanel kind="RSI" candles={candles.data} /> : <Skeleton height={140} />}
+                  </Card.Body></Card>
+                )}
+                {indicators.macd && (
+                  <Card><Card.Header title="MACD(12,26,9)" /><Card.Body className="p-2">
+                    {candles.data ? <IndicatorPanel kind="MACD" candles={candles.data} /> : <Skeleton height={140} />}
+                  </Card.Body></Card>
+                )}
+                {indicators.stoch && (
+                  <Card><Card.Header title="Stochastic(14)" /><Card.Body className="p-2">
+                    {candles.data ? <IndicatorPanel kind="STOCH" candles={candles.data} /> : <Skeleton height={140} />}
+                  </Card.Body></Card>
+                )}
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+
+        {/* ===== 우측: 빠른 주문 패널 ===== */}
         <Card>
-          <Card.Header title="RSI(14)" />
-          <Card.Body className="p-2">
-            {candles.data ? <IndicatorPanel kind="RSI" candles={candles.data} /> : <Skeleton height={140} />}
-          </Card.Body>
-        </Card>
-        <Card>
-          <Card.Header title="MACD(12,26,9)" />
-          <Card.Body className="p-2">
-            {candles.data ? <IndicatorPanel kind="MACD" candles={candles.data} /> : <Skeleton height={140} />}
-          </Card.Body>
-        </Card>
-        <Card>
-          <Card.Header title="Stochastic(14)" />
-          <Card.Body className="p-2">
-            {candles.data ? <IndicatorPanel kind="STOCH" candles={candles.data} /> : <Skeleton height={140} />}
+          <Card.Header title="빠른 주문" />
+          <Card.Body className="stack gap-4">
+            <Field label="구분">
+              <RadioGroup<OrderSide>
+                name="side"
+                value={orderSide}
+                onChange={setOrderSide}
+                options={[
+                  { value: 'BUY', label: '매수' },
+                  { value: 'SELL', label: '매도' },
+                ]}
+              />
+            </Field>
+            <Field label="주문 유형">
+              <RadioGroup<'MARKET' | 'LIMIT'>
+                name="orderType"
+                value={orderType}
+                onChange={setOrderType}
+                options={[
+                  { value: 'LIMIT', label: '지정가' },
+                  { value: 'MARKET', label: '시장가' },
+                ]}
+              />
+            </Field>
+            <Field label="수량 (주)">
+              <Input
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(Number(e.target.value))}
+              />
+            </Field>
+            {orderType === 'LIMIT' && (
+              <Field label="지정가 (원)">
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder={quote.data ? String(quote.data.price) : ''}
+                  value={price || ''}
+                  onChange={(e) => setPrice(Number(e.target.value))}
+                />
+              </Field>
+            )}
+            <StatRow
+              label="예상 체결금액"
+              value={
+                <span className="fw-semibold text-num">
+                  {(((orderType === 'LIMIT' ? price : quote.data?.price ?? 0) * qty) || 0).toLocaleString('ko-KR')}원
+                </span>
+              }
+            />
+            <div className="row gap-2">
+              <Button variant="primary" block onClick={() => { setOrderSide('BUY'); submitQuick(); }}>매수</Button>
+              <Button variant="danger" block onClick={() => { setOrderSide('SELL'); submitQuick(); }}>매도</Button>
+            </div>
+            <div className="divider" />
+            <Button variant="ghost" block onClick={() => openOrder('BUY')}>
+              상세 주문창 열기
+            </Button>
           </Card.Body>
         </Card>
       </div>
 
-      <div className="row gap-2 mt-6">
-        <Button variant="primary">매수</Button>
-        <Button variant="danger">매도</Button>
-        <Button variant="ghost">관심종목 추가</Button>
-      </div>
+      {code && (
+        <OrderModal
+          open={orderOpen}
+          onClose={() => setOrderOpen(false)}
+          code={code}
+          name={stock.data?.name}
+          defaultSide={orderSide}
+          suggestedPrice={price || quote.data?.price}
+        />
+      )}
+
+      <style jsx>{`
+        @media (max-width: 1024px) {
+          div[data-grid='chart-layout'] { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </>
   );
 }

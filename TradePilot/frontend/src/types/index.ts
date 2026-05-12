@@ -8,3 +8,5 @@ export * from './portfolio';
 export * from './indicator';
 export * from './recommendation';
 export * from './backtest';
+export * from './notification';
+export * from './sector-flow';

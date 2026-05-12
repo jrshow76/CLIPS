@@ -1,44 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
 
-import { BacktestEquityChart } from '@/components/charts/BacktestEquityChart';
+import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ErrorCard } from '@/components/ui/error-card';
 import { Field, Input } from '@/components/ui/input';
-import { Kpi } from '@/components/ui/kpi';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useBacktestResult, useStartBacktest } from '@/lib/api/queries/backtest';
+import { useStartBacktest } from '@/lib/api/queries/backtest';
 import { useStrategies } from '@/lib/api/queries/strategies';
-import { formatPct, pnlClass } from '@/lib/utils/format';
+import { ROUTES } from '@/lib/constants';
+import { backtestFormSchema, type BacktestForm } from '@/lib/forms/zod-schemas';
+import { applyFieldErrors, toUserMessage } from '@/lib/forms/extract-field-errors';
+import { zodResolver } from '@/lib/forms/zod-resolver';
+import { useState } from 'react';
 
-/**
- * 백테스트 페이지.
- * FrontendDev 가이드: 결과 상세는 /backtest/[jobId]에 별도 페이지로 분리 가능.
- */
 export default function BacktestPage() {
+  const router = useRouter();
   const strategies = useStrategies();
   const start = useStartBacktest();
-  const [strategyId, setStrategyId] = useState('');
-  const [from, setFrom] = useState('2025-01-01');
-  const [to, setTo] = useState('2026-05-12');
-  const [initialCash, setInitialCash] = useState(10_000_000);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const result = useBacktestResult(jobId ?? undefined);
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  async function onRun(e: React.FormEvent) {
-    e.preventDefault();
-    if (!strategyId) return;
-    const job = await start.mutateAsync({
-      strategy_id: strategyId,
-      universe: [],
-      from,
-      to,
-      initial_cash: initialCash,
-    });
-    setJobId(job.job_id);
-  }
+  const form = useForm<BacktestForm>({
+    resolver: zodResolver<BacktestForm>(backtestFormSchema),
+    defaultValues: {
+      strategy_id: '',
+      from: '2025-01-01',
+      to: '2026-05-12',
+      initial_cash: 10_000_000,
+      slippage_bps: 5,
+      fee_bps: 15,
+    },
+  });
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = form;
+
+  const onSubmit = handleSubmit(async (values) => {
+    setServerError(null);
+    try {
+      const job = await start.mutateAsync({
+        strategy_id: values.strategy_id,
+        universe: [],
+        from: values.from,
+        to: values.to,
+        initial_cash: values.initial_cash,
+        slippage_bps: values.slippage_bps,
+        fee_bps: values.fee_bps,
+      });
+      router.push(ROUTES.BACKTEST_DETAIL(job.job_id));
+    } catch (err) {
+      if (!applyFieldErrors<BacktestForm>(err, setError)) {
+        setServerError(toUserMessage(err));
+      }
+    }
+  });
 
   return (
     <>
@@ -47,72 +65,60 @@ export default function BacktestPage() {
           <h1>백테스트</h1>
           <p>과거 데이터로 전략을 검증합니다.</p>
         </div>
+        <Link href={ROUTES.BACKTEST_HISTORY}>
+          <Button variant="outline">과거 결과 →</Button>
+        </Link>
       </div>
+
+      {strategies.data && strategies.data.length === 0 && (
+        <Banner variant="warning">
+          등록된 전략이 없습니다.{' '}
+          <Link href={ROUTES.AUTO_TRADING_NEW} className="underline">새 전략 만들기</Link>
+        </Banner>
+      )}
 
       <Card>
         <Card.Header title="실행 설정" />
-        <Card.Body>
-          <form onSubmit={onRun} className="form-grid">
-            <Field label="전략" required>
-              <Select value={strategyId} onChange={(e) => setStrategyId(e.target.value)}>
-                <option value="">전략 선택</option>
-                {strategies.data?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="초기 자본 (원)">
-              <Input
-                type="number"
-                value={initialCash}
-                onChange={(e) => setInitialCash(Number(e.target.value))}
-              />
-            </Field>
-            <Field label="시작일">
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            </Field>
-            <Field label="종료일">
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </Field>
-            <div className="field--full row justify-end">
-              <Button type="submit" variant="primary" loading={start.isPending}>
+        <form onSubmit={onSubmit} noValidate>
+          <Card.Body>
+            <div className="form-grid grid-cols-2">
+              <Field label="전략" required error={errors.strategy_id?.message}>
+                <Select {...register('strategy_id')}>
+                  <option value="">전략 선택</option>
+                  {strategies.data?.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="초기 자본 (원)" required error={errors.initial_cash?.message}>
+                <Input type="number" step="100000" {...register('initial_cash', { valueAsNumber: true })} />
+              </Field>
+              <Field label="시작일" required error={errors.from?.message}>
+                <Input type="date" {...register('from')} />
+              </Field>
+              <Field label="종료일" required error={errors.to?.message}>
+                <Input type="date" {...register('to')} />
+              </Field>
+              <Field label="슬리피지 (bps)" hint="1bp = 0.01%" error={errors.slippage_bps?.message}>
+                <Input type="number" step="1" {...register('slippage_bps', { valueAsNumber: true })} />
+              </Field>
+              <Field label="수수료 (bps)" error={errors.fee_bps?.message}>
+                <Input type="number" step="1" {...register('fee_bps', { valueAsNumber: true })} />
+              </Field>
+            </div>
+            {serverError && <ErrorCard className="mt-3" message={serverError} />}
+          </Card.Body>
+          <Card.Footer>
+            <div className="row gap-2 justify-end">
+              <Button type="submit" variant="primary" loading={isSubmitting || start.isPending}>
                 백테스트 실행
               </Button>
             </div>
-          </form>
-        </Card.Body>
+          </Card.Footer>
+        </form>
       </Card>
 
-      {jobId && (
-        <>
-          <div className="grid-cols-4 mt-6">
-            <Card><Card.Body>
-              <Kpi
-                label="총 수익률"
-                value={
-                  result.data ? (
-                    <span className={pnlClass(result.data.total_return_pct)}>{formatPct(result.data.total_return_pct)}</span>
-                  ) : (
-                    <Skeleton height={24} />
-                  )
-                }
-              />
-            </Card.Body></Card>
-            <Card><Card.Body><Kpi label="CAGR" value={result.data ? formatPct(result.data.cagr_pct) : <Skeleton height={24} />} /></Card.Body></Card>
-            <Card><Card.Body><Kpi label="최대 낙폭(MDD)" value={result.data ? formatPct(result.data.mdd_pct) : <Skeleton height={24} />} /></Card.Body></Card>
-            <Card><Card.Body><Kpi label="샤프 비율" value={result.data ? result.data.sharpe.toFixed(2) : <Skeleton height={24} />} /></Card.Body></Card>
-          </div>
-
-          <Card className="mt-4">
-            <Card.Header title="자산 곡선" />
-            <Card.Body>
-              {result.data ? <BacktestEquityChart data={result.data.equity_curve} /> : <Skeleton height={360} />}
-            </Card.Body>
-          </Card>
-        </>
-      )}
+      {strategies.isLoading && <Skeleton height={300} className="mt-4" />}
     </>
   );
 }

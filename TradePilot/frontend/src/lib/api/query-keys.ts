@@ -62,5 +62,33 @@ export const queryKeys = {
   },
   settings: {
     me: () => ['settings', 'me'] as const,
+    creon: () => ['settings', 'creon'] as const,
+    limits: () => ['settings', 'limits'] as const,
+  },
+  notifications: {
+    all: ['notifications'] as const,
+    list: (filter?: Record<string, unknown>) => ['notifications', 'list', filter ?? {}] as const,
+    unread: () => ['notifications', 'unread'] as const,
+  },
+  market: {
+    flow: () => ['market', 'sector-flow'] as const,
+    rotation: () => ['market', 'rotation'] as const,
+  },
+  trades: {
+    all: ['trades'] as const,
+    list: (filter?: Record<string, unknown>) => ['trades', 'list', filter ?? {}] as const,
+  },
+  signalRules: {
+    all: ['signal-rules'] as const,
+    list: () => ['signal-rules', 'list'] as const,
+    detail: (id: string) => ['signal-rules', 'detail', id] as const,
+  },
+  strategyPerformance: {
+    all: ['strategy-performance'] as const,
+    list: () => ['strategy-performance', 'list'] as const,
+  },
+  backtestHistory: {
+    all: ['backtest-history'] as const,
+    list: () => ['backtest-history', 'list'] as const,
   },
 };
