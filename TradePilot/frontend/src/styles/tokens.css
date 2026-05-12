@@ -1,0 +1,168 @@
+/* =============================================================
+ * TradePilot Design Tokens
+ * - Designer(40_design_system.md)와 단일 출처(SSOT) 동기화
+ * - 다크 모드 기본, [data-theme="light"]로 라이트 토글
+ * - 금융/트레이딩 UI 컨벤션: 상승=빨강(#ef4444), 하락=파랑(#3b82f6)
+ * - BEM 컴포넌트(globals.css) 및 Tailwind theme.extend에서 동시 참조
+ * ============================================================= */
+
+:root,
+:root[data-theme='dark'] {
+  /* ---------- Brand ---------- */
+  --color-brand-50: #e8f0ff;
+  --color-brand-100: #cddcff;
+  --color-brand-200: #9fbaff;
+  --color-brand-300: #6f93ff;
+  --color-brand-400: #4a73ff;
+  --color-brand-500: #2f5cff;
+  --color-brand-600: #1f47db;
+  --color-brand-700: #1a39ad;
+  --color-brand-800: #172e85;
+  --color-brand-900: #131f59;
+
+  /* ---------- Neutrals (Dark base) ---------- */
+  --color-bg-0: #0b0f17;
+  --color-bg-1: #11161f;
+  --color-bg-2: #161c27;
+  --color-bg-3: #1c2330;
+  --color-bg-4: #232b3a;
+  --color-overlay: rgba(0, 0, 0, 0.55);
+
+  --color-border-1: #232b3a;
+  --color-border-2: #2c3648;
+  --color-border-3: #3a465c;
+
+  --color-text-1: #e6ebf2;
+  --color-text-2: #b6c0cf;
+  --color-text-3: #7c8aa0;
+  --color-text-inv: #0b0f17;
+
+  /* ---------- Semantic ---------- */
+  --color-up: #ef4444;
+  --color-up-soft: rgba(239, 68, 68, 0.14);
+  --color-down: #3b82f6;
+  --color-down-soft: rgba(59, 130, 246, 0.16);
+  --color-flat: #94a3b8;
+
+  --color-success: #22c55e;
+  --color-success-soft: rgba(34, 197, 94, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.14);
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.14);
+  --color-info: #38bdf8;
+  --color-info-soft: rgba(56, 189, 248, 0.14);
+
+  /* ---------- Trading Mode ---------- */
+  --color-mode-sim: #3b82f6;
+  --color-mode-live: #ef4444;
+
+  /* ---------- Typography ---------- */
+  --font-sans: 'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Malgun Gothic', sans-serif;
+  --font-mono: 'JetBrains Mono', 'D2Coding', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', monospace;
+
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-15: 0.9375rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-20: 1.25rem;
+  --fs-24: 1.5rem;
+  --fs-28: 1.75rem;
+  --fs-32: 2rem;
+  --fs-40: 2.5rem;
+
+  --lh-tight: 1.2;
+  --lh-normal: 1.45;
+  --lh-relaxed: 1.65;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---------- Spacing (4px scale) ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------- Radius ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* ---------- Shadow / Elevation ---------- */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-focus: 0 0 0 3px rgba(47, 92, 255, 0.35);
+
+  /* ---------- Layout ---------- */
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 64px;
+  --header-h: 56px;
+  --container-max: 1440px;
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+
+  /* ---------- Z-index ---------- */
+  --z-base: 1;
+  --z-sticky: 100;
+  --z-header: 500;
+  --z-drawer: 800;
+  --z-modal: 1000;
+  --z-toast: 1100;
+
+  /* ---------- Chart placeholder grid ---------- */
+  --chart-grid-1: rgba(255, 255, 255, 0.04);
+  --chart-grid-2: rgba(255, 255, 255, 0.08);
+}
+
+/* ===== Light theme overrides ===== */
+:root[data-theme='light'] {
+  --color-bg-0: #f5f7fb;
+  --color-bg-1: #ffffff;
+  --color-bg-2: #ffffff;
+  --color-bg-3: #f1f4f9;
+  --color-bg-4: #e6ebf2;
+  --color-overlay: rgba(15, 23, 42, 0.4);
+
+  --color-border-1: #e5e9f0;
+  --color-border-2: #d4dae4;
+  --color-border-3: #b9c2d1;
+
+  --color-text-1: #0f172a;
+  --color-text-2: #475569;
+  --color-text-3: #94a3b8;
+  --color-text-inv: #ffffff;
+
+  --color-up-soft: rgba(239, 68, 68, 0.1);
+  --color-down-soft: rgba(59, 130, 246, 0.1);
+
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-2: 0 6px 16px rgba(15, 23, 42, 0.08);
+  --shadow-3: 0 16px 36px rgba(15, 23, 42, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(47, 92, 255, 0.25);
+
+  --chart-grid-1: rgba(15, 23, 42, 0.06);
+  --chart-grid-2: rgba(15, 23, 42, 0.1);
+}

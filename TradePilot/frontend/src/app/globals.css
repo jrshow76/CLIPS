@@ -1,0 +1,28 @@
+/* =============================================================
+ * TradePilot Global Styles
+ * - 디자인 토큰 → 베이스 → BEM 컴포넌트 → Tailwind 레이어 순으로 로드
+ * - Tailwind 유틸과 Designer의 BEM 클래스는 충돌 없이 공존
+ * ============================================================= */
+
+@import '../styles/tokens.css';
+@import '../styles/base.css';
+@import '../styles/components.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Next.js 환경에서 hydration mismatch 방지를 위한 transition 일시 차단 */
+.theme-no-transition * {
+  transition: none !important;
+}
+
+/* 사이드바 1024px 이하 축소 시 텍스트 숨김(데스크탑 외 라이트 폼팩터 대응) */
+@media (max-width: 1024px) {
+  .app-sidebar__brand-name,
+  .app-sidebar__section-label,
+  .app-sidebar__item span:not(:first-child) {
+    display: none;
+  }
+  .app-sidebar__item { justify-content: center; }
+}
