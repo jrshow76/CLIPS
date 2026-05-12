@@ -1,0 +1,19 @@
+{
+  "name": "tradepilot-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TradePilot E2E 자동화 (Playwright) - QA 회귀 스위트",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:chromium": "playwright test --project=chromium",
+    "test:mobile": "playwright test --project=mobile-chromium",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install --with-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.43.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}
