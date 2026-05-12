@@ -211,6 +211,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
                     type="button"
                     onClick={onClick}
                     {...aria}
+                    data-testid="app-user-menu"
                     className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-neutral-700 hover:bg-neutral-100 focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     <Icon as={UserRound} size="sm" />

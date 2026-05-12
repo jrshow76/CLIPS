@@ -19,6 +19,7 @@
     "prepare": "husky || true"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@types/node": "^20.14.0",
     "eslint": "^8.57.1",
     "husky": "^9.1.6",

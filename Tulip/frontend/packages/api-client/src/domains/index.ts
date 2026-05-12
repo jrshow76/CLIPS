@@ -6,3 +6,5 @@ export * from './members';
 export * from './libraries';
 export * from './codes';
 export * from './tenants';
+export * from './dashboard';
+export * from './notifications';

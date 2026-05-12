@@ -29,6 +29,15 @@ export * from './components/molecules/ConfirmDialog';
 export * from './components/molecules/FormModal';
 export * from './components/molecules/DropdownMenu';
 export * from './components/molecules/Tabs';
+export * from './components/molecules/KpiCard';
+export * from './components/molecules/ChartContainer';
+export * from './components/molecules/ActivityFeed';
+export * from './components/molecules/AlertPanel';
+export * from './components/molecules/MetricMini';
+export * from './components/molecules/charts/chart-colors';
+export * from './components/molecules/charts/LineChartBlock';
+export * from './components/molecules/charts/BarChartBlock';
+export * from './components/molecules/charts/DonutChartBlock';
 
 // Organisms
 export * from './components/organisms/AppHeader';

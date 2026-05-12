@@ -16,7 +16,7 @@ const items: Kpi[] = [
 
 export function KpiGrid() {
   return (
-    <section aria-label="핵심 지표">
+    <section aria-label="핵심 지표" data-testid="dashboard-kpi-grid">
       <ul role="list" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => (
           <li
