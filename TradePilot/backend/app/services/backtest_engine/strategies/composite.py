@@ -59,6 +59,14 @@ def _eval_rules(node: dict[str, Any], df: pd.DataFrame) -> pd.Series:
         children = node["any"]
         masks = [_eval_rules(c, df) for c in children]
         return _combine_or(masks, df.index)
+    # 신규: ML 예측 시그널 룰
+    rule_type = str(node.get("type", "")).lower()
+    if rule_type == "ml_predict":
+        from app.services.backtest_engine.strategies.ml_signal import (
+            eval_ml_predict_rule,
+        )
+
+        return eval_ml_predict_rule(node, df)
     return _eval_atom(node, df)
 
 

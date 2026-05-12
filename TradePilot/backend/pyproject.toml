@@ -43,7 +43,12 @@ dependencies = [
     "pandas==2.2.*",
     "numpy==1.26.*",
     "pandas-ta==0.3.14b0",
-    "scikit-learn==1.4.*",
+    "scikit-learn>=1.4",
+
+    # ML 학습/추론 (CPU 환경 가정)
+    # 운영에서는 별도 wheel index 로 torch CPU 버전 설치 권장:
+    #   pip install --index-url https://download.pytorch.org/whl/cpu torch>=2.2
+    "joblib>=1.3",
 
     # 로그/관측
     "structlog==24.1.*",
@@ -68,6 +73,11 @@ dev = [
     "httpx==0.27.*",
     "asgi-lifespan==2.1.*",
     "faker==24.4.*",
+]
+# ML 학습/추론 풀스택. CPU 환경 기준이며 GPU 환경에서는
+# torch 를 별도 wheel index 로 재설치한다.
+ml = [
+    "torch>=2.2",
 ]
 
 [tool.setuptools.packages.find]

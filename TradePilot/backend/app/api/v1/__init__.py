@@ -9,6 +9,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.backtest import router as backtest_router
 from app.api.v1.indicators import router as indicators_router
 from app.api.v1.market import router as market_router
+from app.api.v1.ml_predictions import ml_router as ml_v2_router
 from app.api.v1.ml_predictions import router as ml_predictions_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.orders import router as orders_router
@@ -40,6 +41,7 @@ def register_v1_routers(parent: APIRouter) -> None:
     parent.include_router(recommendations_router)
     parent.include_router(signals_router)
     parent.include_router(ml_predictions_router)
+    parent.include_router(ml_v2_router)
     # 매매
     parent.include_router(orders_router)
     parent.include_router(strategies_router)

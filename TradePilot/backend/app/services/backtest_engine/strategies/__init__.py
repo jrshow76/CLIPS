@@ -8,6 +8,7 @@ from app.services.backtest_engine.strategies import (  # noqa: F401
     composite,
     golden_cross,
     macd_cross,
+    ml_signal,
     rsi_reversal,
 )
 

@@ -102,7 +102,11 @@ playwright/.cache/
 docker-compose.override.yml
 
 # ----- ML 모델 / 데이터 -----
-models/
+# backend/models/ 는 학습된 모델 파일 저장소(런타임 생성물). placeholder
+# (.gitkeep, README.md) 는 유지하되 모델 파일은 트래킹하지 않는다.
+/backend/models/*
+!/backend/models/.gitkeep
+!/backend/models/README.md
 *.h5
 *.pt
 *.onnx

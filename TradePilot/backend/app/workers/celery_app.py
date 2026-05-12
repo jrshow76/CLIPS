@@ -7,9 +7,15 @@
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab  # type: ignore
 from kombu import Queue  # type: ignore
 
 from app.core.config import settings
+
+
+def _cron(hour: int, minute: int):
+    """월~금 KST 시간 cron 헬퍼."""
+    return crontab(hour=hour, minute=minute, day_of_week="1-5")
 
 celery_app = Celery(
     "tradepilot",
@@ -20,6 +26,7 @@ celery_app = Celery(
         "app.workers.tasks.signal_tasks",
         "app.workers.tasks.order_tasks",
         "app.workers.tasks.backtest_tasks",
+        "app.workers.tasks.ml_tasks",
     ],
 )
 
@@ -52,6 +59,28 @@ celery_app.conf.update(
     worker_max_tasks_per_child=500,
     broker_connection_retry_on_startup=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# Beat 스케줄: 한국 장 시간 기준 ML 일괄 추론
+# ---------------------------------------------------------------------------
+# - 매일 KST 09:05 (장 개장 직후): 모든 활성 종목에 대해 1일 호라이즌 추론
+# - 매일 KST 14:30 (장 마감 전):   1/3/5일 호라이즌 모두 갱신
+# 타임존은 conf.timezone(APP_TIMEZONE) 기준 (기본 Asia/Seoul)
+celery_app.conf.beat_schedule = {
+    "ml-batch-predict-morning": {
+        "task": "ml.batch_predict",
+        "schedule": _cron(hour=9, minute=5),
+        "kwargs": {"horizons": [1]},
+        "options": {"queue": "ml"},
+    },
+    "ml-batch-predict-afternoon": {
+        "task": "ml.batch_predict",
+        "schedule": _cron(hour=14, minute=30),
+        "kwargs": {"horizons": [1, 3, 5]},
+        "options": {"queue": "ml"},
+    },
+}
 
 
 # 기본 빈 디스커버리 호환을 위한 placeholder
