@@ -1,0 +1,190 @@
+# =============================================================================
+# TradePilot .gitignore
+# =============================================================================
+
+# ----- 환경변수 / 시크릿 -----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.creon-credentials
+
+# ----- Python (backend, creon-gateway) -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+develop-eggs/
+downloads/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+MANIFEST
+
+# 가상환경
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# 의존성 관리
+poetry.lock.bak
+Pipfile.lock
+
+# Pytest / Coverage / Tox
+.pytest_cache/
+.cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+.nox/
+nosetests.xml
+
+# Mypy / Ruff / Black
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Alembic / DB 로컬 데이터
+*.sqlite
+*.sqlite3
+*.db
+
+# ----- Node / Next.js (frontend) -----
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+.yarn/cache
+.yarn/install-state.gz
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# 빌드 산출물
+build/
+dist/
+.cache/
+
+# 테스트
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ESLint / Prettier
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# ----- Docker -----
+*.pid
+docker-compose.override.yml
+
+# ----- ML 모델 / 데이터 -----
+models/
+*.h5
+*.pt
+*.onnx
+*.pkl
+data/raw/
+data/cache/
+data/exports/
+
+# ----- 로그 -----
+logs/
+*.log
+*.log.*
+log/
+
+# ----- IDE / 에디터 -----
+# VS Code
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+
+# JetBrains (PyCharm, IntelliJ, WebStorm)
+.idea/
+*.iml
+*.iws
+out/
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ----- OS -----
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ----- 기타 -----
+# 임시 / 백업
+*.bak
+*.tmp
+*.temp
+tmp/
+temp/
+
+# 압축 파일
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# 키스토어
+*.jks
+*.keystore
+
+# 로컬 설정 오버라이드
+local.settings.*
+*.local
