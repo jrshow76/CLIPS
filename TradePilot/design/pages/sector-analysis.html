@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>업종분석 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item app-sidebar__item--active" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left"><button class="btn btn--ghost btn--icon">≡</button><h1 class="h5">업종분석</h1></div>
+      <div class="app-header__search">
+        <div class="input-group"><span class="input-group__icon">⌕</span><input class="input input--prefix-pad" placeholder="섹터 또는 종목 검색"></div>
+      </div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+      <div class="page-title">
+        <div class="page-title__text"><h1>업종분석</h1><p>섹터 등락률, 자금 흐름, 순환 히트맵을 확인합니다.</p></div>
+        <div class="pill-tabs">
+          <span class="pill-tabs__item pill-tabs__item--active">일간</span>
+          <span class="pill-tabs__item">주간</span>
+          <span class="pill-tabs__item">월간</span>
+        </div>
+      </div>
+
+      <nav class="tabs">
+        <a class="tabs__item tabs__item--active">섹터 랭킹</a>
+        <a class="tabs__item">자금 흐름</a>
+        <a class="tabs__item">순환 히트맵</a>
+      </nav>
+
+      <!-- 섹터 랭킹: 상승 / 하락 2컬럼 -->
+      <section class="grid-cols-2 mb-6">
+        <article class="card">
+          <header class="card__header">
+            <h3 class="card__title">상승 섹터 TOP</h3>
+            <span class="badge badge--up badge-dot">상승</span>
+          </header>
+          <div class="card__body stack gap-3">
+            <!-- 막대 표시 -->
+            <div class="stack gap-1">
+              <div class="row items-center justify-between">
+                <span class="text-sm">반도체</span>
+                <span class="text-up text-num">+2.84%</span>
+              </div>
+              <div class="progress"><div class="progress__bar" style="width: 80%; background: var(--color-up);"></div></div>
+              <span class="text-xs text-subtle">거래대금 4.21조 · 상승종목 38 / 전체 52</span>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">바이오</span><span class="text-up text-num">+2.12%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 65%; background: var(--color-up);"></div></div>
+              <span class="text-xs text-subtle">거래대금 1.82조</span>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">방산</span><span class="text-up text-num">+1.94%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 60%; background: var(--color-up);"></div></div>
+              <span class="text-xs text-subtle">거래대금 0.51조</span>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">철강</span><span class="text-up text-num">+1.30%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 42%; background: var(--color-up);"></div></div>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">화학</span><span class="text-up text-num">+0.85%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 28%; background: var(--color-up);"></div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <header class="card__header">
+            <h3 class="card__title">하락 섹터 TOP</h3>
+            <span class="badge badge--down badge-dot">하락</span>
+          </header>
+          <div class="card__body stack gap-3">
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">건설</span><span class="text-down text-num">-2.18%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 72%; background: var(--color-down);"></div></div>
+              <span class="text-xs text-subtle">거래대금 0.42조</span>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">유통</span><span class="text-down text-num">-1.62%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 55%; background: var(--color-down);"></div></div>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">2차전지</span><span class="text-down text-num">-1.20%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 40%; background: var(--color-down);"></div></div>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">조선</span><span class="text-down text-num">-0.94%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 32%; background: var(--color-down);"></div></div>
+            </div>
+            <div class="stack gap-1">
+              <div class="row items-center justify-between"><span class="text-sm">금융</span><span class="text-down text-num">-0.42%</span></div>
+              <div class="progress"><div class="progress__bar" style="width: 16%; background: var(--color-down);"></div></div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- 자금 흐름 -->
+      <section class="card mb-6">
+        <header class="card__header">
+          <div><h3 class="card__title">자금 흐름</h3><p class="card__subtitle">섹터별 순매수/순매도 (단위: 억원)</p></div>
+          <select class="select" style="max-width: 160px;">
+            <option>외국인</option><option>기관</option><option>개인</option>
+          </select>
+        </header>
+        <div class="card__body">
+          <div class="chart-placeholder">
+            <span class="chart-placeholder__label">가로 막대 차트 자리 (좌: 순매도 / 우: 순매수)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 순환 히트맵 -->
+      <section class="card mb-6">
+        <header class="card__header">
+          <div><h3 class="card__title">섹터 순환 히트맵</h3><p class="card__subtitle">최근 30일 등락률 (빨강=상승, 파랑=하락)</p></div>
+        </header>
+        <div class="card__body">
+          <div class="heatmap" aria-label="섹터 히트맵">
+            <div class="heatmap__cell heatmap__cell--up-3"><span>반도체</span><span class="text-num fw-semibold">+12.4%</span></div>
+            <div class="heatmap__cell heatmap__cell--up-2"><span>바이오</span><span class="text-num">+8.1%</span></div>
+            <div class="heatmap__cell heatmap__cell--up-2"><span>방산</span><span class="text-num">+7.3%</span></div>
+            <div class="heatmap__cell heatmap__cell--up-1"><span>철강</span><span class="text-num">+3.2%</span></div>
+            <div class="heatmap__cell heatmap__cell--up-1"><span>화학</span><span class="text-num">+2.8%</span></div>
+            <div class="heatmap__cell"><span>운송</span><span class="text-num">+0.4%</span></div>
+            <div class="heatmap__cell"><span>식음료</span><span class="text-num">+0.1%</span></div>
+            <div class="heatmap__cell heatmap__cell--down-1"><span>전기·전자</span><span class="text-num">-1.2%</span></div>
+
+            <div class="heatmap__cell heatmap__cell--down-1"><span>금융</span><span class="text-num">-2.1%</span></div>
+            <div class="heatmap__cell heatmap__cell--down-1"><span>자동차</span><span class="text-num">-2.3%</span></div>
+            <div class="heatmap__cell heatmap__cell--down-2"><span>조선</span><span class="text-num">-4.1%</span></div>
+            <div class="heatmap__cell heatmap__cell--down-2"><span>유통</span><span class="text-num">-5.6%</span></div>
+            <div class="heatmap__cell heatmap__cell--down-3"><span>건설</span><span class="text-num">-8.2%</span></div>
+            <div class="heatmap__cell heatmap__cell--down-3"><span>2차전지</span><span class="text-num">-9.4%</span></div>
+            <div class="heatmap__cell"><span>인터넷</span><span class="text-num">-0.8%</span></div>
+            <div class="heatmap__cell"><span>통신</span><span class="text-num">+0.6%</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 드릴다운 -->
+      <section class="card">
+        <header class="card__header">
+          <div><h3 class="card__title">섹터 종목 드릴다운 · 반도체</h3><p class="card__subtitle">상위 5종목</p></div>
+          <button class="btn btn--sm btn--ghost">전체 종목 →</button>
+        </header>
+        <div class="table-scroll">
+          <table class="table">
+            <thead><tr><th>종목</th><th class="num">현재가</th><th class="num">등락률</th><th class="num">시가총액</th><th class="num">거래대금</th><th class="center">차트</th></tr></thead>
+            <tbody>
+              <tr><td>SK하이닉스</td><td class="num">168,500</td><td class="num text-up">▲ 2.84%</td><td class="num">122조</td><td class="num">1.32조</td><td class="center"><a class="btn btn--sm" href="chart-analysis.html">→</a></td></tr>
+              <tr><td>한미반도체</td><td class="num">128,300</td><td class="num text-up">▲ 1.20%</td><td class="num">12조</td><td class="num">0.21조</td><td class="center"><a class="btn btn--sm" href="chart-analysis.html">→</a></td></tr>
+              <tr><td>리노공업</td><td class="num">238,000</td><td class="num text-up">▲ 0.94%</td><td class="num">3.6조</td><td class="num">0.08조</td><td class="center"><a class="btn btn--sm" href="chart-analysis.html">→</a></td></tr>
+              <tr><td>DB하이텍</td><td class="num">59,800</td><td class="num text-up">▲ 0.68%</td><td class="num">2.6조</td><td class="num">0.06조</td><td class="center"><a class="btn btn--sm" href="chart-analysis.html">→</a></td></tr>
+              <tr><td>이오테크닉스</td><td class="num">182,000</td><td class="num text-down">▼ 0.21%</td><td class="num">2.2조</td><td class="num">0.04조</td><td class="center"><a class="btn btn--sm" href="chart-analysis.html">→</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

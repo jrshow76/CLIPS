@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>로그인 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+  <style>
+    .auth {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--color-bg-0);
+    }
+    .auth__hero {
+      position: relative;
+      background:
+        radial-gradient(800px 400px at 30% 20%, rgba(47,92,255,.25), transparent 60%),
+        radial-gradient(600px 400px at 70% 80%, rgba(239,68,68,.18), transparent 60%),
+        linear-gradient(160deg, #0b0f17 0%, #131f59 100%);
+      padding: var(--space-12);
+      display: flex; flex-direction: column; justify-content: space-between;
+      color: #e6ebf2;
+    }
+    .auth__brand { display:flex; align-items:center; gap:12px; font-weight: var(--fw-bold); font-size: var(--fs-20); }
+    .auth__brand-mark { width:36px;height:36px;border-radius:10px;
+      background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-600));
+      display:grid;place-items:center;color:#fff;
+    }
+    .auth__hero h2 { font-size: var(--fs-32); font-weight: var(--fw-bold); line-height: 1.2; letter-spacing: -.02em; max-width: 480px; }
+    .auth__hero p { color: var(--color-text-2); margin-top: var(--space-3); max-width: 480px; }
+    .auth__form-wrap {
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--space-12);
+    }
+    .auth__form {
+      width: 100%; max-width: 380px;
+    }
+    .auth__form h1 { font-size: var(--fs-24); font-weight: var(--fw-bold); }
+    .auth__chips { display:flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-6); }
+    .auth__footer { font-size: var(--fs-12); color: var(--color-text-3); }
+    @media (max-width: 1024px) {
+      .auth { grid-template-columns: 1fr; }
+      .auth__hero { padding: var(--space-8); min-height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="auth">
+    <!-- 좌: 브랜드 히어로 -->
+    <section class="auth__hero">
+      <div class="auth__brand">
+        <span class="auth__brand-mark">T</span>
+        <span>TradePilot</span>
+      </div>
+
+      <div>
+        <h2>전략 기반 자동매매,<br>안전한 시뮬레이션에서 시작하세요.</h2>
+        <p>국내 주식 자동매매를 위한 통합 도구. AI 추천, 차트 분석, 백테스트, 리스크 한도까지 한 화면에서.</p>
+        <div class="auth__chips">
+          <span class="badge badge--sim badge-dot">SIM 우선</span>
+          <span class="badge badge--success badge-dot">한도 자동 검증</span>
+          <span class="badge badge--info badge-dot">실시간 알림</span>
+        </div>
+      </div>
+
+      <p class="auth__footer">© 2026 TradePilot · 본 서비스는 투자 자문이 아닙니다. 매매 결정은 사용자 본인 책임입니다.</p>
+    </section>
+
+    <!-- 우: 로그인 폼 -->
+    <section class="auth__form-wrap">
+      <form class="auth__form stack gap-5" onsubmit="event.preventDefault();">
+        <header class="stack gap-1">
+          <h1>로그인</h1>
+          <p class="text-sm text-muted">시뮬레이션 모드로 안전하게 시작합니다.</p>
+        </header>
+
+        <div class="field">
+          <label class="field__label" for="email">이메일</label>
+          <div class="input-group">
+            <span class="input-group__icon">@</span>
+            <input id="email" class="input input--prefix-pad" type="email" placeholder="you@trade.com" autocomplete="email">
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="password">비밀번호</label>
+          <div class="input-group">
+            <span class="input-group__icon">⚿</span>
+            <input id="password" class="input input--prefix-pad" type="password" placeholder="8~32자 영문+숫자+특수문자" autocomplete="current-password">
+          </div>
+          <span class="field__hint">대소문자 구분, 5회 연속 실패 시 15분 잠금</span>
+        </div>
+
+        <div class="row items-center justify-between">
+          <label class="checkbox checkbox--checked">
+            <span class="checkbox__box"></span>
+            <span>자동 로그인</span>
+          </label>
+          <a class="text-sm" href="#" style="color: var(--color-brand-300);">비밀번호 재설정</a>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--lg btn--block">로그인</button>
+
+        <!-- 에러 상태 예시 (필요 시 보임) -->
+        <div class="error-card hidden" data-state="error">
+          <div>
+            <p class="error-card__title">이메일 또는 비밀번호가 올바르지 않습니다.</p>
+            <p class="error-card__msg">5회 실패 시 계정이 잠깁니다. (E0001)</p>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="text-sm text-muted center">
+          아직 계정이 없으신가요?
+          <a href="#" style="color: var(--color-brand-300); margin-left: 6px;">회원가입</a>
+        </p>
+
+        <p class="text-xs text-subtle center">단축키 <span class="kbd">Enter</span> 로 로그인</p>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

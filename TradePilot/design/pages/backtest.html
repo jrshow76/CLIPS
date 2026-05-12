@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>백테스트 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item app-sidebar__item--active" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left"><button class="btn btn--ghost btn--icon">≡</button><h1 class="h5">백테스트</h1></div>
+      <div class="app-header__search"><div class="input-group"><span class="input-group__icon">⌕</span><input class="input input--prefix-pad" placeholder="저장된 결과 검색"></div></div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+
+      <div class="page-title">
+        <div class="page-title__text"><h1>백테스트</h1><p>과거 데이터로 전략을 검증하고 결과를 비교합니다.</p></div>
+        <div class="row gap-2">
+          <button class="btn btn--outline btn--sm">저장된 결과</button>
+          <button class="btn btn--primary btn--sm">새 실행</button>
+        </div>
+      </div>
+
+      <nav class="tabs">
+        <a class="tabs__item tabs__item--active">실행</a>
+        <a class="tabs__item">결과 조회</a>
+        <a class="tabs__item">결과 비교</a>
+      </nav>
+
+      <!-- 실행 입력 폼 -->
+      <section class="grid gap-4" style="grid-template-columns: 1fr 360px;" data-grid="bt-main">
+
+        <article class="card">
+          <header class="card__header"><h3 class="card__title">실행 파라미터</h3></header>
+          <div class="card__body">
+            <div class="form-grid">
+              <div class="field">
+                <label class="field__label">전략 선택</label>
+                <select class="select">
+                  <option>골든크로스 v2</option>
+                  <option>RSI 과매도 v3</option>
+                  <option>볼린저 하단</option>
+                  <option>MACD 전환</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label">종목 유니버스 (최대 200개)</label>
+                <select class="select">
+                  <option>KOSPI200</option><option>KOSDAQ150</option><option>전체 추천 종목</option><option>커스텀 …</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label">시작일</label>
+                <input class="input" type="date" value="2024-05-12">
+              </div>
+              <div class="field">
+                <label class="field__label">종료일</label>
+                <input class="input" type="date" value="2026-05-12">
+                <span class="field__hint">최대 5년</span>
+              </div>
+              <div class="field">
+                <label class="field__label">초기 자본</label>
+                <input class="input" value="10,000,000">
+                <span class="field__hint">최소 1,000,000원</span>
+              </div>
+              <div class="field">
+                <label class="field__label">슬리피지 (%)</label>
+                <input class="input" value="0.1">
+              </div>
+              <div class="field">
+                <label class="field__label">수수료 (%)</label>
+                <input class="input" value="0.015">
+              </div>
+              <div class="field">
+                <label class="field__label">손절 / 익절 (%)</label>
+                <div class="row gap-2">
+                  <input class="input" value="-3" placeholder="손절 %">
+                  <input class="input" value="+5" placeholder="익절 %">
+                </div>
+              </div>
+              <div class="field field--full">
+                <label class="field__label">메모 (선택)</label>
+                <textarea class="textarea" placeholder="실행 라벨/메모"></textarea>
+              </div>
+            </div>
+
+            <div class="row justify-end gap-2 mt-6">
+              <button class="btn btn--outline">기본값으로</button>
+              <button class="btn btn--primary">실행</button>
+            </div>
+
+            <!-- 진행률 (실행 중) -->
+            <div class="mt-6">
+              <div class="row items-center justify-between mb-2">
+                <span class="text-sm fw-semibold">실행 중 · job_id <span class="text-mono text-muted">bt-20260512-1429</span></span>
+                <span class="text-sm text-muted">진행 64% · 예상 시간 02:18</span>
+              </div>
+              <div class="progress"><div class="progress__bar" style="width: 64%;"></div></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- 요약 사이드 -->
+        <aside class="stack gap-4">
+          <article class="card">
+            <header class="card__header"><h3 class="card__title">실행 요약</h3></header>
+            <div class="card__body stack gap-2 text-sm">
+              <div class="stat-row"><span class="stat-row__label">기간</span><span class="stat-row__value">2024-05-12 ~ 2026-05-12 (2년)</span></div>
+              <div class="stat-row"><span class="stat-row__label">종목수</span><span class="stat-row__value">200</span></div>
+              <div class="stat-row"><span class="stat-row__label">초기 자본</span><span class="stat-row__value">10,000,000원</span></div>
+              <div class="stat-row"><span class="stat-row__label">슬리피지</span><span class="stat-row__value">0.1%</span></div>
+              <div class="stat-row"><span class="stat-row__label">수수료</span><span class="stat-row__value">0.015%</span></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card__header"><h3 class="card__title">검증 규칙</h3></header>
+            <div class="card__body stack gap-2 text-sm text-muted">
+              <p>· 기간 최대 5년</p>
+              <p>· 종목 유니버스 최대 200개</p>
+              <p>· 초기자본 ≥ 1,000,000원</p>
+              <p>· 슬리피지 ≥ 0, 수수료 0~1%</p>
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <!-- 결과 조회 -->
+      <h3 class="h4 mt-8 mb-3">최근 결과</h3>
+      <section class="card mb-4">
+        <header class="card__header">
+          <div><h3 class="card__title">골든크로스 v2 (2024-05 ~ 2026-05)</h3><p class="card__subtitle">완료 · 2026-05-12 14:00</p></div>
+          <div class="row gap-2">
+            <button class="btn btn--sm btn--outline">결과 저장</button>
+            <button class="btn btn--sm">비교에 추가</button>
+          </div>
+        </header>
+        <div class="card__body">
+          <div class="grid-cols-4 mb-4">
+            <div class="kpi"><span class="kpi__label">누적 수익률</span><span class="kpi__value text-up">+38.2%</span><span class="kpi__delta text-muted">2년</span></div>
+            <div class="kpi"><span class="kpi__label">연환산</span><span class="kpi__value text-up">+17.6%</span><span class="kpi__delta text-muted">CAGR</span></div>
+            <div class="kpi"><span class="kpi__label">MDD</span><span class="kpi__value text-down">-12.4%</span><span class="kpi__delta text-muted">최대 낙폭</span></div>
+            <div class="kpi"><span class="kpi__label">샤프 · 승률</span><span class="kpi__value">1.42 / 58%</span><span class="kpi__delta text-muted">421 거래</span></div>
+          </div>
+
+          <div class="chart-placeholder chart-placeholder--lg"><span class="chart-placeholder__label">누적 수익률 곡선 + 벤치마크 비교</span></div>
+
+          <div class="table-wrap mt-4">
+            <div class="table-scroll">
+              <table class="table table--compact">
+                <thead><tr><th>일자</th><th>종목</th><th class="center">사이드</th><th class="num">가격</th><th class="num">수량</th><th class="num">손익</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-05-08</td><td>삼성전자</td><td class="center"><span class="badge badge--down">매도</span></td><td class="num">82,100</td><td class="num">50</td><td class="num text-up">+72,000</td></tr>
+                  <tr><td>2026-05-02</td><td>삼성전자</td><td class="center"><span class="badge badge--up">매수</span></td><td class="num">80,640</td><td class="num">50</td><td class="num text-muted">-</td></tr>
+                  <tr><td>2026-04-28</td><td>SK하이닉스</td><td class="center"><span class="badge badge--down">매도</span></td><td class="num">175,200</td><td class="num">10</td><td class="num text-down">-32,000</td></tr>
+                  <tr><td>2026-04-22</td><td>한미반도체</td><td class="center"><span class="badge badge--up">매수</span></td><td class="num">120,100</td><td class="num">20</td><td class="num text-muted">-</td></tr>
+                  <tr><td>2026-04-15</td><td>LG화학</td><td class="center"><span class="badge badge--down">매도</span></td><td class="num">418,000</td><td class="num">5</td><td class="num text-up">+88,000</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 결과 비교 -->
+      <section class="card">
+        <header class="card__header">
+          <div><h3 class="card__title">결과 비교 (최대 5)</h3><p class="card__subtitle">선택된 3개 결과를 동일 차트에 오버레이</p></div>
+        </header>
+        <div class="card__body">
+          <div class="row flex-wrap gap-2 mb-3">
+            <span class="badge" style="border-left: 6px solid var(--color-brand-500);">A · 골든크로스 v2</span>
+            <span class="badge" style="border-left: 6px solid var(--color-up);">B · RSI 과매도 v3</span>
+            <span class="badge" style="border-left: 6px solid var(--color-down);">C · 볼린저 하단</span>
+            <button class="btn btn--sm btn--ghost">+ 결과 추가</button>
+          </div>
+          <div class="chart-placeholder chart-placeholder--lg"><span class="chart-placeholder__label">3개 라인 오버레이 차트</span></div>
+
+          <div class="table-wrap mt-4">
+            <div class="table-scroll">
+              <table class="table">
+                <thead><tr><th>라벨</th><th class="num">누적</th><th class="num">연환산</th><th class="num">MDD</th><th class="num">샤프</th><th class="num">승률</th><th class="num">거래수</th></tr></thead>
+                <tbody>
+                  <tr><td>A · 골든크로스 v2</td><td class="num text-up">+38.2%</td><td class="num text-up">+17.6%</td><td class="num text-down">-12.4%</td><td class="num">1.42</td><td class="num">58%</td><td class="num">421</td></tr>
+                  <tr><td>B · RSI 과매도 v3</td><td class="num text-up">+24.1%</td><td class="num text-up">+11.4%</td><td class="num text-down">-9.8%</td><td class="num">1.08</td><td class="num">54%</td><td class="num">312</td></tr>
+                  <tr><td>C · 볼린저 하단</td><td class="num text-up">+12.5%</td><td class="num text-up">+6.1%</td><td class="num text-down">-14.2%</td><td class="num">0.72</td><td class="num">49%</td><td class="num">198</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <style>
+        @media (max-width: 1024px) {
+          [data-grid="bt-main"] { grid-template-columns: 1fr !important; }
+        }
+      </style>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>차트분석 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item app-sidebar__item--active" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left">
+        <button class="btn btn--ghost btn--icon">≡</button>
+        <h1 class="h5">차트분석</h1>
+      </div>
+      <div class="app-header__search">
+        <div class="input-group">
+          <span class="input-group__icon">⌕</span>
+          <input class="input input--prefix-pad" placeholder="종목명 또는 코드 (Ctrl+K)" value="삼성전자 005930">
+        </div>
+      </div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+
+      <!-- 종목 요약 헤더 -->
+      <section class="card mb-4">
+        <div class="card__body row items-center justify-between flex-wrap gap-3">
+          <div class="row items-center gap-4">
+            <div>
+              <div class="row items-center gap-2">
+                <span class="h3">삼성전자</span>
+                <span class="text-muted">005930</span>
+                <span class="badge">KOSPI</span>
+                <span class="badge">전기·전자</span>
+              </div>
+              <p class="text-xs text-subtle mt-1">시가총액 492조 · 외국인 비중 53.2%</p>
+            </div>
+          </div>
+          <div class="row items-center gap-6">
+            <div class="kpi">
+              <span class="kpi__label">현재가</span>
+              <span class="kpi__value text-up">82,500</span>
+              <span class="kpi__delta text-up">▲ 1,000 (+1.23%)</span>
+            </div>
+            <div class="stack gap-1">
+              <span class="text-xs text-subtle">고가 · 저가</span>
+              <span class="text-sm text-num">83,100 / 81,200</span>
+            </div>
+            <div class="stack gap-1">
+              <span class="text-xs text-subtle">거래량 · 거래대금</span>
+              <span class="text-sm text-num">12.4M · 1.02조</span>
+            </div>
+            <div class="row gap-2">
+              <button class="btn btn--outline btn--sm">★ 즐겨찾기</button>
+              <button class="btn btn--primary btn--sm">매수</button>
+              <button class="btn btn--danger btn--sm" style="background:var(--color-down);">매도</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 차트 컨트롤 -->
+      <section class="row items-center justify-between flex-wrap gap-3 mb-3">
+        <div class="pill-tabs">
+          <span class="pill-tabs__item">1분</span>
+          <span class="pill-tabs__item">5분</span>
+          <span class="pill-tabs__item">15분</span>
+          <span class="pill-tabs__item">30분</span>
+          <span class="pill-tabs__item pill-tabs__item--active">일</span>
+          <span class="pill-tabs__item">주</span>
+          <span class="pill-tabs__item">월</span>
+        </div>
+        <div class="row gap-2">
+          <button class="btn btn--sm btn--outline">+ 지표 추가</button>
+          <button class="btn btn--sm btn--outline">2종목 비교</button>
+          <button class="btn btn--sm btn--outline">PNG 다운로드</button>
+        </div>
+      </section>
+
+      <!-- 차트 + 사이드 -->
+      <section class="grid gap-4" style="grid-template-columns: 1fr 320px;" data-grid="chart-main">
+        <div class="stack gap-3">
+          <!-- 메인 캔들 -->
+          <div class="card">
+            <div class="card__body" style="padding: var(--space-3);">
+              <div class="chart-placeholder chart-placeholder--lg">
+                <span class="chart-placeholder__label">캔들 + MA(5/20/60/120) + 거래량 차트 영역</span>
+              </div>
+            </div>
+          </div>
+          <!-- 보조 지표 -->
+          <div class="grid-cols-2">
+            <div class="card">
+              <header class="card__header"><h3 class="card__title">RSI (14)</h3><span class="badge badge--warning">71</span></header>
+              <div class="card__body" style="padding: var(--space-3);">
+                <div class="chart-placeholder chart-placeholder--sm">
+                  <span class="chart-placeholder__label">RSI 시계열</span>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <header class="card__header"><h3 class="card__title">MACD (12/26/9)</h3><span class="badge badge--success">골든</span></header>
+              <div class="card__body" style="padding: var(--space-3);">
+                <div class="chart-placeholder chart-placeholder--sm">
+                  <span class="chart-placeholder__label">MACD 히스토그램 + 시그널</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측 지표 패널 -->
+        <aside class="card" data-side="indicators">
+          <header class="card__header">
+            <h3 class="card__title">지표 파라미터</h3>
+          </header>
+          <div class="card__body stack gap-4">
+            <div class="field">
+              <label class="field__label">MA 기간</label>
+              <div class="row gap-2 flex-wrap">
+                <input class="input" value="5" style="max-width: 64px;">
+                <input class="input" value="20" style="max-width: 64px;">
+                <input class="input" value="60" style="max-width: 64px;">
+                <input class="input" value="120" style="max-width: 64px;">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label">RSI 기간</label>
+              <input class="input" value="14">
+            </div>
+            <div class="field">
+              <label class="field__label">MACD (Fast/Slow/Signal)</label>
+              <div class="row gap-2">
+                <input class="input" value="12">
+                <input class="input" value="26">
+                <input class="input" value="9">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label">Bollinger (Period/k)</label>
+              <div class="row gap-2">
+                <input class="input" value="20">
+                <input class="input" value="2.0">
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="text-xs text-subtle">ML 단기 예측 (D+1~D+5)</p>
+            <div class="stat-row"><span>1일 후</span><span class="text-up">+1.2% (CI 0.4~2.0)</span></div>
+            <div class="stat-row"><span>3일 후</span><span class="text-up">+2.4% (CI 0.8~4.0)</span></div>
+            <div class="stat-row"><span>5일 후</span><span class="text-down">-0.6% (CI -2.1~0.9)</span></div>
+            <p class="text-xs text-subtle">모델 v2.4 · MAPE 1.8% · 방향성 71%</p>
+          </div>
+          <footer class="card__footer">
+            <button class="btn btn--primary btn--block">적용</button>
+          </footer>
+        </aside>
+      </section>
+
+      <style>
+        @media (max-width: 1280px) {
+          [data-grid="chart-main"] { grid-template-columns: 1fr !important; }
+          [data-side="indicators"] { order: 2; }
+        }
+      </style>
+
+    </main>
+  </div>
+</body>
+</html>

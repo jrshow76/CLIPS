@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>매매 시그널 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item app-sidebar__item--active" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left"><button class="btn btn--ghost btn--icon">≡</button><h1 class="h5">매매 시그널</h1><span class="dot-sep"></span><span class="text-xs text-subtle">스트림 정상</span></div>
+      <div class="app-header__search"><div class="input-group"><span class="input-group__icon">⌕</span><input class="input input--prefix-pad" placeholder="종목 검색"></div></div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+
+      <div class="page-title">
+        <div class="page-title__text"><h1>매매 시그널</h1><p>전략 엔진이 5초마다 산출하는 시그널을 확인합니다.</p></div>
+        <div class="row gap-2">
+          <button class="btn btn--outline btn--sm">알림 설정</button>
+          <button class="btn btn--primary btn--sm">시그널 무시 일괄</button>
+        </div>
+      </div>
+
+      <!-- KPI 4 -->
+      <section class="grid-cols-4 mb-4">
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">오늘 시그널</span><span class="kpi__value">28</span><span class="kpi__delta text-muted">매수 17 / 매도 11</span></div></div>
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">진행중</span><span class="kpi__value">5</span><span class="kpi__delta"><span class="badge badge--info">대기 3</span> <span class="badge badge--success">체결 2</span></span></div></div>
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">평균 신뢰도</span><span class="kpi__value">76%</span><span class="kpi__delta text-up">▲ 4%p</span></div></div>
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">알림 발송</span><span class="kpi__value">42</span><span class="kpi__delta text-muted">실패 0건</span></div></div>
+      </section>
+
+      <!-- 탭 + 필터 -->
+      <nav class="tabs">
+        <a class="tabs__item tabs__item--active">활성 시그널</a>
+        <a class="tabs__item">시그널 이력</a>
+        <a class="tabs__item">알림 설정</a>
+      </nav>
+
+      <div class="filter-bar">
+        <select class="select"><option>전체 액션</option><option>매수</option><option>매도</option></select>
+        <select class="select"><option>전체 전략</option><option>골든크로스</option><option>RSI 과매도</option><option>볼린저 하단</option></select>
+        <select class="select"><option>전체 상태</option><option>대기</option><option>체결</option><option>취소</option><option>무시</option></select>
+        <input class="input" placeholder="신뢰도 ≥ %" style="max-width: 160px;">
+        <input class="input" type="date" style="max-width: 160px;">
+        <input class="input" type="date" style="max-width: 160px;">
+        <div class="flex-1"></div>
+        <button class="btn btn--sm">초기화</button>
+        <button class="btn btn--sm btn--primary">적용</button>
+      </div>
+
+      <!-- 시그널 테이블 -->
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>발생 시각</th>
+                <th>종목</th>
+                <th class="center">액션</th>
+                <th class="num">기준가</th>
+                <th class="num">신뢰도</th>
+                <th>전략</th>
+                <th>근거</th>
+                <th class="center">상태</th>
+                <th class="center">처리</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>14:21:08</td>
+                <td><div class="fw-semibold">삼성전자</div><div class="text-xs text-subtle">005930</div></td>
+                <td class="center"><span class="badge badge--up">매수</span></td>
+                <td class="num">82,500</td>
+                <td class="num">87%</td>
+                <td>골든크로스 v2</td>
+                <td class="text-muted">MA5↑MA20 + 거래량 +180%</td>
+                <td class="center"><span class="badge badge--info badge-dot">대기</span></td>
+                <td class="center"><button class="btn btn--sm btn--primary">주문</button> <button class="btn btn--sm btn--ghost">무시</button></td>
+              </tr>
+              <tr>
+                <td>13:55:42</td>
+                <td><div class="fw-semibold">SK하이닉스</div><div class="text-xs text-subtle">000660</div></td>
+                <td class="center"><span class="badge badge--down">매도</span></td>
+                <td class="num">168,500</td>
+                <td class="num">71%</td>
+                <td>RSI 과매수</td>
+                <td class="text-muted">RSI 78 + 다이버전스</td>
+                <td class="center"><span class="badge badge--success badge-dot">체결</span></td>
+                <td class="center"><button class="btn btn--sm btn--ghost">상세</button></td>
+              </tr>
+              <tr>
+                <td>13:42:18</td>
+                <td><div class="fw-semibold">LG에너지솔루션</div><div class="text-xs text-subtle">373220</div></td>
+                <td class="center"><span class="badge badge--up">매수</span></td>
+                <td class="num">421,000</td>
+                <td class="num">79%</td>
+                <td>볼린저 하단</td>
+                <td class="text-muted">하단 터치 + 캔들 반전</td>
+                <td class="center"><span class="badge badge--info badge-dot">대기</span></td>
+                <td class="center"><button class="btn btn--sm btn--primary">주문</button> <button class="btn btn--sm btn--ghost">무시</button></td>
+              </tr>
+              <tr>
+                <td>11:08:01</td>
+                <td><div class="fw-semibold">현대차</div><div class="text-xs text-subtle">005380</div></td>
+                <td class="center"><span class="badge badge--up">매수</span></td>
+                <td class="num">235,000</td>
+                <td class="num">82%</td>
+                <td>골든크로스 v2</td>
+                <td class="text-muted">MA20↑MA60</td>
+                <td class="center"><span class="badge badge--success badge-dot">체결</span></td>
+                <td class="center"><button class="btn btn--sm btn--ghost">상세</button></td>
+              </tr>
+              <tr>
+                <td>10:32:55</td>
+                <td><div class="fw-semibold">셀트리온</div><div class="text-xs text-subtle">068270</div></td>
+                <td class="center"><span class="badge badge--up">매수</span></td>
+                <td class="num">187,400</td>
+                <td class="num">92%</td>
+                <td>RSI 과매도 v3</td>
+                <td class="text-muted">RSI 27 + 외국인 +328억</td>
+                <td class="center"><span class="badge badge--warning badge-dot">한도초과</span></td>
+                <td class="center"><button class="btn btn--sm btn--ghost">상세</button></td>
+              </tr>
+              <tr>
+                <td>09:42:18</td>
+                <td><div class="fw-semibold">에코프로비엠</div><div class="text-xs text-subtle">247540</div></td>
+                <td class="center"><span class="badge badge--down">매도</span></td>
+                <td class="num">198,200</td>
+                <td class="num">64%</td>
+                <td>MACD 데드</td>
+                <td class="text-muted">데드크로스 발생</td>
+                <td class="center"><span class="badge">무시</span></td>
+                <td class="center"><button class="btn btn--sm btn--ghost">상세</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <nav class="pager">
+          <span>총 28건 중 1-6</span>
+          <div class="pager__pages">
+            <a class="pager__page" href="#">‹</a>
+            <a class="pager__page pager__page--active">1</a>
+            <a class="pager__page" href="#">2</a>
+            <a class="pager__page" href="#">3</a>
+            <a class="pager__page" href="#">5</a>
+            <a class="pager__page" href="#">›</a>
+          </div>
+        </nav>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TradePilot 디자인 미리보기</title>
+  <link rel="stylesheet" href="tokens/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <style>
+    .preview-hero {
+      padding: var(--space-12) var(--space-6);
+      background:
+        radial-gradient(900px 400px at 80% 10%, rgba(47,92,255,.2), transparent 60%),
+        radial-gradient(700px 400px at 10% 90%, rgba(239,68,68,.12), transparent 60%),
+        linear-gradient(160deg, var(--color-bg-1) 0%, var(--color-bg-0) 100%);
+      border-bottom: 1px solid var(--color-border-1);
+    }
+    .preview-card {
+      display: flex; flex-direction: column;
+      padding: var(--space-5);
+      background: var(--color-bg-2);
+      border: 1px solid var(--color-border-1);
+      border-radius: var(--radius-lg);
+      transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+    }
+    .preview-card:hover { transform: translateY(-2px); border-color: var(--color-border-3); }
+    .preview-card__num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--color-bg-3); display: grid; place-items: center;
+      font-size: var(--fs-12); color: var(--color-text-3); margin-bottom: var(--space-3);
+    }
+    .preview-card__title { font-weight: var(--fw-semibold); font-size: var(--fs-16); }
+    .preview-card__desc { color: var(--color-text-2); font-size: var(--fs-13); margin-top: var(--space-2); }
+    .preview-card__tags { display:flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-3); }
+    .theme-swatch { width: 18px; height: 18px; border-radius: 4px; display:inline-block; vertical-align: middle; margin-right:6px; }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="preview-hero">
+    <div class="container">
+      <div class="row items-center justify-between mb-6 flex-wrap gap-4">
+        <div class="row items-center gap-3">
+          <span class="app-sidebar__brand-mark" style="width:40px;height:40px;font-size:18px;">T</span>
+          <div>
+            <h1 class="h1" style="margin-bottom:4px;">TradePilot 디자인 미리보기</h1>
+            <p class="text-muted">정적 HTML/CSS 퍼블리싱 산출물 인덱스 · v1.0</p>
+          </div>
+        </div>
+        <div class="row gap-2">
+          <button class="btn btn--outline" onclick="document.documentElement.dataset.theme='dark'">다크</button>
+          <button class="btn btn--outline" onclick="document.documentElement.dataset.theme='light'">라이트</button>
+        </div>
+      </div>
+
+      <div class="row gap-2 flex-wrap">
+        <span class="badge badge--sim badge-dot">SIM 우선</span>
+        <span class="badge badge--up badge-dot">상승 = 빨강</span>
+        <span class="badge badge--down badge-dot">하락 = 파랑</span>
+        <span class="badge badge--success badge-dot">반응형 (320 / 768 / 1280)</span>
+        <span class="badge badge--info badge-dot">다크/라이트 토글</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: var(--space-8); padding-bottom: var(--space-12);">
+
+    <!-- 1. 페이지 인덱스 -->
+    <section class="mb-8">
+      <div class="row items-end justify-between mb-4">
+        <div>
+          <h2 class="h2">화면 인덱스</h2>
+          <p class="text-muted text-sm mt-1">메인 8개 + 모드/예외 데모 화면</p>
+        </div>
+      </div>
+
+      <div class="grid-cols-3">
+
+        <a class="preview-card" href="pages/login.html">
+          <span class="preview-card__num">01</span>
+          <span class="preview-card__title">로그인</span>
+          <span class="preview-card__desc">브랜드 히어로 + 이메일/비번 폼. 비인증 진입점.</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-AUTH</span><span class="badge">반응형</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/dashboard.html">
+          <span class="preview-card__num">02</span>
+          <span class="preview-card__title">대시보드</span>
+          <span class="preview-card__desc">KPI 4 + 보유종목/시장요약/시그널/추천주 TOP5/알림</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-DASH</span><span class="badge">3컬럼</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/recommendations.html">
+          <span class="preview-card__num">03</span>
+          <span class="preview-card__title">추천주</span>
+          <span class="preview-card__desc">탭 + 필터바 + 테이블 + 페이지네이션</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-RECO</span><span class="badge">empty 상태</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/chart-analysis.html">
+          <span class="preview-card__num">04</span>
+          <span class="preview-card__title">차트분석</span>
+          <span class="preview-card__desc">캔들 + 지표 패널 + RSI/MACD 보조 차트</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-CHART</span><span class="badge">차트 placeholder</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/sector-analysis.html">
+          <span class="preview-card__num">05</span>
+          <span class="preview-card__title">업종분석</span>
+          <span class="preview-card__desc">섹터 랭킹 + 자금 흐름 + 8×2 히트맵</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-SECTOR</span><span class="badge">히트맵</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/signals.html">
+          <span class="preview-card__num">06</span>
+          <span class="preview-card__title">매매 시그널</span>
+          <span class="preview-card__desc">활성/이력/알림 탭 + 시그널 테이블</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-SIGNAL</span><span class="badge">실시간</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/auto-trading.html">
+          <span class="preview-card__num">07</span>
+          <span class="preview-card__title">자동매매 관리</span>
+          <span class="preview-card__desc">전략 리스트 + 상세, 비상정지 모달 데모</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-AUTO</span><span class="badge">danger modal</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/profit-report.html">
+          <span class="preview-card__num">08</span>
+          <span class="preview-card__title">수익률 리포트</span>
+          <span class="preview-card__desc">KPI + 자산곡선 + 종목별/전략별 성과</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-REPORT</span><span class="badge">CSV</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/backtest.html">
+          <span class="preview-card__num">09</span>
+          <span class="preview-card__title">백테스트</span>
+          <span class="preview-card__desc">입력 폼 + 진행률 + 결과 + 비교</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-BACKTEST</span><span class="badge">progress</span>
+          </span>
+        </a>
+
+        <a class="preview-card" href="pages/settings.html">
+          <span class="preview-card__num">10</span>
+          <span class="preview-card__title">설정</span>
+          <span class="preview-card__desc">프로필/보안/알림/한도/CREON/테마</span>
+          <span class="preview-card__tags">
+            <span class="badge">FR-SET</span><span class="badge">크레온</span>
+          </span>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- 2. 디자인 시스템 문서 -->
+    <section class="mb-8">
+      <h2 class="h2 mb-4">디자인 시스템 문서</h2>
+      <div class="grid-cols-3">
+        <a class="preview-card" href="README.md"><span class="preview-card__title">README.md</span><span class="preview-card__desc">디자인 가이드 개요 및 디렉토리</span></a>
+        <a class="preview-card" href="40_design_system.md"><span class="preview-card__title">40_design_system.md</span><span class="preview-card__desc">토큰/타이포/간격/반응형/접근성</span></a>
+        <a class="preview-card" href="41_screen_inventory.md"><span class="preview-card__title">41_screen_inventory.md</span><span class="preview-card__desc">36개 화면 와이어 설명</span></a>
+        <a class="preview-card" href="42_component_catalog.md"><span class="preview-card__title">42_component_catalog.md</span><span class="preview-card__desc">컴포넌트 사용법 / React 매핑</span></a>
+        <a class="preview-card" href="tokens/tokens.css"><span class="preview-card__title">tokens/tokens.css</span><span class="preview-card__desc">CSS 변수 토큰 (다크/라이트)</span></a>
+        <a class="preview-card" href="styles/components.css"><span class="preview-card__title">styles/components.css</span><span class="preview-card__desc">BEM 컴포넌트 스타일</span></a>
+      </div>
+    </section>
+
+    <!-- 3. 컬러 / 컴포넌트 미니 데모 -->
+    <section class="mb-8">
+      <h2 class="h2 mb-4">컴포넌트 데모</h2>
+
+      <article class="card mb-4">
+        <header class="card__header"><h3 class="card__title">색상 토큰</h3></header>
+        <div class="card__body row flex-wrap gap-3">
+          <span><span class="theme-swatch" style="background:#2f5cff;"></span>brand-500</span>
+          <span><span class="theme-swatch" style="background:#ef4444;"></span>up (상승)</span>
+          <span><span class="theme-swatch" style="background:#3b82f6;"></span>down (하락)</span>
+          <span><span class="theme-swatch" style="background:#22c55e;"></span>success</span>
+          <span><span class="theme-swatch" style="background:#f59e0b;"></span>warning</span>
+          <span><span class="theme-swatch" style="background:#38bdf8;"></span>info</span>
+          <span><span class="theme-swatch" style="background:#0b0f17;border:1px solid var(--color-border-2);"></span>bg-0</span>
+          <span><span class="theme-swatch" style="background:#161c27;border:1px solid var(--color-border-2);"></span>bg-2</span>
+        </div>
+      </article>
+
+      <article class="card mb-4">
+        <header class="card__header"><h3 class="card__title">버튼</h3></header>
+        <div class="card__body row flex-wrap gap-2">
+          <button class="btn btn--primary">Primary</button>
+          <button class="btn">Default</button>
+          <button class="btn btn--outline">Outline</button>
+          <button class="btn btn--ghost">Ghost</button>
+          <button class="btn btn--danger">Danger</button>
+          <button class="btn btn--success">Success</button>
+          <button class="btn btn--sm">Small</button>
+          <button class="btn btn--lg">Large</button>
+          <button class="btn" disabled>Disabled</button>
+        </div>
+      </article>
+
+      <article class="card mb-4">
+        <header class="card__header"><h3 class="card__title">배지 / 모드</h3></header>
+        <div class="card__body row flex-wrap gap-2 items-center">
+          <span class="badge">기본</span>
+          <span class="badge badge--up">상승 ▲ 2.31%</span>
+          <span class="badge badge--down">하락 ▼ 1.20%</span>
+          <span class="badge badge--success badge-dot">정상</span>
+          <span class="badge badge--warning badge-dot">지연</span>
+          <span class="badge badge--danger badge-dot">위험</span>
+          <span class="badge badge--info badge-dot">정보</span>
+          <span class="badge badge--sim">SIM</span>
+          <span class="badge badge--live">LIVE</span>
+
+          <div class="mode-toggle">
+            <span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span>
+            <span class="mode-toggle__item mode-toggle__item--live">LIVE</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card mb-4">
+        <header class="card__header"><h3 class="card__title">폼</h3></header>
+        <div class="card__body form-grid">
+          <div class="field">
+            <label class="field__label">텍스트</label>
+            <input class="input" placeholder="입력하세요">
+          </div>
+          <div class="field">
+            <label class="field__label">선택</label>
+            <select class="select"><option>옵션 A</option><option>옵션 B</option></select>
+          </div>
+          <div class="field field--full">
+            <label class="field__label">스위치 / 체크</label>
+            <div class="row items-center gap-4">
+              <span class="switch switch--on" role="switch"></span>
+              <label class="checkbox checkbox--checked"><span class="checkbox__box"></span><span>체크됨</span></label>
+              <label class="checkbox"><span class="checkbox__box"></span><span>해제</span></label>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card mb-4">
+        <header class="card__header"><h3 class="card__title">상태 (Empty / Error / Loading)</h3></header>
+        <div class="card__body grid-cols-3">
+          <div class="empty-state" style="padding: var(--space-6);">
+            <div class="empty-state__icon">∅</div>
+            <p class="empty-state__title">데이터 없음</p>
+            <p class="empty-state__desc">조건을 완화해보세요.</p>
+          </div>
+          <div class="error-card">
+            <div>
+              <p class="error-card__title">외부 시스템 응답 지연 (E0004)</p>
+              <p class="error-card__msg">잠시 후 다시 시도해주세요.</p>
+              <button class="btn btn--sm btn--outline mt-2">재시도</button>
+            </div>
+          </div>
+          <div class="stack gap-2">
+            <div class="skeleton skeleton--text" style="width:60%;"></div>
+            <div class="skeleton skeleton--line"></div>
+            <div class="skeleton skeleton--line"></div>
+            <div class="skeleton skeleton--line" style="width:80%;"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card mb-4">
+        <header class="card__header"><h3 class="card__title">차트 자리표시</h3></header>
+        <div class="card__body">
+          <div class="chart-placeholder"><span class="chart-placeholder__label">차트 영역 (lightweight-charts 대체 예정)</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card__header"><h3 class="card__title">토스트</h3></header>
+        <div class="card__body row flex-wrap gap-3">
+          <div class="toast toast--success" style="position: relative;">
+            <div>
+              <p class="toast__title">체결 완료</p>
+              <p class="toast__msg">삼성전자 10주 매수 (82,500원)</p>
+            </div>
+          </div>
+          <div class="toast toast--warning" style="position: relative;">
+            <div>
+              <p class="toast__title">한도 80% 사용</p>
+              <p class="toast__msg">일일 매수 한도를 확인하세요.</p>
+            </div>
+          </div>
+          <div class="toast toast--danger" style="position: relative;">
+            <div>
+              <p class="toast__title">크레온 연결 실패 (E0012)</p>
+              <p class="toast__msg">HTS 실행 상태를 확인하세요.</p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <footer class="container" style="padding-bottom: var(--space-8); color: var(--color-text-3);">
+    <div class="divider"></div>
+    <p class="text-sm">© 2026 TradePilot · Designer 산출물 · 본 마크업은 FrontendSenior 인계용 초안입니다.</p>
+  </footer>
+</body>
+</html>

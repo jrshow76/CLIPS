@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>설정 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item app-sidebar__item--active" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left"><button class="btn btn--ghost btn--icon">≡</button><h1 class="h5">설정</h1></div>
+      <div class="app-header__search"><div class="input-group"><span class="input-group__icon">⌕</span><input class="input input--prefix-pad" placeholder="설정 검색"></div></div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+      <div class="page-title">
+        <div class="page-title__text"><h1>설정</h1><p>계정, 보안, 알림, 매매 한도, 외부 연결을 관리합니다.</p></div>
+      </div>
+
+      <!-- 좌측 메뉴 + 우측 콘텐츠 -->
+      <section class="grid gap-4" style="grid-template-columns: 240px 1fr;" data-grid="settings-main">
+        <nav class="card" aria-label="설정 메뉴">
+          <ul class="stack gap-1 p-3">
+            <li><a class="app-sidebar__item app-sidebar__item--active" href="#profile">프로필</a></li>
+            <li><a class="app-sidebar__item" href="#security">보안 / OTP</a></li>
+            <li><a class="app-sidebar__item" href="#noti">알림 채널</a></li>
+            <li><a class="app-sidebar__item" href="#limit">매매 한도</a></li>
+            <li><a class="app-sidebar__item" href="#creon">CREON 연결</a></li>
+            <li><a class="app-sidebar__item" href="#theme">테마</a></li>
+          </ul>
+        </nav>
+
+        <div class="stack gap-4">
+
+          <!-- 프로필 -->
+          <article class="card" id="profile">
+            <header class="card__header"><h3 class="card__title">프로필</h3></header>
+            <div class="card__body form-grid">
+              <div class="field">
+                <label class="field__label">닉네임</label>
+                <input class="input" value="김주식">
+              </div>
+              <div class="field">
+                <label class="field__label">이메일</label>
+                <input class="input" value="k***@trade.com" disabled>
+                <span class="field__hint">이메일은 보안 변경 절차 필요</span>
+              </div>
+              <div class="field field--full">
+                <label class="field__label">자기소개</label>
+                <textarea class="textarea" placeholder="동료에게 보일 짧은 소개"></textarea>
+              </div>
+            </div>
+            <footer class="card__footer row justify-end gap-2">
+              <button class="btn btn--ghost">취소</button>
+              <button class="btn btn--primary">저장</button>
+            </footer>
+          </article>
+
+          <!-- 보안 / OTP -->
+          <article class="card" id="security">
+            <header class="card__header"><h3 class="card__title">보안 / OTP</h3></header>
+            <div class="card__body stack gap-4">
+              <div class="row items-center justify-between">
+                <div>
+                  <p class="fw-semibold">2단계 인증 (OTP)</p>
+                  <p class="text-sm text-muted">실거래 전환 시 필수입니다.</p>
+                </div>
+                <span class="switch switch--on" role="switch" aria-checked="true"></span>
+              </div>
+              <div class="row items-center justify-between">
+                <div>
+                  <p class="fw-semibold">비밀번호 변경</p>
+                  <p class="text-sm text-muted">마지막 변경 2026-04-02</p>
+                </div>
+                <button class="btn btn--outline btn--sm">변경하기</button>
+              </div>
+              <div>
+                <p class="fw-semibold mb-2">활성 세션</p>
+                <div class="table-scroll">
+                  <table class="table table--compact">
+                    <thead><tr><th>장치</th><th>IP</th><th>로그인 시각</th><th class="center">동작</th></tr></thead>
+                    <tbody>
+                      <tr><td>Chrome · macOS</td><td class="text-mono">192.168.0.21</td><td>2026-05-12 09:20</td><td class="center"><button class="btn btn--sm btn--ghost">현재 세션</button></td></tr>
+                      <tr><td>Safari · iOS</td><td class="text-mono">172.30.10.41</td><td>2026-05-10 22:11</td><td class="center"><button class="btn btn--sm" style="color: var(--color-danger);">로그아웃</button></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 알림 채널 -->
+          <article class="card" id="noti">
+            <header class="card__header"><h3 class="card__title">알림 채널</h3></header>
+            <div class="card__body stack gap-3">
+              <div class="row items-center justify-between"><div><p class="fw-semibold">인앱 알림</p><p class="text-sm text-muted">기본 활성, 비활성 불가</p></div><span class="switch switch--on"></span></div>
+              <div class="row items-center justify-between"><div><p class="fw-semibold">이메일</p><p class="text-sm text-muted">k***@trade.com</p></div><span class="switch switch--on"></span></div>
+              <div class="row items-center justify-between"><div><p class="fw-semibold">텔레그램</p><p class="text-sm text-muted">@kim_trade</p></div><span class="switch"></span></div>
+
+              <div class="divider"></div>
+
+              <p class="fw-semibold">임계값</p>
+              <div class="grid-cols-2">
+                <div class="field"><label class="field__label">시그널 신뢰도 ≥</label><input class="input" value="70" type="number"></div>
+                <div class="field"><label class="field__label">일일 손실률 ≥</label><input class="input" value="3" type="number"></div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 매매 한도 -->
+          <article class="card" id="limit">
+            <header class="card__header"><h3 class="card__title">매매 한도</h3><span class="badge badge--warning">LIVE 진입 전 필수</span></header>
+            <div class="card__body form-grid">
+              <div class="field"><label class="field__label">일일 매수 금액</label><input class="input" value="5,000,000"><span class="field__hint">단위: 원</span></div>
+              <div class="field"><label class="field__label">일일 매수 건수</label><input class="input" value="10" type="number"></div>
+              <div class="field"><label class="field__label">종목당 한도</label><input class="input" value="1,000,000"></div>
+              <div class="field"><label class="field__label">일일 손실 한도 (%)</label><input class="input" value="3" type="number"></div>
+              <div class="field"><label class="field__label">손절 / 익절 (%)</label>
+                <div class="row gap-2"><input class="input" value="-3"><input class="input" value="+5"></div>
+              </div>
+              <div class="field"><label class="field__label">스케줄</label>
+                <div class="row gap-2"><input class="input" value="09:30" type="time"><input class="input" value="15:00" type="time"></div>
+              </div>
+            </div>
+            <footer class="card__footer row justify-end gap-2">
+              <button class="btn btn--ghost">취소</button>
+              <button class="btn btn--primary">저장</button>
+            </footer>
+          </article>
+
+          <!-- CREON 연결 -->
+          <article class="card" id="creon">
+            <header class="card__header"><h3 class="card__title">CREON 연결</h3>
+              <span class="badge badge--success badge-dot">정상</span>
+            </header>
+            <div class="card__body stack gap-3">
+              <div class="stat-row"><span class="stat-row__label">연결 상태</span><span class="stat-row__value text-up">CONNECTED</span></div>
+              <div class="stat-row"><span class="stat-row__label">계좌</span><span class="stat-row__value">12345678-01</span></div>
+              <div class="stat-row"><span class="stat-row__label">최근 헬스체크</span><span class="stat-row__value">2026-05-12 14:32 (3초 전)</span></div>
+              <div class="stat-row"><span class="stat-row__label">서비스 IP</span><span class="stat-row__value text-mono">192.168.10.5</span></div>
+              <div class="row gap-2 mt-2">
+                <button class="btn btn--outline btn--sm">연결 테스트</button>
+                <button class="btn btn--outline btn--sm">재연결</button>
+              </div>
+
+              <!-- 에러 상태 데모 (필요 시) -->
+              <div class="error-card mt-2 hidden" data-state="error">
+                <div>
+                  <p class="error-card__title">크레온 연결 실패 (E0012)</p>
+                  <p class="error-card__msg">COM 객체 초기화에 실패했습니다. CREON HTS가 실행 중인지 확인하세요.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 테마 -->
+          <article class="card" id="theme">
+            <header class="card__header"><h3 class="card__title">테마</h3></header>
+            <div class="card__body row gap-3 flex-wrap">
+              <button class="btn btn--outline" onclick="document.documentElement.dataset.theme='dark'">다크 모드 (기본)</button>
+              <button class="btn btn--outline" onclick="document.documentElement.dataset.theme='light'">라이트 모드</button>
+              <span class="text-xs text-muted">설정은 브라우저별로 저장됩니다.</span>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <style>
+        @media (max-width: 1024px) {
+          [data-grid="settings-main"] { grid-template-columns: 1fr !important; }
+        }
+      </style>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!--
+  TradePilot 공통 사이드바 파셜
+  ------------------------------------------------------------
+  사용: 각 페이지에서 마크업을 인라인으로 복사하거나,
+        SSI/빌드 단계에서 include 처리한다.
+
+        <!--#include virtual="./_shared/sidebar.html" -->
+
+  활성 표시: 사용 페이지에서 해당 항목에 `app-sidebar__item--active`를 추가한다.
+  React 변환 시: <AppSidebar activeKey="dashboard" /> 컴포넌트로 추출.
+-->
+<aside class="app-sidebar" aria-label="주요 메뉴">
+  <a class="app-sidebar__brand" href="../preview.html">
+    <span class="app-sidebar__brand-mark">T</span>
+    <span class="app-sidebar__brand-name">TradePilot</span>
+  </a>
+
+  <nav class="stack gap-1" aria-label="네비게이션">
+    <p class="app-sidebar__section-label">메인</p>
+    <a class="app-sidebar__item" href="dashboard.html" data-key="dashboard">
+      <span aria-hidden="true">◧</span> 대시보드
+    </a>
+    <a class="app-sidebar__item" href="recommendations.html" data-key="reco">
+      <span aria-hidden="true">★</span> 추천주
+    </a>
+    <a class="app-sidebar__item" href="chart-analysis.html" data-key="chart">
+      <span aria-hidden="true">⌁</span> 차트분석
+    </a>
+    <a class="app-sidebar__item" href="sector-analysis.html" data-key="sector">
+      <span aria-hidden="true">▦</span> 업종분석
+    </a>
+    <a class="app-sidebar__item" href="signals.html" data-key="signals">
+      <span aria-hidden="true">⚑</span> 매매 시그널
+    </a>
+
+    <p class="app-sidebar__section-label">매매</p>
+    <a class="app-sidebar__item" href="auto-trading.html" data-key="auto">
+      <span aria-hidden="true">⚙</span> 자동매매
+    </a>
+    <a class="app-sidebar__item" href="profit-report.html" data-key="report">
+      <span aria-hidden="true">∑</span> 수익률 리포트
+    </a>
+    <a class="app-sidebar__item" href="backtest.html" data-key="backtest">
+      <span aria-hidden="true">⏱</span> 백테스트
+    </a>
+
+    <p class="app-sidebar__section-label">설정</p>
+    <a class="app-sidebar__item" href="settings.html" data-key="settings">
+      <span aria-hidden="true">☷</span> 설정
+    </a>
+    <a class="app-sidebar__item" href="login.html" data-key="logout">
+      <span aria-hidden="true">↪</span> 로그아웃
+    </a>
+  </nav>
+
+  <div class="mt-8 p-3 card card--ghost">
+    <p class="text-xs text-subtle mb-2">시장 상태</p>
+    <p class="text-sm"><span class="badge badge--success badge-dot">정규장</span></p>
+    <p class="text-xs text-muted mt-2">KOSPI 2,673.15 <span class="text-up">▲ 0.42%</span></p>
+    <p class="text-xs text-muted">KOSDAQ 851.23 <span class="text-down">▼ 0.31%</span></p>
+  </div>
+</aside>

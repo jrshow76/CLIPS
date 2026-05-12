@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>추천주 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item app-sidebar__item--active" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <!-- Header -->
+    <header class="app-shell__header app-header">
+      <div class="app-header__left">
+        <button class="btn btn--ghost btn--icon">≡</button>
+        <h1 class="h5">추천주</h1>
+        <span class="dot-sep"></span>
+        <span class="text-xs text-subtle">총 124종 · 마지막 갱신 14:30</span>
+      </div>
+      <div class="app-header__search">
+        <div class="input-group">
+          <span class="input-group__icon">⌕</span>
+          <input class="input input--prefix-pad" placeholder="종목 검색  (Ctrl+K)">
+        </div>
+      </div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+      <div class="page-title">
+        <div class="page-title__text">
+          <h1>추천주</h1>
+          <p>활성 전략과 ML 점수에 기반한 종목 추천 리스트입니다.</p>
+        </div>
+        <div class="row gap-2">
+          <button class="btn btn--outline btn--sm">CSV 내보내기</button>
+          <button class="btn btn--primary btn--sm">즐겨찾기만 보기 ★</button>
+        </div>
+      </div>
+
+      <!-- 탭 -->
+      <nav class="tabs">
+        <a class="tabs__item tabs__item--active">전체 추천</a>
+        <a class="tabs__item">골든크로스</a>
+        <a class="tabs__item">RSI 과매도</a>
+        <a class="tabs__item">거래량 급증</a>
+        <a class="tabs__item">ML 단기 예측</a>
+      </nav>
+
+      <!-- 필터바 -->
+      <div class="filter-bar">
+        <select class="select" aria-label="섹터">
+          <option>전체 섹터</option>
+          <option>반도체</option><option>2차전지</option><option>바이오</option><option>자동차</option><option>금융</option>
+        </select>
+        <select class="select" aria-label="시가총액">
+          <option>전체 시총</option>
+          <option>대형(2조 이상)</option><option>중형(3천억~2조)</option><option>소형(3천억 미만)</option>
+        </select>
+        <select class="select" aria-label="RSI">
+          <option>RSI 전체</option>
+          <option>RSI &lt; 30 (과매도)</option><option>30~70</option><option>RSI &gt; 70 (과매수)</option>
+        </select>
+        <select class="select" aria-label="MACD">
+          <option>MACD 전체</option>
+          <option>골든크로스</option><option>데드크로스</option>
+        </select>
+        <input class="input" placeholder="거래량 증가율 ≥ %" style="max-width:160px;">
+        <div class="flex-1"></div>
+        <select class="select" aria-label="정렬">
+          <option>점수 높은순</option><option>등락률 높은순</option><option>거래량 많은순</option>
+        </select>
+      </div>
+
+      <!-- 메인 테이블 -->
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>종목</th>
+                <th>섹터</th>
+                <th class="num">점수</th>
+                <th class="num">현재가</th>
+                <th class="num">등락률</th>
+                <th class="num">거래량</th>
+                <th>추천 사유</th>
+                <th class="center">액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="row items-center gap-2">
+                    <span>★</span>
+                    <div>
+                      <div class="fw-semibold">셀트리온</div>
+                      <div class="text-xs text-subtle">068270</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge">바이오</span></td>
+                <td class="num"><span class="badge badge--success">92</span></td>
+                <td class="num">187,400</td>
+                <td class="num text-up">▲ 3.20%</td>
+                <td class="num">1.2M</td>
+                <td><span class="text-muted">RSI 28 + 볼린저 하단 + 외국인 순매수</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="row items-center gap-2">
+                    <span style="opacity:.4">☆</span>
+                    <div><div class="fw-semibold">LG화학</div><div class="text-xs text-subtle">051910</div></div>
+                  </div>
+                </td>
+                <td><span class="badge">화학</span></td>
+                <td class="num"><span class="badge badge--success">88</span></td>
+                <td class="num">412,500</td>
+                <td class="num text-up">▲ 2.40%</td>
+                <td class="num">540K</td>
+                <td><span class="text-muted">MA20 골든크로스 + 거래량 +185%</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td><div class="row items-center gap-2"><span style="opacity:.4">☆</span><div><div class="fw-semibold">POSCO홀딩스</div><div class="text-xs text-subtle">005490</div></div></div></td>
+                <td><span class="badge">철강</span></td>
+                <td class="num"><span class="badge badge--success">85</span></td>
+                <td class="num">421,000</td>
+                <td class="num text-up">▲ 1.90%</td>
+                <td class="num">312K</td>
+                <td><span class="text-muted">거래량 200% 증가 + MACD 골든</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td><div class="row items-center gap-2"><span>★</span><div><div class="fw-semibold">한미반도체</div><div class="text-xs text-subtle">042700</div></div></div></td>
+                <td><span class="badge">반도체</span></td>
+                <td class="num"><span class="badge badge--success">82</span></td>
+                <td class="num">128,300</td>
+                <td class="num text-up">▲ 1.20%</td>
+                <td class="num">980K</td>
+                <td><span class="text-muted">MACD 전환 + ML 단기 +2.8%</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td><div class="row items-center gap-2"><span style="opacity:.4">☆</span><div><div class="fw-semibold">에코프로비엠</div><div class="text-xs text-subtle">247540</div></div></div></td>
+                <td><span class="badge">2차전지</span></td>
+                <td class="num"><span class="badge">80</span></td>
+                <td class="num">198,200</td>
+                <td class="num text-down">▼ 0.40%</td>
+                <td class="num">1.5M</td>
+                <td><span class="text-muted">볼린저 하단 터치 + 일목 지지</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td><div class="row items-center gap-2"><span style="opacity:.4">☆</span><div><div class="fw-semibold">현대로템</div><div class="text-xs text-subtle">064350</div></div></div></td>
+                <td><span class="badge">기계</span></td>
+                <td class="num"><span class="badge">76</span></td>
+                <td class="num">53,200</td>
+                <td class="num text-up">▲ 4.10%</td>
+                <td class="num">2.1M</td>
+                <td><span class="text-muted">52주 신고가 + 외국인 순매수</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td><div class="row items-center gap-2"><span style="opacity:.4">☆</span><div><div class="fw-semibold">한화에어로스페이스</div><div class="text-xs text-subtle">012450</div></div></div></td>
+                <td><span class="badge">방산</span></td>
+                <td class="num"><span class="badge">74</span></td>
+                <td class="num">298,000</td>
+                <td class="num text-up">▲ 1.50%</td>
+                <td class="num">320K</td>
+                <td><span class="text-muted">상승 추세 + 거래량 회복</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+              <tr>
+                <td><div class="row items-center gap-2"><span style="opacity:.4">☆</span><div><div class="fw-semibold">SK이노베이션</div><div class="text-xs text-subtle">096770</div></div></div></td>
+                <td><span class="badge">에너지</span></td>
+                <td class="num"><span class="badge">71</span></td>
+                <td class="num">112,800</td>
+                <td class="num text-down">▼ 1.10%</td>
+                <td class="num">680K</td>
+                <td><span class="text-muted">하락 추세 둔화 + RSI 35</span></td>
+                <td class="center"><a class="btn btn--sm" href="chart-analysis.html">차트 →</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <nav class="pager">
+          <span>총 124건 중 1-8</span>
+          <div class="pager__pages">
+            <a class="pager__page" href="#">‹</a>
+            <a class="pager__page pager__page--active">1</a>
+            <a class="pager__page" href="#">2</a>
+            <a class="pager__page" href="#">3</a>
+            <a class="pager__page" href="#">4</a>
+            <a class="pager__page" href="#">…</a>
+            <a class="pager__page" href="#">16</a>
+            <a class="pager__page" href="#">›</a>
+          </div>
+        </nav>
+      </div>
+
+      <!-- 빈 상태 데모 (필요 시 표 대신 표시) -->
+      <div class="card mt-6 hidden" data-state="empty">
+        <div class="card__body">
+          <div class="empty-state">
+            <div class="empty-state__icon">∅</div>
+            <p class="empty-state__title">조건에 맞는 추천 종목이 없습니다</p>
+            <p class="empty-state__desc">필터를 완화하거나 다른 전략을 선택해보세요.</p>
+            <button class="btn btn--primary empty-state__action">필터 초기화</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

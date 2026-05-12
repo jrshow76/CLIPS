@@ -1,0 +1,53 @@
+<!--
+  TradePilot 공통 헤더 파셜
+  ------------------------------------------------------------
+  사용: 각 페이지에서 동일한 마크업을 인라인으로 복사하거나,
+        SSI/빌드 단계에서 다음과 같이 include 처리한다.
+
+        <!--#include virtual="./_shared/header.html" -->
+
+  React 변환 시: <AppHeader /> 컴포넌트로 추출.
+  토큰/CSS는 부모 페이지에서 이미 로드된 상태를 가정한다.
+-->
+<header class="app-header" role="banner">
+  <div class="app-header__left">
+    <!-- 모바일 햄버거 -->
+    <button class="btn btn--ghost btn--icon" aria-label="메뉴 열기" data-action="toggle-sidebar">≡</button>
+
+    <!-- 페이지 타이틀 (각 페이지에서 텍스트만 교체) -->
+    <h1 class="h5 truncate" data-slot="page-title">대시보드</h1>
+
+    <span class="dot-sep"></span>
+    <span class="text-xs text-subtle">KST 2026-05-12 14:32:10</span>
+  </div>
+
+  <!-- 검색바 -->
+  <div class="app-header__search">
+    <div class="input-group">
+      <span class="input-group__icon">⌕</span>
+      <input class="input input--prefix-pad" placeholder="종목명 또는 코드 검색  (Ctrl+K)" aria-label="종목 검색">
+    </div>
+  </div>
+
+  <div class="app-header__right">
+    <!-- 매매 모드 토글 -->
+    <div class="mode-toggle" role="group" aria-label="매매 모드">
+      <span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span>
+      <span class="mode-toggle__item mode-toggle__item--live">LIVE</span>
+    </div>
+
+    <!-- 알림 -->
+    <button class="btn btn--ghost btn--icon" aria-label="알림">
+      ◔
+    </button>
+
+    <!-- 사용자 -->
+    <div class="row items-center gap-2">
+      <span class="avatar" aria-hidden="true">김</span>
+      <span class="text-sm text-muted">김주식</span>
+    </div>
+
+    <!-- 테마 토글 (간단 inline JS) -->
+    <button class="btn btn--ghost btn--icon" aria-label="테마 전환" onclick="(function(){var d=document.documentElement;d.dataset.theme=(d.dataset.theme==='light'?'dark':'light');})()">◐</button>
+  </div>
+</header>

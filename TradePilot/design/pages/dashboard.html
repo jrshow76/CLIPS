@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>대시보드 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ============== Sidebar (./_shared/sidebar.html 와 동일 마크업 사용) ============== -->
+    <aside class="app-shell__sidebar app-sidebar" aria-label="주요 메뉴">
+      <a class="app-sidebar__brand" href="../preview.html">
+        <span class="app-sidebar__brand-mark">T</span>
+        <span class="app-sidebar__brand-name">TradePilot</span>
+      </a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item app-sidebar__item--active" href="dashboard.html"><span aria-hidden="true">◧</span> 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html"><span aria-hidden="true">★</span> 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html"><span aria-hidden="true">⌁</span> 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html"><span aria-hidden="true">▦</span> 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html"><span aria-hidden="true">⚑</span> 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html"><span aria-hidden="true">⚙</span> 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html"><span aria-hidden="true">∑</span> 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html"><span aria-hidden="true">⏱</span> 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html"><span aria-hidden="true">☷</span> 설정</a>
+        <a class="app-sidebar__item" href="login.html"><span aria-hidden="true">↪</span> 로그아웃</a>
+      </nav>
+
+      <div class="mt-8 p-3 card card--ghost">
+        <p class="text-xs text-subtle mb-2">시장 상태</p>
+        <p class="text-sm"><span class="badge badge--success badge-dot">정규장</span></p>
+        <p class="text-xs text-muted mt-2">KOSPI 2,673.15 <span class="text-up">▲ 0.42%</span></p>
+        <p class="text-xs text-muted">KOSDAQ 851.23 <span class="text-down">▼ 0.31%</span></p>
+      </div>
+    </aside>
+
+    <!-- ============== Header ============== -->
+    <header class="app-shell__header app-header" role="banner">
+      <div class="app-header__left">
+        <button class="btn btn--ghost btn--icon" aria-label="메뉴">≡</button>
+        <h1 class="h5 truncate">대시보드</h1>
+        <span class="dot-sep"></span>
+        <span class="text-xs text-subtle">KST 2026-05-12 14:32:10</span>
+      </div>
+      <div class="app-header__search">
+        <div class="input-group">
+          <span class="input-group__icon">⌕</span>
+          <input class="input input--prefix-pad" placeholder="종목명 또는 코드 검색  (Ctrl+K)">
+        </div>
+      </div>
+      <div class="app-header__right">
+        <div class="mode-toggle" role="group" aria-label="매매 모드">
+          <span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span>
+          <span class="mode-toggle__item mode-toggle__item--live">LIVE</span>
+        </div>
+        <button class="btn btn--ghost btn--icon" aria-label="알림">◔</button>
+        <div class="row items-center gap-2">
+          <span class="avatar">김</span>
+          <span class="text-sm text-muted">김주식</span>
+        </div>
+        <button class="btn btn--ghost btn--icon" aria-label="테마" onclick="(function(){var d=document.documentElement;d.dataset.theme=(d.dataset.theme==='light'?'dark':'light');})()">◐</button>
+      </div>
+    </header>
+
+    <!-- ============== Main ============== -->
+    <main class="app-shell__main">
+
+      <!-- 페이지 타이틀 -->
+      <div class="page-title">
+        <div class="page-title__text">
+          <h1>대시보드</h1>
+          <p>오늘의 시장 동향과 보유 종목을 한눈에 확인하세요.</p>
+        </div>
+        <div class="row gap-2">
+          <button class="btn btn--outline btn--sm">새로고침</button>
+          <a class="btn btn--primary btn--sm" href="auto-trading.html">자동매매 시작</a>
+        </div>
+      </div>
+
+      <!-- 상단 KPI 4종 -->
+      <section class="grid-cols-4 mb-6">
+        <div class="card"><div class="card__body kpi">
+          <span class="kpi__label">평가자산</span>
+          <span class="kpi__value">12,348,500 <span class="text-sm text-muted">원</span></span>
+          <span class="kpi__delta text-up">▲ 162,300 (+1.32%)</span>
+        </div></div>
+        <div class="card"><div class="card__body kpi">
+          <span class="kpi__label">금일 손익</span>
+          <span class="kpi__value text-up">+162,300</span>
+          <span class="kpi__delta text-muted">실현 80,200 / 미실현 82,100</span>
+        </div></div>
+        <div class="card"><div class="card__body kpi">
+          <span class="kpi__label">누적 수익률</span>
+          <span class="kpi__value">+8.42%</span>
+          <span class="kpi__delta text-up">▲ 0.32%p (vs 어제)</span>
+        </div></div>
+        <div class="card"><div class="card__body kpi">
+          <span class="kpi__label">활성 전략 / 시그널</span>
+          <span class="kpi__value">3 <span class="text-sm text-muted">개 / </span>5</span>
+          <span class="kpi__delta"><span class="badge badge--sim badge-dot">SIM 모드</span></span>
+        </div></div>
+      </section>
+
+      <!-- 3컬럼 본문 -->
+      <section class="grid" style="grid-template-columns: 5fr 4fr 3fr; gap: var(--space-4);" data-grid="dashboard-main">
+
+        <!-- ===== 좌: 보유 종목 ===== -->
+        <article class="card">
+          <header class="card__header">
+            <div>
+              <h3 class="card__title">보유 종목</h3>
+              <p class="card__subtitle">총 5종목 · 평가금액 12,348,500원</p>
+            </div>
+            <button class="btn btn--sm btn--ghost">전체 보기 →</button>
+          </header>
+          <div class="card__body" style="padding-top: var(--space-2); padding-bottom: var(--space-2);">
+            <div class="stock-row">
+              <div class="stack">
+                <span class="stock-row__name">삼성전자</span>
+                <span class="stock-row__code">005930 · 전기·전자</span>
+              </div>
+              <div class="stock-row__price">
+                <div>82,500</div>
+                <div class="text-xs text-muted">평단 80,200</div>
+              </div>
+              <div class="stock-row__delta">
+                <div class="text-up">+57,500</div>
+                <div class="text-xs text-up">▲ 2.87%</div>
+              </div>
+            </div>
+            <div class="stock-row">
+              <div class="stack">
+                <span class="stock-row__name">SK하이닉스</span>
+                <span class="stock-row__code">000660 · 반도체</span>
+              </div>
+              <div class="stock-row__price">
+                <div>168,500</div>
+                <div class="text-xs text-muted">평단 175,000</div>
+              </div>
+              <div class="stock-row__delta">
+                <div class="text-down">-32,500</div>
+                <div class="text-xs text-down">▼ 3.71%</div>
+              </div>
+            </div>
+            <div class="stock-row">
+              <div class="stack">
+                <span class="stock-row__name">카카오</span>
+                <span class="stock-row__code">035720 · 인터넷 <span class="badge badge--warning text-xs">지연</span></span>
+              </div>
+              <div class="stock-row__price">
+                <div>48,300</div>
+                <div class="text-xs text-muted">평단 47,800</div>
+              </div>
+              <div class="stock-row__delta">
+                <div class="text-up">+15,000</div>
+                <div class="text-xs text-up">▲ 1.04%</div>
+              </div>
+            </div>
+            <div class="stock-row">
+              <div class="stack">
+                <span class="stock-row__name">NAVER</span>
+                <span class="stock-row__code">035420 · 인터넷</span>
+              </div>
+              <div class="stock-row__price">
+                <div>192,000</div>
+                <div class="text-xs text-muted">평단 190,500</div>
+              </div>
+              <div class="stock-row__delta">
+                <div class="text-up">+4,500</div>
+                <div class="text-xs text-up">▲ 0.78%</div>
+              </div>
+            </div>
+            <div class="stock-row">
+              <div class="stack">
+                <span class="stock-row__name">현대차</span>
+                <span class="stock-row__code">005380 · 자동차</span>
+              </div>
+              <div class="stock-row__price">
+                <div>238,500</div>
+                <div class="text-xs text-muted">평단 235,000</div>
+              </div>
+              <div class="stock-row__delta">
+                <div class="text-up">+17,500</div>
+                <div class="text-xs text-up">▲ 1.49%</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ===== 중: 시장 + 시그널 ===== -->
+        <div class="stack gap-4">
+          <article class="card">
+            <header class="card__header">
+              <h3 class="card__title">시장 요약</h3>
+              <span class="text-xs text-subtle">5초마다 갱신</span>
+            </header>
+            <div class="card__body">
+              <div class="grid-cols-2">
+                <div class="kpi">
+                  <span class="kpi__label">KOSPI</span>
+                  <span class="kpi__value">2,673.15</span>
+                  <span class="kpi__delta text-up">▲ 11.22 (+0.42%)</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi__label">KOSDAQ</span>
+                  <span class="kpi__value">851.23</span>
+                  <span class="kpi__delta text-down">▼ 2.65 (-0.31%)</span>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="stack gap-2">
+                <div class="stat-row"><span class="stat-row__label">코스피 거래대금</span><span class="stat-row__value">8.92조</span></div>
+                <div class="stat-row"><span class="stat-row__label">코스닥 거래대금</span><span class="stat-row__value">5.31조</span></div>
+                <div class="stat-row"><span class="stat-row__label">외국인 순매수</span><span class="stat-row__value text-up">+1,238억</span></div>
+                <div class="stat-row"><span class="stat-row__label">기관 순매수</span><span class="stat-row__value text-down">-872억</span></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card__header">
+              <h3 class="card__title">진행중 시그널</h3>
+              <a class="btn btn--sm btn--ghost" href="signals.html">전체 보기 →</a>
+            </header>
+            <div class="card__body" style="padding-top: var(--space-2);">
+              <ul class="stack gap-3">
+                <li class="row items-center justify-between">
+                  <div class="row items-center gap-3">
+                    <span class="badge badge--up">매수</span>
+                    <div class="stack">
+                      <span class="text-strong fw-semibold">삼성전자</span>
+                      <span class="text-xs text-subtle">골든크로스 전략 · 14:21</span>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-num">82,500</div>
+                    <div class="text-xs text-up">신뢰도 87%</div>
+                  </div>
+                </li>
+                <li class="row items-center justify-between">
+                  <div class="row items-center gap-3">
+                    <span class="badge badge--down">매도</span>
+                    <div class="stack">
+                      <span class="text-strong fw-semibold">SK하이닉스</span>
+                      <span class="text-xs text-subtle">RSI 과매수 · 13:55</span>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-num">168,500</div>
+                    <div class="text-xs text-info">신뢰도 71%</div>
+                  </div>
+                </li>
+                <li class="row items-center justify-between">
+                  <div class="row items-center gap-3">
+                    <span class="badge badge--up">매수</span>
+                    <div class="stack">
+                      <span class="text-strong fw-semibold">LG에너지솔루션</span>
+                      <span class="text-xs text-subtle">볼린저 하단 · 13:42</span>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-num">421,000</div>
+                    <div class="text-xs text-up">신뢰도 79%</div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </article>
+        </div>
+
+        <!-- ===== 우: 추천주 TOP5 + 알림 ===== -->
+        <div class="stack gap-4">
+          <article class="card">
+            <header class="card__header">
+              <h3 class="card__title">추천주 TOP 5</h3>
+              <a class="btn btn--sm btn--ghost" href="recommendations.html">→</a>
+            </header>
+            <div class="card__body" style="padding-top: var(--space-2); padding-bottom: var(--space-2);">
+              <ol class="stack">
+                <li class="stock-row">
+                  <div class="stack">
+                    <span class="stock-row__name">1. 셀트리온</span>
+                    <span class="stock-row__code">068270 · RSI<30</span>
+                  </div>
+                  <span class="badge badge--success">92</span>
+                  <span class="text-up text-num">+3.2%</span>
+                </li>
+                <li class="stock-row">
+                  <div class="stack">
+                    <span class="stock-row__name">2. LG화학</span>
+                    <span class="stock-row__code">051910 · 골든크로스</span>
+                  </div>
+                  <span class="badge badge--success">88</span>
+                  <span class="text-up text-num">+2.4%</span>
+                </li>
+                <li class="stock-row">
+                  <div class="stack">
+                    <span class="stock-row__name">3. POSCO홀딩스</span>
+                    <span class="stock-row__code">005490 · 거래량↑</span>
+                  </div>
+                  <span class="badge badge--success">85</span>
+                  <span class="text-up text-num">+1.9%</span>
+                </li>
+                <li class="stock-row">
+                  <div class="stack">
+                    <span class="stock-row__name">4. 한미반도체</span>
+                    <span class="stock-row__code">042700 · MACD 전환</span>
+                  </div>
+                  <span class="badge badge--success">82</span>
+                  <span class="text-up text-num">+1.2%</span>
+                </li>
+                <li class="stock-row">
+                  <div class="stack">
+                    <span class="stock-row__name">5. 에코프로비엠</span>
+                    <span class="stock-row__code">247540 · 볼린저 하단</span>
+                  </div>
+                  <span class="badge badge--success">80</span>
+                  <span class="text-down text-num">-0.4%</span>
+                </li>
+              </ol>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card__header">
+              <h3 class="card__title">최근 알림</h3>
+              <button class="btn btn--sm btn--ghost">모두 읽음</button>
+            </header>
+            <div class="card__body" style="padding-top: var(--space-2);">
+              <ul class="stack gap-3">
+                <li>
+                  <div class="row items-center gap-2 mb-1">
+                    <span class="badge badge--info">시그널</span>
+                    <span class="text-xs text-subtle">14:21</span>
+                  </div>
+                  <p class="text-sm">삼성전자 골든크로스 시그널 발생</p>
+                </li>
+                <li>
+                  <div class="row items-center gap-2 mb-1">
+                    <span class="badge badge--warning">한도</span>
+                    <span class="text-xs text-subtle">11:08</span>
+                  </div>
+                  <p class="text-sm">일일 매수 한도의 80% 사용</p>
+                </li>
+                <li>
+                  <div class="row items-center gap-2 mb-1">
+                    <span class="badge badge--success">체결</span>
+                    <span class="text-xs text-subtle">09:32</span>
+                  </div>
+                  <p class="text-sm">현대차 10주 매수 체결 (235,000원)</p>
+                </li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 모바일/태블릿용 반응형 보정 -->
+  <style>
+    @media (max-width: 1280px) {
+      [data-grid="dashboard-main"] { grid-template-columns: 6fr 6fr !important; }
+      [data-grid="dashboard-main"] > .stack:last-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 768px) {
+      [data-grid="dashboard-main"] { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>자동매매 관리 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item app-sidebar__item--active" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left"><button class="btn btn--ghost btn--icon">≡</button><h1 class="h5">자동매매 관리</h1></div>
+      <div class="app-header__search"><div class="input-group"><span class="input-group__icon">⌕</span><input class="input input--prefix-pad" placeholder="전략 검색"></div></div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+
+      <!-- LIVE 안내 배너 (SIM 상태에서는 info, LIVE 상태에서는 live) -->
+      <div class="banner banner--info mb-4">
+        <span aria-hidden="true">ⓘ</span>
+        <span>현재 <strong>시뮬레이션(SIM) 모드</strong>입니다. 실거래 전환은 OTP·약관·한도 설정 후 가능합니다.</span>
+        <div class="flex-1"></div>
+        <button class="btn btn--sm btn--outline">실거래 전환 안내 →</button>
+      </div>
+
+      <div class="page-title">
+        <div class="page-title__text"><h1>자동매매 관리</h1><p>전략을 등록하고 모드/한도를 안전하게 관리합니다.</p></div>
+        <div class="row gap-2">
+          <button class="btn btn--danger">⏻ 비상정지</button>
+          <button class="btn btn--primary">+ 전략 등록</button>
+        </div>
+      </div>
+
+      <!-- 서브 탭 -->
+      <nav class="tabs">
+        <a class="tabs__item tabs__item--active">전략 목록</a>
+        <a class="tabs__item">전략 등록/수정</a>
+        <a class="tabs__item">모드 전환</a>
+        <a class="tabs__item">한도/리스크</a>
+        <a class="tabs__item">스케줄</a>
+      </nav>
+
+      <!-- 좌(전략 리스트) + 우(전략 상세) -->
+      <section class="grid gap-4" style="grid-template-columns: 380px 1fr;" data-grid="auto-main">
+
+        <!-- 전략 리스트 -->
+        <div class="stack gap-3">
+          <article class="card">
+            <div class="card__body row items-center justify-between">
+              <div>
+                <p class="fw-semibold">골든크로스 v2</p>
+                <p class="text-xs text-subtle">반도체 + 2차전지 / 30종목</p>
+              </div>
+              <div class="row items-center gap-2">
+                <span class="badge badge--success badge-dot">활성</span>
+                <span class="switch switch--on" role="switch" aria-checked="true"></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card__body row items-center justify-between">
+              <div>
+                <p class="fw-semibold">RSI 과매도 v3</p>
+                <p class="text-xs text-subtle">전체 KOSPI200</p>
+              </div>
+              <div class="row items-center gap-2">
+                <span class="badge badge--success badge-dot">활성</span>
+                <span class="switch switch--on" role="switch" aria-checked="true"></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card__body row items-center justify-between">
+              <div>
+                <p class="fw-semibold">볼린저 하단 매수</p>
+                <p class="text-xs text-subtle">대형주 50종</p>
+              </div>
+              <div class="row items-center gap-2">
+                <span class="badge">대기</span>
+                <span class="switch" role="switch" aria-checked="false"></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="card card--ghost">
+            <div class="card__body center" style="min-height: 80px;">
+              <button class="btn btn--ghost">+ 전략 추가</button>
+            </div>
+          </article>
+        </div>
+
+        <!-- 전략 상세 -->
+        <article class="card">
+          <header class="card__header">
+            <div class="row items-center gap-3">
+              <h3 class="card__title">골든크로스 v2</h3>
+              <span class="badge badge--success badge-dot">활성</span>
+              <span class="badge badge--sim">SIM</span>
+            </div>
+            <div class="row gap-2">
+              <button class="btn btn--sm btn--outline">복제</button>
+              <button class="btn btn--sm btn--outline">수정</button>
+              <button class="btn btn--sm" style="color: var(--color-danger);">비활성</button>
+            </div>
+          </header>
+
+          <div class="card__body stack gap-5">
+
+            <!-- 성과 요약 -->
+            <div class="grid-cols-4">
+              <div class="kpi"><span class="kpi__label">누적 수익률</span><span class="kpi__value text-up">+12.4%</span><span class="kpi__delta text-muted">기간 30일</span></div>
+              <div class="kpi"><span class="kpi__label">승률</span><span class="kpi__value">62%</span><span class="kpi__delta text-muted">28거래</span></div>
+              <div class="kpi"><span class="kpi__label">MDD</span><span class="kpi__value text-down">-3.8%</span><span class="kpi__delta text-muted">최대 낙폭</span></div>
+              <div class="kpi"><span class="kpi__label">평균 보유</span><span class="kpi__value">2.4일</span><span class="kpi__delta text-muted">표본 28건</span></div>
+            </div>
+
+            <!-- 미니 차트 -->
+            <div class="chart-placeholder chart-placeholder--sm"><span class="chart-placeholder__label">전략 자산 곡선 미니 차트</span></div>
+
+            <div class="divider"></div>
+
+            <!-- 조건 -->
+            <div class="grid-cols-2 gap-6">
+              <div class="stack gap-2">
+                <p class="text-sm fw-semibold">진입 조건</p>
+                <div class="card card--ghost"><div class="card__body text-mono text-sm">
+                  MA(5) crosses_above MA(20)<br>
+                  AND volume &gt; avg_volume(20) * 1.8<br>
+                  AND RSI(14) &gt; 50
+                </div></div>
+              </div>
+              <div class="stack gap-2">
+                <p class="text-sm fw-semibold">청산 조건</p>
+                <div class="card card--ghost"><div class="card__body text-mono text-sm">
+                  STOP_LOSS = -3%<br>
+                  TAKE_PROFIT = +5%<br>
+                  OR MA(5) crosses_below MA(20)
+                </div></div>
+              </div>
+            </div>
+
+            <!-- 한도/리스크 -->
+            <div>
+              <p class="text-sm fw-semibold mb-2">한도 / 리스크</p>
+              <div class="grid-cols-3">
+                <div class="stat-row"><span class="stat-row__label">일일 매수금액</span><span class="stat-row__value">5,000,000원</span></div>
+                <div class="stat-row"><span class="stat-row__label">일일 매수건수</span><span class="stat-row__value">10건</span></div>
+                <div class="stat-row"><span class="stat-row__label">종목당 한도</span><span class="stat-row__value">1,000,000원</span></div>
+                <div class="stat-row"><span class="stat-row__label">손절 / 익절</span><span class="stat-row__value text-down">-3%</span> <span class="text-up">/ +5%</span></div>
+                <div class="stat-row"><span class="stat-row__label">스케줄</span><span class="stat-row__value">평일 09:30~15:00</span></div>
+                <div class="stat-row"><span class="stat-row__label">휴장 정책</span><span class="stat-row__value">자동 일시중지</span></div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- 종목 유니버스 -->
+            <div>
+              <p class="text-sm fw-semibold mb-2">종목 유니버스 (30종)</p>
+              <div class="row flex-wrap gap-2">
+                <span class="badge">삼성전자</span><span class="badge">SK하이닉스</span><span class="badge">한미반도체</span>
+                <span class="badge">DB하이텍</span><span class="badge">리노공업</span><span class="badge">이오테크닉스</span>
+                <span class="badge">LG에너지솔루션</span><span class="badge">삼성SDI</span><span class="badge">에코프로비엠</span>
+                <span class="badge">엘앤에프</span><span class="badge">포스코퓨처엠</span><span class="badge">+ 19 더보기</span>
+              </div>
+            </div>
+
+          </div>
+        </article>
+      </section>
+
+      <!-- 비상정지 모달 데모 (hidden) -->
+      <div class="modal-mask hidden" data-modal="kill-switch">
+        <div class="modal modal--danger" role="dialog" aria-modal="true">
+          <header class="modal__header">
+            <h3 class="modal__title">⏻ 비상정지 확인</h3>
+            <button class="btn btn--ghost btn--icon" aria-label="닫기">✕</button>
+          </header>
+          <div class="modal__body stack gap-4">
+            <p class="text-sm">아래 작업을 즉시 실행합니다. 되돌릴 수 없습니다.</p>
+            <ul class="stack gap-2 text-sm">
+              <li>· 활성 전략 <strong>3건</strong> 일괄 비활성화</li>
+              <li>· 미체결 주문 <strong>5건</strong> 전부 취소 시도</li>
+              <li>· 매매 모드 <strong>SIM</strong>으로 강제 전환</li>
+            </ul>
+            <div class="field">
+              <label class="field__label">사유 (선택)</label>
+              <textarea class="textarea" placeholder="감사 로그에 기록됩니다."></textarea>
+            </div>
+            <label class="checkbox checkbox--checked"><span class="checkbox__box"></span><span>위 내용을 확인했고 즉시 정지에 동의합니다.</span></label>
+          </div>
+          <footer class="modal__footer">
+            <button class="btn btn--ghost">취소</button>
+            <button class="btn btn--danger">비상정지 실행</button>
+          </footer>
+        </div>
+      </div>
+
+      <style>
+        @media (max-width: 1024px) {
+          [data-grid="auto-main"] { grid-template-columns: 1fr !important; }
+        }
+      </style>
+    </main>
+  </div>
+</body>
+</html>

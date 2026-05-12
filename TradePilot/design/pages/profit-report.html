@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>수익률 리포트 · TradePilot</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar app-sidebar">
+      <a class="app-sidebar__brand" href="../preview.html"><span class="app-sidebar__brand-mark">T</span><span class="app-sidebar__brand-name">TradePilot</span></a>
+      <nav class="stack gap-1">
+        <p class="app-sidebar__section-label">메인</p>
+        <a class="app-sidebar__item" href="dashboard.html">◧ 대시보드</a>
+        <a class="app-sidebar__item" href="recommendations.html">★ 추천주</a>
+        <a class="app-sidebar__item" href="chart-analysis.html">⌁ 차트분석</a>
+        <a class="app-sidebar__item" href="sector-analysis.html">▦ 업종분석</a>
+        <a class="app-sidebar__item" href="signals.html">⚑ 매매 시그널</a>
+        <p class="app-sidebar__section-label">매매</p>
+        <a class="app-sidebar__item" href="auto-trading.html">⚙ 자동매매</a>
+        <a class="app-sidebar__item app-sidebar__item--active" href="profit-report.html">∑ 수익률 리포트</a>
+        <a class="app-sidebar__item" href="backtest.html">⏱ 백테스트</a>
+        <p class="app-sidebar__section-label">설정</p>
+        <a class="app-sidebar__item" href="settings.html">☷ 설정</a>
+        <a class="app-sidebar__item" href="login.html">↪ 로그아웃</a>
+      </nav>
+    </aside>
+
+    <header class="app-shell__header app-header">
+      <div class="app-header__left"><button class="btn btn--ghost btn--icon">≡</button><h1 class="h5">수익률 리포트</h1></div>
+      <div class="app-header__search"><div class="input-group"><span class="input-group__icon">⌕</span><input class="input input--prefix-pad" placeholder="종목 또는 전략 검색"></div></div>
+      <div class="app-header__right">
+        <div class="mode-toggle"><span class="mode-toggle__item mode-toggle__item--sim is-active">SIM</span><span class="mode-toggle__item mode-toggle__item--live">LIVE</span></div>
+        <span class="avatar">김</span>
+      </div>
+    </header>
+
+    <main class="app-shell__main">
+
+      <div class="page-title">
+        <div class="page-title__text"><h1>수익률 리포트</h1><p>기간별 수익, 종목별 손익, 거래 내역, 전략별 성과를 확인합니다.</p></div>
+        <div class="row gap-2">
+          <input class="input" type="date" value="2026-04-12" style="max-width: 160px;">
+          <span class="text-muted">~</span>
+          <input class="input" type="date" value="2026-05-12" style="max-width: 160px;">
+          <div class="pill-tabs">
+            <span class="pill-tabs__item">일</span>
+            <span class="pill-tabs__item pill-tabs__item--active">주</span>
+            <span class="pill-tabs__item">월</span>
+          </div>
+          <button class="btn btn--outline btn--sm">CSV 내보내기</button>
+        </div>
+      </div>
+
+      <!-- KPI 4 -->
+      <section class="grid-cols-4 mb-4">
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">누적 수익률</span><span class="kpi__value text-up">+8.42%</span><span class="kpi__delta text-up">▲ 0.32%p vs 어제</span></div></div>
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">실현 손익</span><span class="kpi__value text-up">+1,028,400</span><span class="kpi__delta text-muted">28거래</span></div></div>
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">MDD</span><span class="kpi__value text-down">-4.20%</span><span class="kpi__delta text-muted">최대 낙폭</span></div></div>
+        <div class="card"><div class="card__body kpi"><span class="kpi__label">승률 / 손익비</span><span class="kpi__value">62% / 1.8</span><span class="kpi__delta text-muted">샤프 1.42</span></div></div>
+      </section>
+
+      <!-- 메인 차트 -->
+      <section class="card mb-4">
+        <header class="card__header">
+          <div><h3 class="card__title">자산 곡선</h3><p class="card__subtitle">일별 평가자산 합계</p></div>
+          <div class="pill-tabs">
+            <span class="pill-tabs__item pill-tabs__item--active">자산</span>
+            <span class="pill-tabs__item">수익률</span>
+            <span class="pill-tabs__item">드로다운</span>
+          </div>
+        </header>
+        <div class="card__body" style="padding: var(--space-3);">
+          <div class="chart-placeholder chart-placeholder--lg"><span class="chart-placeholder__label">라인 차트 자리 (자산 시계열)</span></div>
+        </div>
+      </section>
+
+      <!-- 탭 -->
+      <nav class="tabs">
+        <a class="tabs__item tabs__item--active">종목별 손익</a>
+        <a class="tabs__item">거래 내역</a>
+        <a class="tabs__item">전략별 성과</a>
+      </nav>
+
+      <!-- 종목별 손익 표 -->
+      <div class="table-wrap mb-6">
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>종목</th>
+                <th class="num">매수금액</th>
+                <th class="num">매도금액</th>
+                <th class="num">실현 손익</th>
+                <th class="num">미실현 손익</th>
+                <th class="num">총 손익</th>
+                <th class="num">수익률</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>삼성전자 (005930)</td><td class="num">8,020,000</td><td class="num">4,150,000</td><td class="num text-up">+130,000</td><td class="num text-up">+57,500</td><td class="num text-up">+187,500</td><td class="num text-up">+2.34%</td></tr>
+              <tr><td>SK하이닉스 (000660)</td><td class="num">5,250,000</td><td class="num">0</td><td class="num">0</td><td class="num text-down">-195,000</td><td class="num text-down">-195,000</td><td class="num text-down">-3.71%</td></tr>
+              <tr><td>현대차 (005380)</td><td class="num">2,350,000</td><td class="num">0</td><td class="num">0</td><td class="num text-up">+35,000</td><td class="num text-up">+35,000</td><td class="num text-up">+1.49%</td></tr>
+              <tr><td>NAVER (035420)</td><td class="num">1,905,000</td><td class="num">0</td><td class="num">0</td><td class="num text-up">+45,000</td><td class="num text-up">+45,000</td><td class="num text-up">+2.36%</td></tr>
+              <tr><td>카카오 (035720)</td><td class="num">956,000</td><td class="num">0</td><td class="num">0</td><td class="num text-up">+10,000</td><td class="num text-up">+10,000</td><td class="num text-up">+1.04%</td></tr>
+              <tr><td>셀트리온 (068270)</td><td class="num">1,820,000</td><td class="num">1,920,000</td><td class="num text-up">+100,000</td><td class="num">0</td><td class="num text-up">+100,000</td><td class="num text-up">+5.49%</td></tr>
+            </tbody>
+            <tfoot>
+              <tr style="background: var(--color-bg-1);">
+                <td class="fw-semibold">합계</td>
+                <td class="num fw-semibold">20,301,000</td>
+                <td class="num fw-semibold">6,070,000</td>
+                <td class="num text-up fw-semibold">+230,000</td>
+                <td class="num text-down fw-semibold">-47,500</td>
+                <td class="num text-up fw-semibold">+182,500</td>
+                <td class="num text-up fw-semibold">+0.90%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- 전략별 성과 카드 -->
+      <h3 class="h4 mb-3">전략별 성과</h3>
+      <section class="grid-cols-3">
+        <article class="card">
+          <header class="card__header"><h3 class="card__title">골든크로스 v2</h3><span class="badge badge--success">활성</span></header>
+          <div class="card__body stack gap-3">
+            <div class="chart-placeholder chart-placeholder--sm"><span class="chart-placeholder__label">미니 차트</span></div>
+            <div class="grid-cols-2 text-sm">
+              <div class="stat-row"><span class="stat-row__label">수익률</span><span class="stat-row__value text-up">+12.4%</span></div>
+              <div class="stat-row"><span class="stat-row__label">승률</span><span class="stat-row__value">62%</span></div>
+              <div class="stat-row"><span class="stat-row__label">MDD</span><span class="stat-row__value text-down">-3.8%</span></div>
+              <div class="stat-row"><span class="stat-row__label">거래수</span><span class="stat-row__value">28</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <header class="card__header"><h3 class="card__title">RSI 과매도 v3</h3><span class="badge badge--success">활성</span></header>
+          <div class="card__body stack gap-3">
+            <div class="chart-placeholder chart-placeholder--sm"><span class="chart-placeholder__label">미니 차트</span></div>
+            <div class="grid-cols-2 text-sm">
+              <div class="stat-row"><span class="stat-row__label">수익률</span><span class="stat-row__value text-up">+6.8%</span></div>
+              <div class="stat-row"><span class="stat-row__label">승률</span><span class="stat-row__value">58%</span></div>
+              <div class="stat-row"><span class="stat-row__label">MDD</span><span class="stat-row__value text-down">-5.1%</span></div>
+              <div class="stat-row"><span class="stat-row__label">거래수</span><span class="stat-row__value">19</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <header class="card__header"><h3 class="card__title">볼린저 하단</h3><span class="badge">대기</span></header>
+          <div class="card__body stack gap-3">
+            <div class="chart-placeholder chart-placeholder--sm"><span class="chart-placeholder__label">미니 차트</span></div>
+            <div class="grid-cols-2 text-sm">
+              <div class="stat-row"><span class="stat-row__label">수익률</span><span class="stat-row__value text-down">-1.2%</span></div>
+              <div class="stat-row"><span class="stat-row__label">승률</span><span class="stat-row__value">44%</span></div>
+              <div class="stat-row"><span class="stat-row__label">MDD</span><span class="stat-row__value text-down">-6.2%</span></div>
+              <div class="stat-row"><span class="stat-row__label">거래수</span><span class="stat-row__value">9</span></div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
