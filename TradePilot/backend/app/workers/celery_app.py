@@ -19,6 +19,7 @@ celery_app = Celery(
         "app.workers.tasks.indicator_tasks",
         "app.workers.tasks.signal_tasks",
         "app.workers.tasks.order_tasks",
+        "app.workers.tasks.backtest_tasks",
     ],
 )
 

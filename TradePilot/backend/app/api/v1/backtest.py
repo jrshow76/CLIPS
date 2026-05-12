@@ -75,6 +75,21 @@ async def get_result(
     return success_response(BacktestResultOut(**data))
 
 
+@router.get("/jobs/{job_id}/trades", summary="백테스트 거래 내역 (페이지네이션)")
+async def get_trades(
+    job_id: str,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+    page: PageParams = Depends(page_params),
+):
+    svc = BacktestService(db)
+    items, total = await svc.list_trades(
+        user_id=user.id, job_id=job_id, offset=page.offset, limit=page.limit
+    )
+    has_next = page.page * page.size < total
+    return page_response(items, page=page.page, size=page.size, total=total, has_next=has_next)
+
+
 @router.post("/jobs/{job_id}/cancel", summary="백테스트 취소")
 async def cancel_job(
     job_id: str,
