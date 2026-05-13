@@ -45,6 +45,10 @@ dependencies = [
     "pandas-ta==0.3.14b0",
     "scikit-learn>=1.4",
 
+    # 시장 데이터 수집 (KRX)
+    "pykrx>=1.0.45",
+    "tqdm>=4.66",
+
     # ML 학습/추론 (CPU 환경 가정)
     # 운영에서는 별도 wheel index 로 torch CPU 버전 설치 권장:
     #   pip install --index-url https://download.pytorch.org/whl/cpu torch>=2.2

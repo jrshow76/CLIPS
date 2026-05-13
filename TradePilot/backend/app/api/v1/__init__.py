@@ -8,6 +8,7 @@ from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.backtest import router as backtest_router
 from app.api.v1.indicators import router as indicators_router
+from app.api.v1.market import admin_calendar_router as market_admin_calendar_router
 from app.api.v1.market import router as market_router
 from app.api.v1.ml_predictions import ml_router as ml_v2_router
 from app.api.v1.ml_predictions import router as ml_predictions_router
@@ -52,3 +53,5 @@ def register_v1_routers(parent: APIRouter) -> None:
     parent.include_router(settings_router)
     parent.include_router(reports_router)
     parent.include_router(admin_router)
+    # 관리자 - 시장 캘린더 (별도 prefix /admin/market/calendar)
+    parent.include_router(market_admin_calendar_router)

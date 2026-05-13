@@ -198,6 +198,112 @@ SELECT created_at, user_id, action, details
  ORDER BY created_at;
 
 
+-- =============================================================================
+-- 시장 데이터 적재 정합성 (data_ingestion 파이프라인)
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 9. 활성 종목인데 최근 일봉이 없는 경우 (정상: 0건)
+--    LISTED 상태이지만 직전 영업일 일봉이 누락된 종목 → 적재 누락 의심
+-- -----------------------------------------------------------------------------
+\echo '--- 9. 최근 일봉 누락 종목 (정상: 0건) ---'
+WITH last_trade AS (
+  SELECT s.id AS stock_id,
+         s.code,
+         s.name,
+         MAX(p.trade_date) AS last_date
+    FROM tp_market.stocks s
+    LEFT JOIN tp_market.price_daily p ON p.stock_id = s.id
+   WHERE s.status = 'LISTED'
+   GROUP BY s.id, s.code, s.name
+)
+SELECT stock_id, code, name, last_date,
+       CURRENT_DATE - COALESCE(last_date, DATE '2000-01-01') AS days_missing
+  FROM last_trade
+ WHERE last_date IS NULL
+    OR last_date < CURRENT_DATE - INTERVAL '5 days'  -- 영업일 + 휴장일 여유
+ ORDER BY days_missing DESC NULLS FIRST
+ LIMIT 100;
+
+
+-- -----------------------------------------------------------------------------
+-- 10. 일봉 가격 갭 (>2 영업일 연속 누락, 정상: 0건)
+--     특정 종목이 중간에 2일 이상 빠진 경우. 부분 백필 필요.
+-- -----------------------------------------------------------------------------
+\echo '--- 10. 일봉 연속 갭 종목 (정상: 0건) ---'
+WITH gaps AS (
+  SELECT stock_id,
+         trade_date,
+         LAG(trade_date) OVER (PARTITION BY stock_id ORDER BY trade_date) AS prev_date,
+         trade_date
+           - LAG(trade_date) OVER (PARTITION BY stock_id ORDER BY trade_date) AS gap_days
+    FROM tp_market.price_daily
+   WHERE trade_date >= CURRENT_DATE - INTERVAL '60 days'
+)
+SELECT g.stock_id, s.code, s.name, g.prev_date, g.trade_date, g.gap_days
+  FROM gaps g
+  JOIN tp_market.stocks s ON s.id = g.stock_id
+ WHERE g.gap_days > 5  -- 주말 + 1일 휴장 허용
+ ORDER BY g.gap_days DESC
+ LIMIT 50;
+
+
+-- -----------------------------------------------------------------------------
+-- 11. 거래량 0 비율 (정상: <5%)
+--     활성 종목 중 거래량 0인 일봉 비율. 5% 초과 시 데이터 품질 의심.
+-- -----------------------------------------------------------------------------
+\echo '--- 11. 거래량 0 비율 (정상: <5%) ---'
+WITH stat AS (
+  SELECT COUNT(*) FILTER (WHERE volume = 0) AS zero_vol,
+         COUNT(*) AS total
+    FROM tp_market.price_daily
+   WHERE trade_date >= CURRENT_DATE - INTERVAL '30 days'
+)
+SELECT zero_vol, total,
+       ROUND(100.0 * zero_vol / NULLIF(total, 0), 2) AS zero_pct
+  FROM stat;
+
+
+-- -----------------------------------------------------------------------------
+-- 12. price_minute 파티션 존재 여부 (정상: 당월/익월 모두 존재)
+--     자동 파티션 생성기가 동작하지 않을 경우 분봉 INSERT 실패.
+-- -----------------------------------------------------------------------------
+\echo '--- 12. 분봉 파티션 존재 여부 (당월/익월 필수, exists=false 문제) ---'
+WITH expected AS (
+  SELECT to_char(d::date, 'YYYY') || 'm' || to_char(d::date, 'MM') AS suffix,
+         to_char(d::date, 'YYYY-MM') AS ym
+    FROM generate_series(
+           date_trunc('month', CURRENT_DATE),
+           date_trunc('month', CURRENT_DATE) + INTERVAL '1 month',
+           INTERVAL '1 month'
+         ) AS d
+)
+SELECT e.ym,
+       'price_minute_y' || e.suffix AS partition_name,
+       EXISTS (
+         SELECT 1 FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'tp_market'
+           AND c.relname = 'price_minute_y' || e.suffix
+       ) AS exists
+  FROM expected e
+ ORDER BY e.ym;
+
+
+-- -----------------------------------------------------------------------------
+-- 13. 지수 일봉 누락 (정상: 0건)
+-- -----------------------------------------------------------------------------
+\echo '--- 13. 지수 일봉 누락 (정상: 0건, 직전 5일 기준) ---'
+SELECT mi.code, mi.name, MAX(mid.trade_date) AS last_date,
+       CURRENT_DATE - COALESCE(MAX(mid.trade_date), DATE '2000-01-01') AS days_missing
+  FROM tp_market.market_index mi
+  LEFT JOIN tp_market.market_index_daily mid ON mid.index_id = mi.id
+ GROUP BY mi.id, mi.code, mi.name
+HAVING MAX(mid.trade_date) IS NULL
+    OR MAX(mid.trade_date) < CURRENT_DATE - INTERVAL '5 days'
+ ORDER BY days_missing DESC NULLS FIRST;
+
+
 \echo '=========================================='
 \echo 'Data Consistency Check 완료'
 \echo '=========================================='

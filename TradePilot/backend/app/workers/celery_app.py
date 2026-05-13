@@ -1,8 +1,9 @@
 """Celery 인스턴스.
 
-5개 큐: default, signals, orders, backtest, ml, notifications.
+7개 큐: default, signals, orders, backtest, ml, notifications, ingestion.
 워커 실행:
-    celery -A app.workers.celery_app worker --loglevel=INFO -Q signals,orders,backtest,ml,notifications,default
+    celery -A app.workers.celery_app worker --loglevel=INFO \
+      -Q signals,orders,backtest,ml,notifications,ingestion,default
 """
 from __future__ import annotations
 
@@ -27,6 +28,8 @@ celery_app = Celery(
         "app.workers.tasks.order_tasks",
         "app.workers.tasks.backtest_tasks",
         "app.workers.tasks.ml_tasks",
+        "app.workers.tasks.calendar_tasks",
+        "app.workers.tasks.ingestion_tasks",
     ],
 )
 
@@ -47,6 +50,7 @@ celery_app.conf.update(
         Queue("backtest"),
         Queue("ml"),
         Queue("notifications"),
+        Queue("ingestion"),
     ],
     task_routes={
         "signals.*": {"queue": "signals"},
@@ -55,6 +59,8 @@ celery_app.conf.update(
         "ml.*": {"queue": "ml"},
         "notifications.*": {"queue": "notifications"},
         "indicators.*": {"queue": "signals"},  # 시그널 큐 공용
+        "calendar.*": {"queue": "default"},  # 캘린더 동기화 (저빈도)
+        "ingestion.*": {"queue": "ingestion"},  # 시장 데이터 적재
     },
     worker_max_tasks_per_child=500,
     broker_connection_retry_on_startup=True,
@@ -79,6 +85,51 @@ celery_app.conf.beat_schedule = {
         "schedule": _cron(hour=14, minute=30),
         "kwargs": {"horizons": [1, 3, 5]},
         "options": {"queue": "ml"},
+    },
+    # 매년 1월 2일 09:00 KST: 당해/익년 휴장일 자동 동기화
+    # day_of_week='*' 로 평일 제한을 풀어 1/2 가 토/일이어도 실행되도록 한다.
+    "calendar-sync-yearly": {
+        "task": "calendar.sync_yearly",
+        "schedule": crontab(month_of_year="1", day_of_month="2", hour="9", minute="0"),
+        "options": {"queue": "default"},
+    },
+    # ----------------------------------------------------------------------
+    # 데이터 적재 스케줄 (KST 기준)
+    # ----------------------------------------------------------------------
+    # 매일 08:00: KRX 종목 마스터 + 섹터 매핑 동기화 (장 개장 전)
+    "ingest-stock-master": {
+        "task": "ingestion.stock_master",
+        "schedule": _cron(hour=8, minute=0),
+        "options": {"queue": "ingestion"},
+    },
+    # 매일 16:30: 전일 일봉 적재 (장 마감 후 30분, 정합성 시점)
+    "ingest-daily-prices": {
+        "task": "ingestion.daily_prices",
+        "schedule": _cron(hour=16, minute=30),
+        "options": {"queue": "ingestion"},
+    },
+    # 매일 16:30: KOSPI/KOSDAQ/KOSPI200 지수 일봉
+    "ingest-market-indices": {
+        "task": "ingestion.market_indices",
+        "schedule": _cron(hour=16, minute=35),
+        "options": {"queue": "ingestion"},
+    },
+    # 장중 09:00 ~ 15:30 / 5분 간격: 활성 종목 분봉 적재 (게이트웨이 가용 시)
+    "ingest-minute-prices-active": {
+        "task": "ingestion.minute_prices",
+        "schedule": crontab(
+            minute="*/5",
+            hour="9-15",
+            day_of_week="1-5",
+        ),
+        "options": {"queue": "ingestion"},
+    },
+    # 매일 23:30: 다음 달 분봉 파티션 사전 생성 (월말에도 안전)
+    "ingest-ensure-minute-partitions": {
+        "task": "ingestion.ensure_minute_partitions",
+        "schedule": crontab(hour="23", minute="30"),
+        "kwargs": {"months": 2},
+        "options": {"queue": "ingestion"},
     },
 }
 
