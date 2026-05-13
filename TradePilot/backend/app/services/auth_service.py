@@ -140,16 +140,43 @@ class AuthService:
         return user, access, refresh, access_ttl
 
     # ------------------------------------------------------------------
-    # Refresh
+    # Refresh (SEC-006: Token Rotation)
     # ------------------------------------------------------------------
     async def refresh(self, refresh_token: str) -> tuple[str, int]:
+        """Access 토큰 재발급.
+
+        SEC-006 보강:
+        - 동일 refresh_token이 재사용되면(이미 회수된 세션) 모든 세션 일괄 폐기.
+          → refresh token replay 공격(탈취 토큰 재사용) 탐지 시 강제 로그아웃.
+        - 본 메서드 자체는 access 토큰만 발급한다. refresh 토큰 자체의 회전은
+          상위 라우터에서 새 세션을 발급하는 식으로 확장 가능.
+        """
         from app.core.security import decode_jwt_token
 
         payload = decode_jwt_token(refresh_token, expected_type="refresh")
         public_id = payload.get("sub")
-        sess = await self.sessions.find_by_hash(hash_refresh_token(refresh_token))
+
+        token_hash = hash_refresh_token(refresh_token)
+        sess = await self.sessions.find_by_hash(token_hash)
         if not sess:
+            # 폐기된 토큰이 다시 사용됨 = 탈취 의심. user_id를 알 수 있으면 전 세션 폐기.
+            if public_id:
+                user = await self.users.find_by_public_id(public_id)
+                if user:
+                    log.warning(
+                        "refresh_token_replay_detected",
+                        user_id=user.id,
+                        public_id=public_id,
+                    )
+                    await self.sessions.revoke_all_for_user(user.id)
+                    await self.db.commit()
             raise AppException("E0001", message="유효하지 않은 리프레시 토큰입니다.")
+
+        # 만료 검증
+        from datetime import datetime, timezone
+        if sess.expires_at and sess.expires_at < datetime.now(tz=timezone.utc):
+            raise AppException("E0053", message="세션이 만료되었습니다.")
+
         user = await self.users.find_by_public_id(public_id)
         if not user:
             raise AppException("E0001")
@@ -200,16 +227,19 @@ class AuthService:
         )
         await self.db.commit()
 
-        # 발송 (개발용: 로그 + Redis 캐시로 보관)
+        # 발송 (운영: NotificationService 연동 예정)
+        # SEC-009: OTP 평문은 로그에 절대 남기지 않는다(디버그 환경 포함).
+        # 개발 편의용 평문 보관은 Redis 키(otp:debug:*)를 통해서만 제공하며,
+        # 본 키는 운영 환경에서 절대 사용하지 않는다.
         log.info(
             "otp_generated",
             user_id=user_id,
             otp_id=str(otp_id),
             purpose=purpose,
             channel=channel,
-            code=code if settings.is_dev else "***",
         )
-        await get_redis().setex(f"otp:debug:{otp_id}", settings.OTP_TTL_SEC, code)
+        if settings.is_dev or settings.is_test:
+            await get_redis().setex(f"otp:debug:{otp_id}", settings.OTP_TTL_SEC, code)
         return str(otp_id), settings.OTP_TTL_SEC
 
     async def verify_otp(self, otp_id_str: str, plain_code: str) -> str:
@@ -280,7 +310,9 @@ class AuthService:
             3600,
             orjson.dumps({"user_id": user.id, "email": email}),
         )
-        log.info("password_reset_token_issued", user_id=user.id, token=token if settings.is_dev else "***")
+        # SEC-009: 토큰 평문은 로그에 남기지 않는다. 개발 환경 디버깅이 필요하면
+        # Redis 키(pwreset:*)를 직접 조회하라.
+        log.info("password_reset_token_issued", user_id=user.id)
 
     async def confirm_password_reset(self, token: str, new_password: str) -> None:
         raw = await get_redis().get(f"pwreset:{token}")

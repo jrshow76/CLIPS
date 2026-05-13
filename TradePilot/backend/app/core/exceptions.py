@@ -188,11 +188,13 @@ def register_exception_handlers(app: Any) -> None:
 
     @app.exception_handler(IntegrityError)
     async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+        # SEC-008: DB 원본 메시지(컬럼명, 제약명)는 서버 로그에만 기록하고
+        # 클라이언트 응답에는 일반화된 메시지만 노출(정보 누설 방지).
         log.error("db_integrity_error", path=request.url.path, error=str(exc.orig))
         return error_response(
             code="E0022",
             message="중복 또는 제약 조건 위반입니다.",
-            details={"db_error": str(exc.orig)[:200]},
+            details={},  # 내부 DB 메시지 비노출
             http_status=409,
         )
 

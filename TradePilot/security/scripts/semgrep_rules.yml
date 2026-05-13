@@ -1,0 +1,196 @@
+# TradePilot 매매 시스템 특화 Semgrep 룰
+#
+# 사용법:
+#   semgrep --config TradePilot/security/scripts/semgrep_rules.yml \
+#           TradePilot/backend/ TradePilot/creon-gateway/
+#
+# 룰 ID 규칙: tp-<영역>-<번호>
+#   - tp-auth-*  : 인증/JWT/세션
+#   - tp-order-* : 주문/매매 흐름
+#   - tp-mode-*  : 모드 가드 (X-Trade-Mode)
+#   - tp-secret-*: 시크릿 처리
+#   - tp-log-*   : 로깅 안전성
+
+rules:
+
+  # =========================================================================
+  # 인증/JWT
+  # =========================================================================
+  - id: tp-auth-jwt-decode-without-algorithms
+    pattern-either:
+      - pattern: jwt.decode($T, $K)
+      - pattern: jwt.decode($T, $K, options=$O)
+    pattern-not: jwt.decode($T, $K, ..., algorithms=$A, ...)
+    message: |
+      jwt.decode 호출에 algorithms= 인자가 누락되었습니다.
+      알고리즘 화이트리스트 미지정 시 alg=none 또는 키 혼동 공격에 취약합니다.
+      반드시 algorithms=["HS256"] 처럼 명시하세요.
+    severity: ERROR
+    languages: [python]
+
+  - id: tp-auth-jwt-none-allowed
+    patterns:
+      - pattern: jwt.decode(..., algorithms=$A, ...)
+      - metavariable-pattern:
+          metavariable: $A
+          pattern: |
+            [..., "none", ...]
+    message: |
+      JWT 알고리즘 'none'은 절대 허용해서는 안 됩니다.
+    severity: ERROR
+    languages: [python]
+
+  - id: tp-auth-string-equality-on-secret
+    pattern-either:
+      - pattern: |
+          if $X == $SECRET:
+              ...
+      - pattern: |
+          if $SECRET == $X:
+              ...
+    pattern-where-python: |
+      ('api_key' in str($SECRET).lower()) or
+      ('token' in str($SECRET).lower()) or
+      ('secret' in str($SECRET).lower())
+    message: |
+      비밀값을 == 로 비교하면 타이밍 사이드채널 공격에 취약합니다.
+      hmac.compare_digest() 또는 secrets.compare_digest() 를 사용하세요.
+    severity: WARNING
+    languages: [python]
+
+  # =========================================================================
+  # 주문/매매 흐름
+  # =========================================================================
+  - id: tp-order-missing-trade-mode-dep
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @router.post($PATH, ...)
+              async def $FN(..., user: CurrentUser, ...) -> ...:
+                  ...
+          - pattern: |
+              @router.post($PATH)
+              async def $FN(..., user: CurrentUser, ...) -> ...:
+                  ...
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: ^["'](/orders|/settings/(kill-switch|trade-mode))(.*)["']$
+      - pattern-not-inside: |
+          async def $FN(..., mode: TradeModeDep, ...):
+              ...
+    message: |
+      주문/모드 변경 라우터에 TradeModeDep 의존성이 누락되었습니다.
+      X-Trade-Mode 가드 없이 주문 처리는 모드 우회를 허용합니다.
+      `mode: TradeModeDep` 를 추가하세요.
+    severity: ERROR
+    languages: [python]
+
+  - id: tp-order-missing-idor-check
+    patterns:
+      - pattern: |
+          $ORDER = await $REPO.find_by_public_id($ID)
+          ...
+          return $ORDER
+      - pattern-not: |
+          $ORDER = await $REPO.find_by_public_id($ID)
+          ...
+          if $ORDER.user_id != $USER.id:
+              ...
+    message: |
+      주문 조회 후 IDOR 체크가 없습니다(order.user_id != user.id).
+      타 사용자 주문 조회/취소 가능합니다.
+    severity: WARNING
+    languages: [python]
+
+  # =========================================================================
+  # SQL/Injection
+  # =========================================================================
+  - id: tp-sql-fstring-execute
+    pattern-either:
+      - pattern: $DB.execute(text(f"..."))
+      - pattern: $DB.execute(f"...")
+    message: |
+      f-string 으로 구성된 SQL 을 실행합니다. SQL 인젝션 위험.
+      bind 파라미터 형태(:name) 또는 ORM 을 사용하세요.
+    severity: ERROR
+    languages: [python]
+
+  # =========================================================================
+  # 시크릿/로깅
+  # =========================================================================
+  - id: tp-log-token-leak
+    pattern-either:
+      - pattern: log.$LVL(..., token=$T, ...)
+      - pattern: log.$LVL(..., access_token=$T, ...)
+      - pattern: log.$LVL(..., refresh_token=$T, ...)
+      - pattern: log.$LVL(..., password=$T, ...)
+      - pattern: log.$LVL(..., otp=$T, ...)
+      - pattern: log.$LVL(..., api_key=$T, ...)
+      - pattern: log.$LVL(..., secret=$T, ...)
+    pattern-not: log.$LVL(..., token="***", ...)
+    pattern-not: log.$LVL(..., token=$M, ...)
+    message: |
+      비밀 정보(token/password/otp/api_key)를 로그에 포함하고 있습니다.
+      마스킹 처리("***") 또는 키 자체 제거가 필요합니다.
+    severity: ERROR
+    languages: [python]
+
+  - id: tp-secret-default-in-config
+    pattern-either:
+      - pattern: |
+          $VAR: str = "change-this..."
+      - pattern: |
+          $VAR: str = "replace-with..."
+      - pattern: |
+          $VAR: str = "base64-encoded..."
+    message: |
+      Settings 클래스에 placeholder 기본값이 있습니다.
+      _validate_production_settings() 가 운영 환경에서 fail-fast 하는지 확인하세요.
+    severity: INFO
+    languages: [python]
+
+  # =========================================================================
+  # 외부 호출 / SSRF
+  # =========================================================================
+  - id: tp-http-no-timeout
+    pattern-either:
+      - pattern: httpx.AsyncClient()
+      - pattern: httpx.Client()
+    message: |
+      HTTP 클라이언트에 timeout 이 명시되지 않았습니다.
+      기본 타임아웃은 무한이며 DoS 위험. timeout=5.0 등 명시하세요.
+    severity: WARNING
+    languages: [python]
+
+  - id: tp-http-verify-disabled
+    pattern-either:
+      - pattern: httpx.AsyncClient(..., verify=False, ...)
+      - pattern: httpx.Client(..., verify=False, ...)
+      - pattern: requests.$M(..., verify=False, ...)
+    message: |
+      TLS 검증이 비활성화되어 있습니다(verify=False).
+      MITM 공격에 취약합니다.
+    severity: ERROR
+    languages: [python]
+
+  # =========================================================================
+  # 위험 함수
+  # =========================================================================
+  - id: tp-dangerous-shell-true
+    pattern-either:
+      - pattern: subprocess.$M(..., shell=True, ...)
+      - pattern: os.system(...)
+    message: |
+      shell=True / os.system 사용은 명령어 인젝션 위험이 큽니다.
+      shell=False + 인자 리스트 형태를 사용하세요.
+    severity: ERROR
+    languages: [python]
+
+  - id: tp-dangerous-eval
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    message: |
+      eval/exec 사용은 임의 코드 실행을 허용합니다.
+    severity: ERROR
+    languages: [python]

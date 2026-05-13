@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import contextlib
+import hmac as _hmac
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -108,12 +109,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 # ---------------------------------------------------------------------------
-# API Key 가드
+# API Key 가드 (timing-safe 비교)
 # ---------------------------------------------------------------------------
 async def require_api_key(
     x_gateway_api_key: Annotated[str | None, Header(alias="X-Gateway-Api-Key")] = None,
 ) -> None:
-    if not x_gateway_api_key or x_gateway_api_key != _settings().GATEWAY_API_KEY:
+    """X-Gateway-Api-Key 검증.
+
+    SEC-002 대응:
+    - ``hmac.compare_digest`` 로 상수시간 비교(타이밍 사이드채널 차단).
+    - 키 미설정 또는 placeholder 사용 시 즉시 503 (운영 미스컨피그 fail-fast).
+    """
+    expected = _settings().GATEWAY_API_KEY or ""
+    # 운영 미스컨피그 차단: placeholder 또는 너무 짧은 키
+    if not expected or len(expected) < 32 or expected == "replace-with-long-random-string":
+        raise HTTPException(
+            status_code=503, detail="gateway api key not configured"
+        )
+    if not x_gateway_api_key:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    if not _hmac.compare_digest(x_gateway_api_key, expected):
         raise HTTPException(status_code=401, detail="invalid api key")
 
 

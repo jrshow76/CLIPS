@@ -118,11 +118,57 @@ class Settings(BaseSettings):
     def is_test(self) -> bool:
         return self.APP_ENV == "test"
 
+    @computed_field  # type: ignore[misc]
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV == "production"
+
+
+# 보안: 운영 환경에서 사용 금지 기본값/약한 시크릿 패턴
+_FORBIDDEN_PROD_SECRETS = (
+    "change-this-in-production-please-32bytes-min",
+    "base64-encoded-32byte-random-key",
+    "replace-with-long-random-string",
+    "tradepilot",
+    "secret",
+    "changeme",
+    "",
+)
+
+
+def _validate_production_settings(s: "Settings") -> None:
+    """운영 환경(APP_ENV=production)에서만 동작하는 시크릿/설정 검증.
+
+    SEC-001/SEC-005 자동 방어: 개발용 기본값으로 운영 기동 시 즉시 RuntimeError로 차단.
+    """
+    if s.APP_ENV != "production":
+        return
+
+    issues: list[str] = []
+    if s.JWT_SECRET in _FORBIDDEN_PROD_SECRETS or len(s.JWT_SECRET) < 32:
+        issues.append("JWT_SECRET 가 기본값이거나 32자 미만입니다.")
+    if s.AES_KEY in _FORBIDDEN_PROD_SECRETS or len(s.AES_KEY) < 32:
+        issues.append("AES_KEY 가 기본값이거나 32자 미만입니다.")
+    if s.CREON_GATEWAY_API_KEY in _FORBIDDEN_PROD_SECRETS or len(s.CREON_GATEWAY_API_KEY) < 32:
+        issues.append("CREON_GATEWAY_API_KEY 가 기본값이거나 32자 미만입니다.")
+    if "*" in s.CORS_ORIGINS:
+        issues.append("운영 환경에서 CORS_ORIGINS 와일드카드(*) 는 허용되지 않습니다.")
+    if s.DB_ECHO:
+        issues.append("운영 환경에서 DB_ECHO=True 는 SQL 평문 로그 노출을 일으킵니다.")
+    if s.JWT_ALGORITHM not in ("HS256", "HS384", "HS512", "RS256", "RS384", "RS512"):
+        issues.append(f"지원하지 않는 JWT_ALGORITHM: {s.JWT_ALGORITHM}")
+
+    if issues:
+        msg = "[SECURITY] 운영 환경 부적합 설정 감지:\n  - " + "\n  - ".join(issues)
+        raise RuntimeError(msg)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """싱글톤 설정 객체를 반환한다."""
-    return Settings()
+    s = Settings()
+    _validate_production_settings(s)
+    return s
 
 
 # 모듈 레벨 캐시(편의용)

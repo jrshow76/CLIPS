@@ -104,16 +104,45 @@ def create_jwt_token(
     return token, ttl
 
 
+_ALLOWED_JWT_ALGORITHMS = ("HS256", "HS384", "HS512", "RS256", "RS384", "RS512")
+
+
 def decode_jwt_token(token: str, expected_type: TokenType | None = None) -> dict[str, Any]:
     """JWT 디코딩 + 검증.
 
+    보안 강화:
+    - ``alg=none`` 명시적 차단(허용 알고리즘 화이트리스트만 통과).
+    - 토큰 헤더의 ``alg`` 값과 서버 설정 알고리즘 불일치 시 즉시 거절.
+    - ``exp/iat/sub/type`` 클레임 누락 시 거절.
+
     실패 시 AppException(E0001 또는 E0053) 발생.
     """
+    server_alg = settings.JWT_ALGORITHM
+    if server_alg not in _ALLOWED_JWT_ALGORITHMS:
+        # 설정 단계의 미스컨피그(예: 'none')는 즉시 인증 실패 처리
+        raise AppException(
+            "E0001",
+            message="허용되지 않은 JWT 알고리즘 설정입니다.",
+        )
+
+    # alg 변조(alg=none, alg=HS256 강제 등) 방어: 서버 알고리즘과 정확히 일치만 허용
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except jwt.PyJWTError as e:
+        raise AppException("E0001", message="JWT 헤더 파싱 실패") from e
+
+    token_alg = unverified_header.get("alg")
+    if token_alg != server_alg or token_alg == "none":
+        raise AppException(
+            "E0001",
+            message="JWT 알고리즘이 서버 정책과 일치하지 않습니다.",
+        )
+
     try:
         payload = jwt.decode(
             token,
             settings.JWT_SECRET,
-            algorithms=[settings.JWT_ALGORITHM],
+            algorithms=[server_alg],  # 단일 알고리즘만 허용
             options={"require": ["exp", "iat", "sub", "type"]},
         )
     except jwt.ExpiredSignatureError as e:
