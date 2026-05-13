@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 
 import { AuthProvider } from './AuthProvider';
 import { QueryProvider } from './QueryProvider';
+import { RealtimeProvider } from './RealtimeProvider';
 import { ThemeProvider } from './ThemeProvider';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -13,8 +14,10 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryProvider>
       <ThemeProvider>
         <AuthProvider>
-          {children}
-          <Toaster />
+          <RealtimeProvider>
+            {children}
+            <Toaster />
+          </RealtimeProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryProvider>

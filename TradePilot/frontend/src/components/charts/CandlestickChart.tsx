@@ -10,6 +10,7 @@ import {
 } from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
 
+import { useRealtimeTick } from '@/hooks/useRealtimeTick';
 import type { Candle } from '@/types/stock';
 
 export interface CandlestickChartProps {
@@ -21,6 +22,10 @@ export interface CandlestickChartProps {
   height?: number;
   /** 다크/라이트 색상 */
   theme?: 'dark' | 'light';
+  /** 실시간 시세로 마지막 캔들의 close를 갱신할지 여부 */
+  realtime?: boolean;
+  /** realtime=true일 때 구독할 종목 코드 */
+  stockCode?: string;
 }
 
 /**
@@ -37,9 +42,16 @@ export function CandlestickChart({
   movingAverages = [5, 20, 60],
   height = 420,
   theme = 'dark',
+  realtime = false,
+  stockCode,
 }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const lastCandleRef = useRef<Candle | null>(null);
+
+  // 실시간 시세 (realtime=true일 때만 의미 있음)
+  const tick = useRealtimeTick(realtime ? stockCode ?? null : null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -66,6 +78,8 @@ export function CandlestickChart({
       wickUpColor: '#ef4444',
       wickDownColor: '#3b82f6',
     });
+    candleSeriesRef.current = candleSeries;
+    lastCandleRef.current = data.length > 0 ? { ...data[data.length - 1]! } : null;
 
     candleSeries.setData(
       data.map((c) => ({
@@ -112,9 +126,34 @@ export function CandlestickChart({
 
     return () => {
       window.removeEventListener('resize', onResize);
+      candleSeriesRef.current = null;
       chart.remove();
     };
   }, [data, withVolume, movingAverages, height, theme]);
+
+  // 실시간 가격으로 마지막 캔들의 close/high/low 갱신
+  useEffect(() => {
+    if (!realtime) return;
+    if (!candleSeriesRef.current || !lastCandleRef.current) return;
+    if (tick.price == null) return;
+    const last = lastCandleRef.current;
+    const price = tick.price;
+    last.close = price;
+    if (price > last.high) last.high = price;
+    if (price < last.low) last.low = price;
+    try {
+      candleSeriesRef.current.update({
+        time: Math.floor(last.ts / 1000) as Time,
+        open: last.open,
+        high: last.high,
+        low: last.low,
+        close: last.close,
+      });
+    } catch (e) {
+      // chart instance가 dispose 직후 호출될 수 있음 - 무시
+      console.debug('[chart] realtime update skipped', e);
+    }
+  }, [realtime, tick.price, tick.ts]);
 
   return <div ref={containerRef} style={{ width: '100%', height }} />;
 }

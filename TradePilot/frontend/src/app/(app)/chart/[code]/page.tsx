@@ -11,12 +11,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ErrorCard } from '@/components/ui/error-card';
 import { Field, Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio';
+import { RealtimeIndicator } from '@/components/ui/realtime-indicator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatRow } from '@/components/ui/stat-row';
 import { Tabs } from '@/components/ui/tabs';
 import { IndicatorPanel } from '@/components/charts/IndicatorPanel';
 import { StockSearchInput } from '@/components/forms/StockSearchInput';
 import { OrderModal } from '@/components/orders/OrderModal';
+import { useRealtimeTick } from '@/hooks/useRealtimeTick';
 import { useCandles, useQuote, useStockDetail } from '@/lib/api/queries/stocks';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils/cn';
@@ -56,6 +58,11 @@ export default function ChartPage() {
   const stock = useStockDetail(code);
   const quote = useQuote(code);
   const candles = useCandles(code, interval);
+  // 종목 페이지 진입 시 실시간 시세 자동 구독 (LIVE 가격/뱃지 표시)
+  const live = useRealtimeTick(code);
+  const livePrice = live.price ?? quote.data?.price;
+  const liveChange = live.price != null ? live.change : (quote.data?.change ?? 0);
+  const liveChangePct = live.price != null ? live.changePct : (quote.data?.change_pct ?? 0);
 
   function onSelectFromSearch(s: { code: string; name: string }) {
     router.push(ROUTES.CHART(s.code));
@@ -80,14 +87,16 @@ export default function ChartPage() {
             <h1>{stock.data?.name ?? code}</h1>
             <Badge variant="default">{code}</Badge>
             {stock.data?.sector && <span className="text-subtle text-sm">{stock.data.sector}</span>}
+            {live.isLive && <Badge variant="success" dot>LIVE</Badge>}
+            <RealtimeIndicator showLabel={false} />
           </div>
-          {quote.data && (
+          {(livePrice != null) && (
             <p className="text-sm mt-2">
               <span className="text-num text-strong fw-semibold text-20">
-                {quote.data.price.toLocaleString('ko-KR')}
+                {livePrice.toLocaleString('ko-KR')}
               </span>
-              <span className={cn('ml-2', pnlClass(quote.data.change))}>
-                {pnlArrow(quote.data.change)} {Math.abs(quote.data.change).toLocaleString('ko-KR')} ({formatPct(quote.data.change_pct)})
+              <span className={cn('ml-2', pnlClass(liveChange))}>
+                {pnlArrow(liveChange)} {Math.abs(liveChange).toLocaleString('ko-KR')} ({formatPct(liveChangePct)})
               </span>
             </p>
           )}
@@ -118,7 +127,14 @@ export default function ChartPage() {
             />
             <Card.Body className="p-3">
               {candles.isError && <ErrorCard message="캔들 데이터를 불러올 수 없습니다." />}
-              {candles.data && <CandlestickChart data={candles.data} height={460} />}
+              {candles.data && (
+                <CandlestickChart
+                  data={candles.data}
+                  height={460}
+                  realtime
+                  stockCode={code}
+                />
+              )}
               {candles.isLoading && <Skeleton height={420} />}
             </Card.Body>
           </Card>

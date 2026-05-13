@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorCard } from '@/components/ui/error-card';
 import { Kpi } from '@/components/ui/kpi';
+import { RealtimeIndicator } from '@/components/ui/realtime-indicator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatRow } from '@/components/ui/stat-row';
+import { useRealtimeTick } from '@/hooks/useRealtimeTick';
 import {
   useActiveSignals,
   useHoldings,
@@ -49,7 +51,8 @@ export default function DashboardPage() {
           <h1>대시보드</h1>
           <p>오늘의 시장 동향과 보유 종목을 한눈에 확인하세요.</p>
         </div>
-        <div className="row gap-2">
+        <div className="row gap-2 items-center">
+          <RealtimeIndicator />
           <Button variant="outline" size="sm" onClick={() => summary.refetch()}>
             새로고침
           </Button>
@@ -140,33 +143,11 @@ export default function DashboardPage() {
             {holdings.isLoading && <SkeletonStockList />}
             {holdings.isError && <ErrorCard message="보유 종목을 불러올 수 없습니다." />}
             {holdings.data?.map((h) => (
-              <button
+              <HoldingRow
                 key={h.code}
-                type="button"
+                holding={h}
                 onClick={() => router.push(ROUTES.CHART(h.code))}
-                className="stock-row"
-                style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none' }}
-              >
-                <div className="stack">
-                  <span className="stock-row__name">{h.name}</span>
-                  <span className="stock-row__code">
-                    {h.code} · {h.sector ?? '-'}
-                    {h.delayed && (
-                      <Badge variant="warning" className="ml-2 text-xs">지연</Badge>
-                    )}
-                  </span>
-                </div>
-                <div className="stock-row__price">
-                  <div>{h.current_price.toLocaleString('ko-KR')}</div>
-                  <div className="text-xs text-muted">평단 {h.avg_price.toLocaleString('ko-KR')}</div>
-                </div>
-                <div className="stock-row__delta">
-                  <div className={pnlClass(h.pnl)}>{formatPnl(h.pnl)}</div>
-                  <div className={cn('text-xs', pnlClass(h.pnl_pct))}>
-                    {pnlArrow(h.pnl_pct)} {formatPct(Math.abs(h.pnl_pct))}
-                  </div>
-                </div>
-              </button>
+              />
             ))}
             {holdings.data && holdings.data.length === 0 && (
               <p className="text-subtle p-4 center">보유 종목이 없습니다.</p>
@@ -336,6 +317,61 @@ export default function DashboardPage() {
         }
       `}</style>
     </>
+  );
+}
+
+interface HoldingItem {
+  code: string;
+  name: string;
+  sector?: string | null;
+  delayed?: boolean;
+  current_price: number;
+  avg_price: number;
+  pnl: number;
+  pnl_pct: number;
+}
+
+/**
+ * 실시간 시세를 자동 구독하는 보유 종목 행.
+ * - 가격은 ws tick 수신 시 즉시 갱신 (없으면 holdings API의 current_price 사용)
+ * - 평가손익은 (livePrice - avg_price) * 보유수량 기준 재계산이 필요하나,
+ *   보유 수량이 holdings 응답에 없으므로 가격/등락만 라이브로 표시한다.
+ */
+function HoldingRow({ holding, onClick }: { holding: HoldingItem; onClick: () => void }) {
+  const tick = useRealtimeTick(holding.code);
+  const livePrice = tick.price ?? holding.current_price;
+  const liveChangePct = tick.price != null ? tick.changePct : holding.pnl_pct;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="stock-row"
+      style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none' }}
+    >
+      <div className="stack">
+        <span className="stock-row__name">
+          {holding.name}
+          {tick.isLive && <span className="ml-2 text-xs text-up">●</span>}
+        </span>
+        <span className="stock-row__code">
+          {holding.code} · {holding.sector ?? '-'}
+          {holding.delayed && !tick.isLive && (
+            <Badge variant="warning" className="ml-2 text-xs">지연</Badge>
+          )}
+        </span>
+      </div>
+      <div className="stock-row__price">
+        <div>{livePrice.toLocaleString('ko-KR')}</div>
+        <div className="text-xs text-muted">평단 {holding.avg_price.toLocaleString('ko-KR')}</div>
+      </div>
+      <div className="stock-row__delta">
+        <div className={pnlClass(holding.pnl)}>{formatPnl(holding.pnl)}</div>
+        <div className={cn('text-xs', pnlClass(liveChangePct))}>
+          {pnlArrow(liveChangePct)} {formatPct(Math.abs(liveChangePct))}
+        </div>
+      </div>
+    </button>
   );
 }
 
