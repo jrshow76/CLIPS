@@ -100,6 +100,13 @@ class GatewaySettings(BaseSettings):
     # ---------------------------------------------------------------
     HEALTHBEAT_INTERVAL_SEC: int = 30
 
+    # ---------------------------------------------------------------
+    # Mock tick worker (개발/E2E용)
+    # ---------------------------------------------------------------
+    # mock 어댑터 사용 시 자동으로 가짜 tick 발행 (1초 주기)
+    MOCK_TICK_ENABLED: bool = True
+    MOCK_TICK_INTERVAL_SEC: float = 1.0
+
     def is_sim_mode(self) -> bool:
         """모의투자 모드 여부."""
         return self.CREON_TRADE_ENV == "SIM"

@@ -84,7 +84,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_adapter()  # 어댑터 초기화
     healthbeat = get_healthbeat_task()
     await healthbeat.start()
+
+    # Mock tick worker (mock 어댑터 + MOCK_TICK_ENABLED 시)
+    mock_tick = None
+    if _settings().MOCK_TICK_ENABLED:
+        try:
+            from creon_gateway.mock_tick_worker import get_mock_tick_worker
+            mock_tick = get_mock_tick_worker()
+            await mock_tick.start()
+        except Exception as e:
+            log.warning("mock_tick_start_failed", error=str(e))
+
     yield
+
+    if mock_tick:
+        try:
+            await mock_tick.stop()
+        except Exception:
+            pass
     await healthbeat.stop()
     await close_redis()
     log.info("gateway_shutdown")

@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # 크레온 이벤트 리스너 (API/scheduler 역할에서만 기동, worker는 별도 기동)
     listener_task = None
+    realtime_dispatcher = None
     if settings.SERVICE_ROLE in ("api", "scheduler"):
         try:
             from app.integrations.creon.event_listener import get_event_listener
@@ -57,10 +58,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception as e:
             log.warning("event_listener_start_failed", error=str(e))
 
+        # 실시간 WebSocket 디스패처 (api 역할에서만 의미 있음)
+        if settings.SERVICE_ROLE == "api":
+            try:
+                from app.integrations.creon.realtime_dispatcher import (
+                    get_realtime_dispatcher,
+                )
+                realtime_dispatcher = get_realtime_dispatcher()
+                await realtime_dispatcher.start()
+            except Exception as e:
+                log.warning("realtime_dispatcher_start_failed", error=str(e))
+
     yield
 
     # 종료 정리
     log.info("app_shutdown")
+    try:
+        if realtime_dispatcher:
+            await realtime_dispatcher.stop()
+    except Exception:
+        pass
     try:
         if listener_task:
             await listener_task.stop()
@@ -151,6 +168,10 @@ def create_app() -> FastAPI:
     v1_router = APIRouter(prefix=settings.API_V1_PREFIX)
     register_v1_routers(v1_router)
     app.include_router(v1_router)
+
+    # WebSocket 라우터 (/ws/market, /ws/account, /ws/notifications)
+    from app.api.websocket import register_websocket_routes
+    register_websocket_routes(app)
 
     return app
 

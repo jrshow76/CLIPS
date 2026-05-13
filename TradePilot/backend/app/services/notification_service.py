@@ -1,13 +1,20 @@
-"""알림 서비스."""
+"""알림 서비스.
+
+DB 영속화 + 실시간 WebSocket 푸시(Redis Pub/Sub) 책임.
+``notify_user``를 통해 호출하면 ``tp:notifications.<user_public_id>`` 채널에
+publish 되어 백엔드의 RealtimeDispatcher가 ``/ws/notifications`` 구독자에게 전달한다.
+"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
+import orjson
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AppException
+from app.core.redis_client import get_redis
 from app.models.notification import Notification, NotificationChannel
 from app.repositories.notification_repository import (
     NotificationChannelRepository,
@@ -15,6 +22,9 @@ from app.repositories.notification_repository import (
 )
 
 log = structlog.get_logger(__name__)
+
+
+Severity = Literal["INFO", "WARN", "CRITICAL", "SUCCESS"]
 
 
 class NotificationService:
@@ -69,6 +79,66 @@ class NotificationService:
         await self.db.commit()
         await self.db.refresh(ch)
         return ch
+
+    # ------------------------------------------------------------------
+    # 실시간 푸시 (DB 저장 + Redis publish)
+    # ------------------------------------------------------------------
+    async def notify_user(
+        self,
+        *,
+        user_id: int,
+        user_public_id: str,
+        title: str,
+        body: str | None = None,
+        event_type: str = "SYSTEM",
+        severity: Severity = "INFO",
+        payload: dict[str, Any] | None = None,
+        persist: bool = True,
+    ) -> Notification | None:
+        """사용자 1명에게 알림 전송.
+
+        - ``persist=True``: ``notifications`` 테이블에 INAPP 행 저장
+        - ``user_public_id``: WebSocket 토큰 sub 클레임과 일치해야 라우팅됨
+        - Redis publish 실패는 로그만 남기고 무시 (DB 영속이 SoT)
+        """
+        noti: Notification | None = None
+        if persist:
+            noti = Notification(
+                user_id=user_id,
+                event_type=event_type,
+                priority="HIGH" if severity == "CRITICAL" else "NORMAL",
+                channel="INAPP",
+                title=title,
+                body=body or "",
+                payload=payload or {},
+                sent_at=datetime.now(tz=timezone.utc),
+            )
+            self.db.add(noti)
+            await self.db.commit()
+            await self.db.refresh(noti)
+
+        ws_payload = {
+            "user_id": user_public_id,
+            "notification_id": noti.id if noti else None,
+            "title": title,
+            "body": body,
+            "event_type": event_type,
+            "severity": severity,
+            "payload": payload or {},
+            "ts": datetime.now(tz=timezone.utc).isoformat(),
+        }
+        try:
+            await get_redis().publish(
+                f"tp:notifications.{user_public_id}",
+                orjson.dumps(ws_payload),
+            )
+        except Exception as e:
+            log.warning(
+                "notify_publish_failed",
+                user_public_id=user_public_id,
+                error=str(e),
+            )
+        return noti
 
     async def send_test(self, user_id: int, *, channel: str) -> dict[str, Any]:
         """테스트 알림 발송 (인앱은 DB 행 생성, EMAIL/TELEGRAM은 mock)."""
