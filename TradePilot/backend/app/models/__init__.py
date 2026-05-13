@@ -15,6 +15,7 @@ from app.models.user import (
 )
 from app.models.market import (
     CorporateAction,
+    MarketCalendar,
     MarketIndex,
     MarketIndexDaily,
     PriceDaily,
@@ -64,6 +65,7 @@ __all__ = [
     "CorporateAction",
     "MarketIndex",
     "MarketIndexDaily",
+    "MarketCalendar",
     # analysis
     "IndicatorDaily",
     "SectorMetricsDaily",

@@ -1,4 +1,8 @@
-"""시장 지수/캘린더 서비스."""
+"""시장 지수/캘린더 서비스.
+
+휴장일 데이터는 `tp_market.market_calendar` 테이블을 단일 소스로 사용한다.
+모든 휴장/영업일 판정은 `app.services.calendar_service.CalendarService` 로 위임한다.
+"""
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
@@ -10,31 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AppException
 from app.repositories.market_repository import MarketIndexRepository
+from app.services.calendar_service import CalendarService
 
 KST = ZoneInfo("Asia/Seoul")
-
-
-# 한국 증시 휴장일 (간이 데이터: 2026년 일부)
-KR_HOLIDAYS: dict[int, list[tuple[date, str]]] = {
-    2026: [
-        (date(2026, 1, 1), "신정"),
-        (date(2026, 2, 16), "설날 대체"),
-        (date(2026, 2, 17), "설날"),
-        (date(2026, 2, 18), "설날"),
-        (date(2026, 3, 1), "삼일절"),
-        (date(2026, 5, 5), "어린이날"),
-        (date(2026, 5, 25), "석가탄신일"),
-        (date(2026, 6, 6), "현충일"),
-        (date(2026, 8, 15), "광복절"),
-        (date(2026, 9, 24), "추석"),
-        (date(2026, 9, 25), "추석"),
-        (date(2026, 9, 26), "추석"),
-        (date(2026, 10, 3), "개천절"),
-        (date(2026, 10, 9), "한글날"),
-        (date(2026, 12, 25), "크리스마스"),
-        (date(2026, 12, 31), "연말 휴장"),
-    ]
-}
 
 
 class MarketService:
@@ -43,6 +25,7 @@ class MarketService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.repo = MarketIndexRepository(db)
+        self.calendar_svc = CalendarService(db)
 
     async def list_indices(self) -> list[dict[str, Any]]:
         idxs = await self.repo.list_all()
@@ -86,25 +69,30 @@ class MarketService:
             for r in rows
         ]
 
-    def market_status(self, *, ref: datetime | None = None) -> dict[str, Any]:
-        """현재 장 운영 상태.
+    async def market_status(self, *, ref: datetime | None = None) -> dict[str, Any]:
+        """현재 장 운영 상태 (KST).
 
         - 오전 09:00 ~ 15:30 KST: OPEN
         - 11:30 ~ 13:00 점심 BREAK 미적용 (코스피 단일가)
         - 08:00 ~ 09:00: PRE
         - 그 외: CLOSED
+        - 주말 또는 휴장일: CLOSED
         """
         now = ref or datetime.now(tz=KST)
         if now.tzinfo is None:
             now = now.replace(tzinfo=KST)
         today = now.date()
-        is_holiday = self._is_holiday(today) or now.weekday() >= 5
+
+        # 휴장 여부 (DB)
+        is_holiday_db = await self.calendar_svc.is_holiday(today)
+        is_weekend = now.weekday() >= 5
+        is_closed_today = is_holiday_db or is_weekend
 
         open_t = time(9, 0)
         close_t = time(15, 30)
         pre_t = time(8, 0)
 
-        if is_holiday:
+        if is_closed_today:
             session: str = "CLOSED"
         else:
             t = now.time()
@@ -115,33 +103,26 @@ class MarketService:
             else:
                 session = "CLOSED"
 
-        next_open = self._next_open(today, now)
-        return {"session": session, "next_open": next_open, "holiday": is_holiday}
+        next_open = await self._next_open(today, now)
+        return {"session": session, "next_open": next_open, "holiday": is_holiday_db}
 
-    def calendar(self, year: int) -> list[dict[str, Any]]:
+    async def calendar(self, year: int) -> list[dict[str, Any]]:
         """연간 휴장일 캘린더."""
-        if year not in KR_HOLIDAYS:
-            return []
-        items = [
-            {"date": d, "is_open": False, "name": name}
-            for d, name in KR_HOLIDAYS[year]
+        holidays = await self.calendar_svc.get_holidays(year)
+        return [
+            {"date": h.date, "is_open": False, "name": h.name}
+            for h in holidays
         ]
-        return items
 
-    def _is_holiday(self, d: date) -> bool:
-        return any(h[0] == d for h in KR_HOLIDAYS.get(d.year, []))
-
-    def _next_open(self, today: date, now: datetime) -> datetime | None:
+    async def _next_open(self, today: date, now: datetime) -> datetime | None:
         """다음 개장 시각 KST."""
-        candidate = today
-        # 오늘 장 시작 전이면 오늘 09:00
-        if not (self._is_holiday(candidate) or candidate.weekday() >= 5):
+        # 오늘이 영업일이고 장 시작 전이면 오늘 09:00
+        if await self.calendar_svc.is_business_day(today):
             if now.time() < time(9, 0):
-                return datetime.combine(candidate, time(9, 0), tzinfo=KST)
-        # 다음 영업일
-        for _ in range(1, 15):
-            candidate = candidate + timedelta(days=1)
-            if self._is_holiday(candidate) or candidate.weekday() >= 5:
-                continue
-            return datetime.combine(candidate, time(9, 0), tzinfo=KST)
-        return None
+                return datetime.combine(today, time(9, 0), tzinfo=KST)
+        # 다음 영업일 09:00
+        try:
+            nxt = await self.calendar_svc.next_business_day(today)
+        except AppException:
+            return None
+        return datetime.combine(nxt, time(9, 0), tzinfo=KST)

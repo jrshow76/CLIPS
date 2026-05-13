@@ -184,3 +184,38 @@ class MarketIndexDaily(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class MarketCalendar(Base):
+    """시장 휴장일 캘린더 (KRX/NYSE 등 확장 대비).
+
+    DDL: `database/init/16_calendar_seed.sql`,
+         `database/migrations/2026_05_add_market_calendar.sql`
+
+    holiday_type:
+        - REGULAR    : 법정/정기 공휴일 (신정, 설날, 추석, 광복절 등)
+        - TEMPORARY  : 임시 휴장 (선거일, 임시 공휴일 등)
+        - SUBSTITUTE : 대체 공휴일
+
+    source:
+        - pykrx  : pykrx 라이브러리에서 자동 동기화
+        - manual : 운영자 수동 입력
+        - seed   : 초기 시드 데이터
+    """
+
+    __tablename__ = "market_calendar"
+    __table_args__ = {"schema": "tp_market"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    holiday_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True)
+    holiday_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    holiday_type: Mapped[str] = mapped_column(String(20), nullable=False, default="REGULAR")
+    market: Mapped[str] = mapped_column(String(10), nullable=False, default="KRX")
+    description: Mapped[str | None] = mapped_column(String)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="pykrx")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
