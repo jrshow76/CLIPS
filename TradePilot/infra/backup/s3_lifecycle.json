@@ -1,0 +1,104 @@
+{
+  "Comment": "TradePilot 백업 라이프사이클 정책 - 7일 STANDARD_IA → 30일 GLACIER → 365일 DEEP_ARCHIVE → 1년 후 만료. 월말 본은 별도 prefix(monthly/)로 1년 보관.",
+  "Rules": [
+    {
+      "ID": "tradepilot-full-backup-tiering",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "tradepilot/postgres/full/"
+      },
+      "Transitions": [
+        {
+          "Days": 7,
+          "StorageClass": "STANDARD_IA"
+        },
+        {
+          "Days": 30,
+          "StorageClass": "GLACIER"
+        },
+        {
+          "Days": 90,
+          "StorageClass": "DEEP_ARCHIVE"
+        }
+      ],
+      "Expiration": {
+        "Days": 365
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 30
+      }
+    },
+    {
+      "ID": "tradepilot-wal-archive-short-retention",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "tradepilot/postgres/wal/"
+      },
+      "Transitions": [
+        {
+          "Days": 3,
+          "StorageClass": "STANDARD_IA"
+        }
+      ],
+      "Expiration": {
+        "Days": 30
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    },
+    {
+      "ID": "tradepilot-logical-backup-retention",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "tradepilot/postgres/logical/"
+      },
+      "Transitions": [
+        {
+          "Days": 7,
+          "StorageClass": "STANDARD_IA"
+        },
+        {
+          "Days": 30,
+          "StorageClass": "GLACIER"
+        }
+      ],
+      "Expiration": {
+        "Days": 180
+      }
+    },
+    {
+      "ID": "tradepilot-monthly-archive-1year",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "tradepilot/postgres/monthly/"
+      },
+      "Transitions": [
+        {
+          "Days": 30,
+          "StorageClass": "GLACIER"
+        },
+        {
+          "Days": 90,
+          "StorageClass": "DEEP_ARCHIVE"
+        }
+      ],
+      "Expiration": {
+        "Days": 365
+      }
+    },
+    {
+      "ID": "tradepilot-drill-logs-shortlived",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "tradepilot/postgres/drill/"
+      },
+      "Expiration": {
+        "Days": 90
+      }
+    }
+  ]
+}

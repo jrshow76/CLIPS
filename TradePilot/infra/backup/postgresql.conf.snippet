@@ -1,0 +1,75 @@
+# =====================================================================
+# TradePilot PostgreSQL 백업/PITR/복제 관련 권장 설정 스니펫
+# 적용 위치: $PGDATA/postgresql.conf 의 끝에 추가
+#           또는 $PGDATA/conf.d/tradepilot-backup.conf 로 분리
+#
+# 적용 후 재시작 필요한 항목:
+#   - wal_level
+#   - max_wal_senders
+#   - archive_mode
+# 적용 후 reload 만으로 충분한 항목:
+#   - archive_command
+#   - archive_timeout
+#   - wal_keep_size
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# 1. WAL 레벨 (PITR + 스트리밍 복제)
+# ---------------------------------------------------------------------
+wal_level = replica            # logical 원하면 logical 로
+fsync = on
+synchronous_commit = on        # 금융 거래 데이터: off 금지
+full_page_writes = on
+wal_compression = on           # WAL 자체 압축 (PG14+ lz4 권장)
+
+# ---------------------------------------------------------------------
+# 2. 아카이빙 (PITR 핵심)
+# ---------------------------------------------------------------------
+archive_mode = on              # standby에서는 always 검토
+archive_command = '/opt/tradepilot/infra/backup/backup_wal.sh "%p" "%f"'
+archive_timeout = 300          # 5분 무변경 시에도 강제 스위치(RPO=5분 보장)
+
+# 실패 시 PostgreSQL 이 영원히 재시도 → archive_command 는 idempotent 보장 필수.
+# (backup_wal.sh 가 동일 파일 존재 시 cmp 후 0 반환하도록 구현되어 있음)
+
+# ---------------------------------------------------------------------
+# 3. 스트리밍 복제 대비
+# ---------------------------------------------------------------------
+max_wal_senders = 3            # 1=baseline, 1=replica, 1=spare
+wal_keep_size = 1GB            # archive 누락 대비 PG13+ (구버전: wal_keep_segments)
+hot_standby = on               # 추후 standby 추가 시
+hot_standby_feedback = on      # 쿼리 충돌 방지
+
+# ---------------------------------------------------------------------
+# 4. 체크포인트/WAL 튜닝 (시세 적재 대량 INSERT 부하 대응)
+# ---------------------------------------------------------------------
+checkpoint_timeout = 15min
+max_wal_size = 4GB
+min_wal_size = 1GB
+checkpoint_completion_target = 0.9
+
+# ---------------------------------------------------------------------
+# 5. 모니터링
+# ---------------------------------------------------------------------
+shared_preload_libraries = 'pg_stat_statements'
+pg_stat_statements.max = 10000
+pg_stat_statements.track = all
+log_min_duration_statement = 500    # 500ms 이상 슬로우쿼리 로그
+log_checkpoints = on
+log_lock_waits = on
+log_temp_files = 0
+
+# ---------------------------------------------------------------------
+# 6. Vacuum / Autovacuum (파티션 + Append-only 감사 테이블 대응)
+# ---------------------------------------------------------------------
+autovacuum = on
+autovacuum_naptime = 30s
+autovacuum_vacuum_scale_factor = 0.1
+autovacuum_analyze_scale_factor = 0.05
+
+# ---------------------------------------------------------------------
+# 7. 백업 사용자 전용 권장 (psql 로 적용)
+# ---------------------------------------------------------------------
+# CREATE ROLE backup_user LOGIN PASSWORD '...' REPLICATION;
+# GRANT pg_read_all_data, pg_read_all_settings, pg_read_all_stats TO backup_user;
+# (PG14+ pg_read_all_data 가 모든 DB의 모든 테이블 SELECT 가능)

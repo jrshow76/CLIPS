@@ -1,0 +1,219 @@
+# =============================================================================
+# TradePilot 프로덕션 오버레이
+# -----------------------------------------------------------------------------
+# 사용법:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# 또는 scripts/deploy/prod-up.sh
+#
+# 본 파일의 역할:
+#   1) nginx 리버스 프록시 추가 (TLS 종단, 80/443 노출)
+#   2) certbot 컨테이너 추가 (Let's Encrypt 발급/갱신)
+#   3) backend-api / frontend 의 호스트 포트 바인딩 제거 (내부망만)
+#   4) 컨테이너 healthcheck / restart 정책 강화
+#   5) postgres / redis 호스트 포트도 차단 (internal 전용)
+#
+# 주의:
+#   - docker-compose.yml 은 변경하지 말 것 (개발/스테이징과 공용)
+#   - 환경변수는 .env 또는 docker secret 사용
+#   - DOMAIN, ACME_EMAIL 은 .env 에 추가 권장
+# =============================================================================
+
+name: tradepilot
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # nginx - 단일 외부 진입점 (TLS 종단)
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tp-nginx
+    restart: unless-stopped
+    depends_on:
+      backend-api:
+        condition: service_started
+      frontend:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # nginx 설정
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+      - ./infra/nginx/html:/usr/share/nginx/html:ro
+
+      # Let's Encrypt 인증서 / ACME webroot (certbot과 공유)
+      - certbot-etc:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+
+      # 로그 (host에서 수집 가능)
+      - nginx-logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - tp-net
+    # 보안 강화 (선택)
+    # cap_drop: [ALL]
+    # cap_add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    # read_only: true
+    # tmpfs:
+    #   - /var/cache/nginx
+    #   - /var/run
+
+  # ---------------------------------------------------------------------------
+  # certbot - Let's Encrypt 자동 발급/갱신
+  # ---------------------------------------------------------------------------
+  # - up 시에는 idle (renew 데몬으로 동작)
+  # - 최초 발급은 init-letsencrypt.sh 가 별도 호출
+  # - 갱신은 renew.sh + cron 조합 권장 (이 컨테이너에서 12시간마다 시도도 옵션)
+  # ---------------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot:latest
+    container_name: tp-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+      - ./infra/letsencrypt:/scripts:ro
+    # 12시간마다 갱신 시도 (만료 30일 이내 인증서만 실제 갱신)
+    entrypoint: >
+      sh -c "trap exit TERM;
+             while :; do
+               certbot renew --webroot -w /var/www/certbot --quiet || true;
+               sleep 12h & wait $${!};
+             done"
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # backend-api 오버라이드: 호스트 포트 제거 → nginx 경유만 허용
+  # ---------------------------------------------------------------------------
+  backend-api:
+    ports: !reset []
+    expose:
+      - "8000"
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # 프록시 뒤에 있음을 백엔드에 알림 (FastAPI ProxyHeadersMiddleware)
+      FORWARDED_ALLOW_IPS: "*"
+      TRUSTED_PROXIES: "nginx"
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --workers
+      - "4"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "*"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # frontend 오버라이드: 호스트 포트 제거 → nginx 경유만 허용
+  # ---------------------------------------------------------------------------
+  frontend:
+    ports: !reset []
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      # 프론트엔드는 same-origin (nginx 경유) 으로 호출
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://tradepilot.example.com}
+      NEXT_PUBLIC_WS_BASE_URL:  ${NEXT_PUBLIC_WS_BASE_URL:-wss://tradepilot.example.com/ws}
+      NEXT_PUBLIC_APP_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # postgres 오버라이드: 호스트 포트 제거 (DB는 절대 외부 노출 금지)
+  # ---------------------------------------------------------------------------
+  postgres:
+    ports: !reset []
+    expose:
+      - "5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+
+  # ---------------------------------------------------------------------------
+  # redis 오버라이드: 호스트 포트 제거
+  # ---------------------------------------------------------------------------
+  redis:
+    ports: !reset []
+    expose:
+      - "6379"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # backend-worker / scheduler: 리소스 제한만 추가
+  # ---------------------------------------------------------------------------
+  backend-worker:
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  backend-scheduler:
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+# =============================================================================
+# 추가 볼륨 (nginx / certbot 공유)
+# =============================================================================
+volumes:
+  certbot-etc:
+    driver: local
+  certbot-www:
+    driver: local
+  nginx-logs:
+    driver: local
+
+# =============================================================================
+# Docker Secrets 권장 (선택, swarm 모드 또는 별도 도구 필요)
+# -----------------------------------------------------------------------------
+# secrets:
+#   jwt_secret:
+#     external: true
+#   aes_key:
+#     external: true
+#   creon_gateway_api_key:
+#     external: true
+#
+# services.backend-api.secrets:
+#   - jwt_secret
+#   - aes_key
+#   - creon_gateway_api_key
+# =============================================================================
