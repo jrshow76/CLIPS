@@ -1,26 +1,59 @@
+# Python 산출물
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.egg-info/
+*.egg
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 테스트 / 캐시
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
-.venv/
-venv/
+coverage*.xml
+reports/
+
+# 환경 변수 / 시크릿
 .env
 .env.*
 !.env.example
+
+# Git / IDE
 .git/
 .gitignore
+.gitattributes
 .idea/
 .vscode/
+
+# 문서 / 테스트 코드 (런타임 이미지에 불필요)
 tests/
 docs/
 README.md
 *.md
+
+# CI / 도커 메타
 Dockerfile
 .dockerignore
+.github/
+
+# 로그 / 임시
+*.log
+logs/
+tmp/
+*.tmp
+
+# 모델 산출물 (별도 마운트)
+models/
+*.joblib
+*.pt
+*.pth
+*.onnx

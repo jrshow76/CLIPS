@@ -1,0 +1,152 @@
+# TradePilot 컨테이너 이미지 빌드 & GHCR 푸시
+#
+# 목적: main 머지 시 backend / frontend 이미지를 빌드하여 GHCR 에 푸시한다.
+# 보호: production environment 승인 게이트 (수동 approve).
+# 트리거: main push (backend / frontend 변경) + 수동.
+
+name: tradepilot-build-images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "TradePilot/backend/**"
+      - "TradePilot/frontend/**"
+      - ".github/workflows/tradepilot-build-images.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "빌드 타깃 (backend/frontend/both)"
+        required: false
+        default: "both"
+
+concurrency:
+  group: tradepilot-build-images-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: jrshow76
+
+jobs:
+
+  build-and-push:
+    name: build & push (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # production 환경 승인 게이트.
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}/pkgs/container/tradepilot-${{ matrix.component }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: TradePilot/backend
+            dockerfile: TradePilot/backend/Dockerfile
+          - component: frontend
+            context: TradePilot/frontend
+            dockerfile: TradePilot/frontend/Dockerfile
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 빌드 타깃 필터 (수동 dispatch)
+        id: filter
+        run: |
+          target="${{ github.event.inputs.target }}"
+          if [ -z "$target" ] || [ "$target" = "both" ] || [ "$target" = "${{ matrix.component }}" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: QEMU 설정
+        if: steps.filter.outputs.build == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: buildx 설정
+        if: steps.filter.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: GHCR 로그인
+        if: steps.filter.outputs.build == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # GHCR_TOKEN 비밀이 있으면 사용, 없으면 GITHUB_TOKEN fallback.
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: 메타데이터 / 태그 생성
+        if: steps.filter.outputs.build == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-${{ matrix.component }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 이미지 빌드 & 푸시
+        if: steps.filter.outputs.build == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=tradepilot-${{ matrix.component }}
+          cache-to: type=gha,scope=tradepilot-${{ matrix.component }},mode=max
+          provenance: true
+          sbom: true
+          # 멀티 아키텍처가 필요해지면 platforms: linux/amd64,linux/arm64 추가.
+
+      # SBOM (syft) 별도 생성하여 아티팩트로 첨부
+      - name: SBOM 생성 (syft)
+        if: steps.filter.outputs.build == 'true'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-${{ matrix.component }}:sha-${{ github.sha }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.component }}.spdx.json
+
+      - name: Trivy 이미지 스캔 (HIGH/CRITICAL)
+        if: steps.filter.outputs.build == 'true'
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-${{ matrix.component }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy-image-${{ matrix.component }}.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Trivy SARIF 업로드
+        if: steps.filter.outputs.build == 'true' && always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-${{ matrix.component }}.sarif
+          category: trivy-image-${{ matrix.component }}
+
+      - name: 빌드 산출물 업로드
+        if: steps.filter.outputs.build == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tradepilot-${{ matrix.component }}-build-meta
+          path: |
+            sbom-${{ matrix.component }}.spdx.json
+            trivy-image-${{ matrix.component }}.sarif
+          retention-days: 30

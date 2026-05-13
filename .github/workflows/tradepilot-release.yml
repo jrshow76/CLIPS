@@ -1,0 +1,190 @@
+# TradePilot 릴리스
+#
+# 트리거: tag push `tradepilot-v*.*.*`
+# 동작:
+#   1) 변경 로그 자동 생성 (이전 tradepilot-v 태그 ~ 현재)
+#   2) GitHub Release 발행
+#   3) 컨테이너 이미지 release 태그 푸시 (tradepilot-vX.Y.Z, latest)
+#   4) production environment 승인 게이트로 배포 보호
+
+name: tradepilot-release
+
+on:
+  push:
+    tags:
+      - "tradepilot-v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: jrshow76
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # 0) 메타데이터 추출 (버전, 이전 태그)
+  # ---------------------------------------------------------------------------
+  prepare:
+    name: 릴리스 메타 준비
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      previous_tag: ${{ steps.meta.outputs.previous_tag }}
+
+    steps:
+      - name: 소스 체크아웃 (전체 히스토리)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 버전 / 직전 태그 추출
+        id: meta
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#tradepilot-v}"
+          prev=$(git tag --list 'tradepilot-v*' --sort=-v:refname | grep -v "^${tag}$" | head -n 1 || true)
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${prev}" >> "$GITHUB_OUTPUT"
+          echo "이번 릴리스 = ${tag} (version=${version})"
+          echo "직전 태그   = ${prev:-(없음)}"
+
+  # ---------------------------------------------------------------------------
+  # 1) 이미지 release 태그 빌드/푸시 (production 승인 게이트)
+  # ---------------------------------------------------------------------------
+  publish-images:
+    name: 릴리스 이미지 (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: prepare
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: TradePilot/backend
+            dockerfile: TradePilot/backend/Dockerfile
+          - component: frontend
+            context: TradePilot/frontend
+            dockerfile: TradePilot/frontend/Dockerfile
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: QEMU 설정
+        uses: docker/setup-qemu-action@v3
+
+      - name: buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: GHCR 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: 메타데이터 / 태그 생성
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-${{ matrix.component }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=v${{ needs.prepare.outputs.version }}
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: 이미지 빌드 & 푸시 (release)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=tradepilot-${{ matrix.component }}
+          cache-to: type=gha,scope=tradepilot-${{ matrix.component }},mode=max
+          provenance: true
+          sbom: true
+
+      - name: SBOM 생성 (syft, release)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-${{ matrix.component }}:${{ github.ref_name }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.component }}-${{ github.ref_name }}.spdx.json
+
+      - name: SBOM 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.component }}-${{ github.ref_name }}
+          path: sbom-${{ matrix.component }}-${{ github.ref_name }}.spdx.json
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------
+  # 2) GitHub Release 작성 (변경 로그 자동 생성)
+  # ---------------------------------------------------------------------------
+  github-release:
+    name: GitHub Release 발행
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [prepare, publish-images]
+
+    steps:
+      - name: 소스 체크아웃 (전체 히스토리)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SBOM 아티팩트 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: 변경 로그 생성
+        id: changelog
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          prev="${{ needs.prepare.outputs.previous_tag }}"
+          mkdir -p release-artifacts
+          {
+            echo "# TradePilot ${tag}"
+            echo
+            if [ -n "$prev" ]; then
+              echo "## 변경 사항 (${prev} → ${tag})"
+              echo
+              git log "${prev}..${tag}" --pretty=format:'- %s (%h, @%an)' -- TradePilot
+            else
+              echo "## 변경 사항 (초기 릴리스)"
+              echo
+              git log "${tag}" --pretty=format:'- %s (%h, @%an)' -- TradePilot | head -n 200
+            fi
+            echo
+            echo
+            echo "## 이미지"
+            echo "- \`${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-backend:${tag}\`"
+            echo "- \`${{ env.REGISTRY }}/${{ env.OWNER }}/tradepilot-frontend:${tag}\`"
+          } > release-artifacts/CHANGELOG.md
+          echo "changelog_path=release-artifacts/CHANGELOG.md" >> "$GITHUB_OUTPUT"
+
+      - name: GitHub Release 생성
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: TradePilot ${{ github.ref_name }}
+          body_path: ${{ steps.changelog.outputs.changelog_path }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+          files: |
+            release-artifacts/**/*.spdx.json
+            release-artifacts/CHANGELOG.md

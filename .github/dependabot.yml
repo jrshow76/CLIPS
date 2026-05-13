@@ -1,0 +1,112 @@
+# Dependabot 설정
+#
+# - 주 1회 (월요일 오전 KST 기준) PR 생성
+# - TradePilot 영역만 모니터링 (워크스페이스 다른 프로젝트는 별도 관리)
+# - 보안 패치는 별도 흐름으로 즉시 PR 생성됨
+
+version: 2
+updates:
+
+  # ----- TradePilot/backend (pip) -----
+  - package-ecosystem: "pip"
+    directory: "/TradePilot/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "tradepilot/backend"
+    reviewers: []
+    commit-message:
+      prefix: "chore(backend)"
+      include: "scope"
+    groups:
+      backend-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ----- TradePilot/creon-gateway (pip) -----
+  - package-ecosystem: "pip"
+    directory: "/TradePilot/creon-gateway"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "tradepilot/creon-gateway"
+    commit-message:
+      prefix: "chore(gateway)"
+      include: "scope"
+    groups:
+      gateway-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ----- TradePilot/frontend (npm) -----
+  - package-ecosystem: "npm"
+    directory: "/TradePilot/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "tradepilot/frontend"
+    commit-message:
+      prefix: "chore(frontend)"
+      include: "scope"
+    groups:
+      frontend-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # next 메이저 버그픽스 검증이 별도로 필요하므로 메이저는 수동 PR.
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # ----- TradePilot/qa/e2e (npm) -----
+  - package-ecosystem: "npm"
+    directory: "/TradePilot/qa/e2e"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "tradepilot/qa"
+    commit-message:
+      prefix: "chore(e2e)"
+      include: "scope"
+
+  # ----- GitHub Actions -----
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"

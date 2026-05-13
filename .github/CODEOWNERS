@@ -1,0 +1,49 @@
+# 워크스페이스 코드 오너 (CODEOWNERS)
+#
+# 본 파일은 PR 시 자동 리뷰어 지정을 위한 가이드 placeholder 입니다.
+# 실제 GitHub 핸들로 교체한 뒤 main 브랜치 보호 규칙에서
+# "Require review from Code Owners" 를 활성화해 주세요.
+#
+# 형식: <경로 패턴>  <오너1> <오너2> ...
+# 패턴은 .gitignore 와 동일한 글로빙을 사용합니다.
+
+# ---------------------------------------------------------------------------
+# 워크스페이스 메타 (.github, CI 워크플로우)
+# - 변경 영향이 전체 프로젝트에 미치므로 DevLead 가 필수 리뷰.
+# ---------------------------------------------------------------------------
+.github/                                @org/tradepilot-devlead
+.github/workflows/                      @org/tradepilot-devlead
+
+# ---------------------------------------------------------------------------
+# TradePilot 프로젝트
+# ---------------------------------------------------------------------------
+
+# 백엔드 전체 - DevLead + BackendSenior 공동 리뷰
+TradePilot/backend/                     @org/tradepilot-devlead @org/tradepilot-backend-senior
+
+# 프론트엔드 전체 - DevLead + FrontendSenior 공동 리뷰
+TradePilot/frontend/                    @org/tradepilot-devlead @org/tradepilot-frontend-senior
+
+# Creon 게이트웨이 (윈도우 전용 어댑터) - BackendSenior 단독 가능
+TradePilot/creon-gateway/               @org/tradepilot-backend-senior
+
+# DB 마이그레이션 / 초기 스크립트 - DBA 필수 리뷰
+TradePilot/database/                    @org/tradepilot-dba @org/tradepilot-devlead
+TradePilot/backend/alembic/             @org/tradepilot-dba @org/tradepilot-backend-senior
+
+# QA 테스트 자산 - QA 책임
+TradePilot/qa/                          @org/tradepilot-qa
+
+# 트레이딩 정책 / 예외 정책 / 운영 런북 - PM + DevLead 동시 승인 (매매 안전성)
+TradePilot/docs/14_exception_policy.md  @org/tradepilot-pm @org/tradepilot-devlead
+TradePilot/docs/15_trading_policy.md    @org/tradepilot-pm @org/tradepilot-devlead
+TradePilot/docs/30_operations_runbook.md @org/tradepilot-pm @org/tradepilot-devlead
+
+# Dockerfile / docker-compose / 인프라 산출물 - DevLead
+TradePilot/docker-compose.yml           @org/tradepilot-devlead
+TradePilot/**/Dockerfile                @org/tradepilot-devlead
+
+# ---------------------------------------------------------------------------
+# 기타 워크스페이스 프로젝트는 본 CI 의 책임 범위가 아니므로 미지정.
+# 필요 시 각 팀이 별도 CODEOWNERS 라인을 추가합니다.
+# ---------------------------------------------------------------------------
