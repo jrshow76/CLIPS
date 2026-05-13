@@ -1,0 +1,54 @@
+# =====================================================================
+# TradePilot 백업 시스템 Crontab 샘플
+# 적용:
+#   crontab -u tradepilot -e   (또는 /etc/cron.d/tradepilot-backup 로 배치)
+#   /etc/cron.d/ 는 사용자 지정 컬럼이 추가됨 (`user` 자리)
+#
+# 시간대: 시스템 TZ가 Asia/Seoul 인지 확인 (timedatectl)
+#         또는 CRON_TZ 지시어로 강제
+# =====================================================================
+
+# 환경변수
+CRON_TZ=Asia/Seoul
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+BACKUP_ENV_FILE=/etc/tradepilot/.env.backup
+TRADEPILOT_BACKUP_DIR=/opt/tradepilot/infra/backup
+
+MAILTO=ops@tradepilot.com
+
+# ---------------------------------------------------------------------
+# 1. 매일 02:50 - 논리 백업 (글로벌 객체: ROLE/ACL)
+# ---------------------------------------------------------------------
+50 2 * * *  cd $TRADEPILOT_BACKUP_DIR && ./backup_logical.sh >> /var/log/tradepilot/backup.log 2>&1
+
+# ---------------------------------------------------------------------
+# 2. 매일 03:00 - PostgreSQL 풀백업 (pg_dump -Fc -Z9)
+# ---------------------------------------------------------------------
+0 3 * * *   cd $TRADEPILOT_BACKUP_DIR && ./backup_full.sh >> /var/log/tradepilot/backup.log 2>&1
+
+# ---------------------------------------------------------------------
+# 3. 매시 5분 - 보존 정책 적용 (오래된 백업 정리)
+# ---------------------------------------------------------------------
+5 * * * *   cd $TRADEPILOT_BACKUP_DIR && ./retention.sh >> /var/log/tradepilot/retention.log 2>&1
+
+# ---------------------------------------------------------------------
+# 4. 매주 일요일 04:00 - 복구 리허설 (자동)
+# ---------------------------------------------------------------------
+0 4 * * 0   cd $TRADEPILOT_BACKUP_DIR && ./restore_drill.sh >> /var/log/tradepilot/drill.log 2>&1
+
+# ---------------------------------------------------------------------
+# 5. 15분마다 - 백업 모니터링
+# ---------------------------------------------------------------------
+*/15 * * * * cd $TRADEPILOT_BACKUP_DIR && /usr/bin/python3 ./monitor.py >> /var/log/tradepilot/monitor.log 2>&1
+
+# ---------------------------------------------------------------------
+# 6. 매일 08:00 - 일일 헬스 리포트 (모니터링 결과 이메일)
+# ---------------------------------------------------------------------
+0 8 * * *   cd $TRADEPILOT_BACKUP_DIR && /usr/bin/python3 ./monitor.py --json | mail -s "[TradePilot] Daily Backup Report" $MAILTO
+
+# ---------------------------------------------------------------------
+# 참고: WAL 아카이빙은 archive_command 로 PostgreSQL 이 직접 호출.
+#   cron 등록 불필요. postgresql.conf 의:
+#     archive_command = '/opt/tradepilot/infra/backup/backup_wal.sh "%p" "%f"'
+# ---------------------------------------------------------------------

@@ -1,0 +1,51 @@
+# =====================================================================
+# TradePilot 풀백업 systemd 서비스 (cron 대안)
+# 파일: /etc/systemd/system/tradepilot-backup.service
+# 짝:   tradepilot-backup.timer
+# 활성화:
+#   sudo cp tradepilot-backup.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now tradepilot-backup.timer
+#   sudo systemctl list-timers | grep tradepilot
+# =====================================================================
+
+[Unit]
+Description=TradePilot PostgreSQL Full Backup
+Documentation=file:/opt/tradepilot/docs/42_backup_recovery_guide.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tradepilot
+Group=tradepilot
+EnvironmentFile=/etc/tradepilot/.env.backup
+WorkingDirectory=/opt/tradepilot/infra/backup
+ExecStart=/opt/tradepilot/infra/backup/backup_full.sh
+
+# 보안 강화
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backup/tradepilot /var/log/tradepilot
+
+# 리소스 제한 (백업이 운영 영향 최소화)
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+CPUQuota=80%
+
+# 로그 (journald)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradepilot-backup
+
+# 타임아웃 (4시간 — 풀백업 + S3 업로드 여유)
+TimeoutStartSec=14400
+
+# 실패 시 알림 (Type=oneshot은 OnFailure 사용)
+OnFailure=tradepilot-backup-alert@%n.service
+
+[Install]
+WantedBy=multi-user.target

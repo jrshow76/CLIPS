@@ -1,0 +1,21 @@
+# =====================================================================
+# TradePilot 백업 타이머 (매일 03:00 KST)
+# 파일: /etc/systemd/system/tradepilot-backup.timer
+# =====================================================================
+
+[Unit]
+Description=Daily TradePilot PostgreSQL Backup at 03:00 KST
+Documentation=file:/opt/tradepilot/docs/42_backup_recovery_guide.md
+
+[Timer]
+# 매일 03:00 (시스템 타임존 기준)
+OnCalendar=*-*-* 03:00:00
+# 부팅 시 누락된 실행 보충 (전일 미실행 시 즉시 실행)
+Persistent=true
+# 분산을 위한 무작위 지연 (다른 컨테이너와 충돌 회피)
+RandomizedDelaySec=60
+AccuracySec=30s
+Unit=tradepilot-backup.service
+
+[Install]
+WantedBy=timers.target

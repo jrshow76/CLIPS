@@ -1,0 +1,87 @@
+# =====================================================================
+# TradePilot 백업 사이드카 컨테이너
+# 파일: Dockerfile.backup
+# 베이스: postgres:15-alpine (pg_dump/pg_restore 정확히 동일 버전 보장)
+# 추가: aws-cli v2, rclone, gnupg, age, redis-cli, supercronic, python3
+#
+# 빌드:
+#   docker build -f Dockerfile.backup -t tradepilot/backup:dev .
+# 실행:
+#   docker compose -f docker-compose.backup.yml up -d
+# =====================================================================
+
+FROM postgres:15-alpine
+
+LABEL org.opencontainers.image.title="TradePilot Backup Sidecar"
+LABEL org.opencontainers.image.source="https://example.com/tradepilot"
+LABEL maintainer="DBA <dba@tradepilot.com>"
+
+# ---- 시스템 패키지 ---------------------------------------------------
+# - bash         : 스크립트 실행
+# - coreutils    : sha256sum, stat 등
+# - findutils    : find -mtime
+# - gnupg        : GPG 암호화
+# - rclone       : S3 호환 업로드
+# - aws-cli      : S3 직접
+# - redis-cli    : 알림 publish
+# - python3      : monitor.py
+# - jq           : JSON 처리
+# - tzdata       : 타임존
+# - supercronic : 컨테이너 친화 cron (alpine cron 보다 안정)
+RUN apk add --no-cache \
+        bash coreutils findutils \
+        gnupg \
+        rclone \
+        aws-cli \
+        redis \
+        python3 py3-pip \
+        jq \
+        tzdata \
+        curl ca-certificates \
+        gzip \
+        bats \
+    && cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+    && echo "Asia/Seoul" > /etc/timezone
+
+# ---- supercronic 설치 ------------------------------------------------
+ARG SUPERCRONIC_VERSION=v0.2.29
+ARG SUPERCRONIC_SHA1SUM=cd48d45c4b10f3f0bfdd3a57d054cd05ac96812b
+RUN curl -fsSLo /usr/local/bin/supercronic \
+        "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
+    && echo "${SUPERCRONIC_SHA1SUM}  /usr/local/bin/supercronic" | sha1sum -c - \
+    && chmod +x /usr/local/bin/supercronic
+
+# ---- age (선택, GPG 대체) -------------------------------------------
+# Alpine community repo 에 포함되어 있지 않을 수 있어 git release에서 받음.
+# RUN curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz \
+#       | tar -xz -C /tmp && mv /tmp/age/age* /usr/local/bin/
+
+# ---- 디렉토리 ---------------------------------------------------------
+RUN mkdir -p /opt/tradepilot/infra/backup \
+             /var/backup/tradepilot/{full,wal,logical,drill,log,.lock} \
+             /var/log/tradepilot \
+    && addgroup -S tradepilot 2>/dev/null || true \
+    && adduser  -S -G tradepilot -h /opt/tradepilot tradepilot 2>/dev/null || true \
+    && chown -R tradepilot:tradepilot /var/backup/tradepilot /var/log/tradepilot
+
+# ---- 스크립트 복사 (Build Context: infra/backup/) -------------------
+COPY --chown=tradepilot:tradepilot . /opt/tradepilot/infra/backup/
+RUN chmod +x /opt/tradepilot/infra/backup/*.sh \
+             /opt/tradepilot/infra/backup/monitor.py 2>/dev/null || true
+
+WORKDIR /opt/tradepilot/infra/backup
+
+# ---- 환경 ------------------------------------------------------------
+ENV TZ=Asia/Seoul \
+    BACKUP_LOCAL_DIR=/var/backup/tradepilot \
+    BACKUP_ENV_FILE=/etc/tradepilot/.env.backup \
+    PG_BIN=/usr/local/bin
+
+# ---- 헬스체크 (마지막 풀백업 마커 체크) ------------------------------
+HEALTHCHECK --interval=300s --timeout=10s --start-period=300s --retries=3 \
+    CMD python3 /opt/tradepilot/infra/backup/monitor.py --no-alert >/dev/null 2>&1 || exit 1
+
+# ---- 엔트리포인트 ----------------------------------------------------
+USER tradepilot
+ENTRYPOINT ["/opt/tradepilot/infra/backup/entrypoint.sh"]
+CMD ["cron"]

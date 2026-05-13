@@ -1,0 +1,16 @@
+# =====================================================================
+# TradePilot 복구 리허설 타이머 (매주 일요일 04:00 KST)
+# 파일: /etc/systemd/system/tradepilot-drill.timer
+# =====================================================================
+
+[Unit]
+Description=Weekly TradePilot Restore Drill at Sunday 04:00 KST
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=tradepilot-drill.service
+
+[Install]
+WantedBy=timers.target

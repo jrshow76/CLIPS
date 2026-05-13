@@ -1,0 +1,34 @@
+# =====================================================================
+# TradePilot 복구 리허설 systemd 서비스
+# 파일: /etc/systemd/system/tradepilot-drill.service
+# 짝:   tradepilot-drill.timer (매주 일요일 04:00)
+# =====================================================================
+
+[Unit]
+Description=TradePilot Weekly Restore Drill
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tradepilot
+Group=tradepilot
+EnvironmentFile=/etc/tradepilot/.env.backup
+WorkingDirectory=/opt/tradepilot/infra/backup
+ExecStart=/opt/tradepilot/infra/backup/restore_drill.sh
+
+PrivateTmp=true
+NoNewPrivileges=true
+Nice=15
+
+# 리허설은 더 길어질 수 있음 (6시간)
+TimeoutStartSec=21600
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradepilot-drill
+
+OnFailure=tradepilot-backup-alert@%n.service
+
+[Install]
+WantedBy=multi-user.target
