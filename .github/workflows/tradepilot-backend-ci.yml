@@ -1,0 +1,201 @@
+# TradePilot 백엔드 CI
+#
+# 목적: TradePilot/backend 와 TradePilot/creon-gateway 의 변경 시
+#       lint / 단위 / 통합 테스트를 자동 실행한다.
+#
+# 트리거: PR (open/sync/reopen) + main 브랜치 push 중 backend·gateway 경로 변경 시.
+
+name: tradepilot-backend-ci
+
+on:
+  pull_request:
+    paths:
+      - "TradePilot/backend/**"
+      - "TradePilot/creon-gateway/**"
+      - ".github/workflows/tradepilot-backend-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "TradePilot/backend/**"
+      - "TradePilot/creon-gateway/**"
+      - ".github/workflows/tradepilot-backend-ci.yml"
+  workflow_dispatch:
+
+# 동일 PR 의 새로운 push 가 들어오면 이전 실행 자동 취소.
+concurrency:
+  group: tradepilot-backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# 권한 최소화 원칙 (GHCR 푸시 X, 보안 점검 X).
+permissions:
+  contents: read
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # 1) backend: ruff + black + 단위 + 통합 테스트
+  # ---------------------------------------------------------------------------
+  backend-test:
+    name: backend (lint + unit + integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: tradepilot
+          POSTGRES_PASSWORD: tradepilot
+          POSTGRES_DB: tradepilot_test
+          TZ: Asia/Seoul
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tradepilot -d tradepilot_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: test
+      LOG_LEVEL: WARNING
+      JWT_SECRET: test-secret-test-secret-test-secret-test
+      AES_KEY: test-aes-key-32-byte-test-key-12
+      DATABASE_URL: postgresql+asyncpg://tradepilot:tradepilot@localhost:5432/tradepilot_test
+      REDIS_URL: redis://localhost:6379/0
+      REDIS_BROKER_URL: redis://localhost:6379/1
+      REDIS_RESULT_URL: redis://localhost:6379/2
+      CREON_GATEWAY_URL: http://localhost:9000
+      CREON_GATEWAY_API_KEY: test-gateway-key
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+    defaults:
+      run:
+        working-directory: TradePilot/backend
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정 (${{ matrix.python-version }})
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: pip 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-backend-${{ matrix.python-version }}-${{ hashFiles('TradePilot/backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-backend-${{ matrix.python-version }}-
+
+      - name: 의존성 설치 (editable + dev)
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e ".[dev]"
+
+      - name: ruff 린트
+        run: ruff check app tests
+
+      - name: black 포맷 검사
+        run: black --check app tests
+
+      - name: 서비스 컨테이너 헬스 대기
+        run: bash ../scripts/ci/wait-for.sh localhost 5432 60 && bash ../scripts/ci/wait-for.sh localhost 6379 60
+
+      - name: 단위 테스트 실행
+        run: pytest tests/unit -m "not integration and not slow" --cov=app --cov-report=xml:coverage-unit.xml --junitxml=reports/junit-unit.xml
+
+      - name: 통합 테스트 실행 (DB/Redis 필요)
+        run: pytest tests/integration -m "integration or not slow" --cov=app --cov-append --cov-report=xml:coverage-integration.xml --junitxml=reports/junit-integration.xml
+        env:
+          # 통합 테스트 실패가 잦은 외부 의존(creon e2e) 은 별도 마커 필요 시 -m 으로 차단.
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "0"
+
+      - name: QA 회귀 테스트 실행 (idempotency / kill-switch / 한도)
+        run: pytest tests/qa --junitxml=reports/junit-qa.xml
+
+      - name: 커버리지 합산 리포트 출력
+        run: |
+          python -m pip install coverage
+          coverage combine || true
+          coverage report -m || true
+
+      - name: 테스트 리포트 업로드 (실패 시 디버깅용)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            TradePilot/backend/reports/
+            TradePilot/backend/coverage-*.xml
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # 2) creon-gateway: 단위 테스트 (Windows COM mock)
+  # ---------------------------------------------------------------------------
+  gateway-test:
+    name: creon-gateway (unit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: TradePilot/creon-gateway
+
+    env:
+      APP_ENV: test
+      LOG_LEVEL: WARNING
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정 (3.11)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-gateway-${{ hashFiles('TradePilot/creon-gateway/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-gateway-
+
+      - name: 의존성 설치 (Linux 환경 - pywin32 제외)
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          # Linux CI에서는 pywin32 미지원 -> windows extras 제외하고 설치.
+          pip install -e .
+          pip install pytest==8.1.* pytest-asyncio==0.23.*
+
+      - name: 게이트웨이 단위 테스트
+        run: pytest tests --junitxml=reports/junit.xml
+
+      - name: 게이트웨이 테스트 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-test-reports
+          path: TradePilot/creon-gateway/reports/
+          retention-days: 14

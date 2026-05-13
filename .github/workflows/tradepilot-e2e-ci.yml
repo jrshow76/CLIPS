@@ -1,0 +1,124 @@
+# TradePilot E2E (Playwright)
+#
+# 목적: 프런트엔드 mock 모드로 dev 서버를 띄우고 회귀 시나리오를 실행한다.
+# 트리거: frontend / qa/e2e 변경 PR + 수동 dispatch.
+
+name: tradepilot-e2e-ci
+
+on:
+  pull_request:
+    paths:
+      - "TradePilot/frontend/**"
+      - "TradePilot/qa/e2e/**"
+      - ".github/workflows/tradepilot-e2e-ci.yml"
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Playwright project (chromium/firefox/webkit/mobile-chromium 등). 비우면 전체."
+        required: false
+        default: ""
+
+concurrency:
+  group: tradepilot-e2e-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  playwright:
+    name: e2e (playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NEXT_PUBLIC_USE_MOCK: "true"
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000/api/v1"
+      NEXT_PUBLIC_WS_BASE_URL: "ws://localhost:8000/ws"
+      NEXT_PUBLIC_APP_ENV: "ci"
+      NEXT_TELEMETRY_DISABLED: "1"
+      E2E_BASE_URL: "http://localhost:3000"
+      CI: "true"
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node 설정 (20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            TradePilot/frontend/package-lock.json
+            TradePilot/qa/e2e/package-lock.json
+
+      - name: 프론트엔드 의존성 설치
+        working-directory: TradePilot/frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: 프론트엔드 프로덕션 빌드
+        working-directory: TradePilot/frontend
+        run: npm run build
+
+      - name: E2E 의존성 설치
+        working-directory: TradePilot/qa/e2e
+        run: |
+          # qa/e2e 에는 lock 파일이 없을 수 있으므로 npm install 사용.
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Playwright 브라우저 캐시
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('TradePilot/qa/e2e/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Playwright 브라우저 + OS 의존성 설치
+        working-directory: TradePilot/qa/e2e
+        run: npx playwright install --with-deps
+
+      - name: 프론트엔드 dev 서버 백그라운드 기동 (mock)
+        working-directory: TradePilot/frontend
+        run: |
+          # 빌드 산출물로 next start 기동 (port 3000).
+          nohup npm run start > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+
+      - name: 프론트엔드 헬스 대기
+        run: bash TradePilot/scripts/ci/wait-for.sh localhost 3000 90
+
+      - name: Playwright 실행
+        working-directory: TradePilot/qa/e2e
+        run: |
+          if [ -n "${{ github.event.inputs.project }}" ]; then
+            npx playwright test --project="${{ github.event.inputs.project }}" --reporter=github,list,html,junit
+          else
+            npx playwright test --reporter=github,list,html,junit
+          fi
+
+      - name: 프론트엔드 dev 서버 정리
+        if: always()
+        run: |
+          if [ -f /tmp/frontend.pid ]; then
+            kill "$(cat /tmp/frontend.pid)" 2>/dev/null || true
+          fi
+          tail -n 200 /tmp/frontend.log 2>/dev/null || true
+
+      - name: 실패 시 trace / report 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            TradePilot/qa/e2e/playwright-report/
+            TradePilot/qa/e2e/reports/
+            TradePilot/qa/e2e/test-results/
+          retention-days: 14

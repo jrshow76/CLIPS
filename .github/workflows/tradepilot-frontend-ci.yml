@@ -1,0 +1,84 @@
+# TradePilot 프론트엔드 CI
+#
+# 목적: TradePilot/frontend 변경 시 lint / 타입체크 / Next.js 빌드 자동 실행.
+# 트리거: PR + main push (frontend 경로 한정).
+
+name: tradepilot-frontend-ci
+
+on:
+  pull_request:
+    paths:
+      - "TradePilot/frontend/**"
+      - ".github/workflows/tradepilot-frontend-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "TradePilot/frontend/**"
+      - ".github/workflows/tradepilot-frontend-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: tradepilot-frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  frontend-build:
+    name: frontend (lint + type-check + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: TradePilot/frontend
+
+    env:
+      # Mock 모드로 빌드해 백엔드 의존 없이 페이지 prerender 가능하게 한다.
+      NEXT_PUBLIC_USE_MOCK: "true"
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000/api/v1"
+      NEXT_PUBLIC_WS_BASE_URL: "ws://localhost:8000/ws"
+      NEXT_PUBLIC_APP_ENV: "ci"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node 설정 (20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: TradePilot/frontend/package-lock.json
+
+      - name: 의존성 설치 (npm ci)
+        run: npm ci --no-audit --no-fund
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript 타입 체크
+        run: npx tsc --noEmit
+
+      - name: Next.js 프로덕션 빌드
+        run: npm run build
+
+      - name: 빌드 산출물 메타 수집
+        if: always()
+        run: |
+          mkdir -p build-report
+          du -sh .next 2>/dev/null | tee build-report/next-size.txt || true
+          ls -la .next 2>/dev/null | tee build-report/next-listing.txt || true
+          [ -f BUILD_REPORT.md ] && cp BUILD_REPORT.md build-report/ || true
+
+      - name: 빌드 리포트 아티팩트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-report
+          path: TradePilot/frontend/build-report/
+          retention-days: 14

@@ -1,0 +1,134 @@
+# TradePilot 보안 스캔
+#
+# 목적:
+#   - 의존성 취약점 (pip-audit / npm audit) 점검
+#   - 컨테이너 / 파일시스템 취약점 (Trivy)
+#   - 비밀키 노출 (Gitleaks)
+#
+# 트리거:
+#   - 매주 월요일 09:00 UTC 정기 스캔 (서울 18:00)
+#   - 수동 dispatch
+#   - TradePilot 경로 변경 PR (가벼운 검증용)
+
+name: tradepilot-security
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "TradePilot/**"
+      - ".github/workflows/tradepilot-security.yml"
+
+concurrency:
+  group: tradepilot-security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # 1) 의존성 스캔
+  # ---------------------------------------------------------------------------
+  dependency-scan:
+    name: 의존성 취약점 (pip / npm / fs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정 (3.11)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Node 설정 (20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: TradePilot/frontend/package-lock.json
+
+      # ----- Backend (pip) -----
+      - name: pip-audit 설치
+        run: pip install pip-audit==2.7.*
+
+      - name: pip-audit (TradePilot/backend)
+        working-directory: TradePilot/backend
+        # JSON 출력은 항상 생성, 실패는 경고로만 처리해 정기 스캔이 깨지지 않게 함.
+        continue-on-error: true
+        run: |
+          pip install -e .
+          pip-audit --strict --format json --output ../../pip-audit-backend.json || true
+
+      - name: pip-audit (TradePilot/creon-gateway)
+        working-directory: TradePilot/creon-gateway
+        continue-on-error: true
+        run: |
+          pip install -e .
+          pip-audit --strict --format json --output ../../pip-audit-gateway.json || true
+
+      # ----- Frontend (npm) -----
+      - name: npm audit (frontend)
+        working-directory: TradePilot/frontend
+        continue-on-error: true
+        run: |
+          npm ci --no-audit --no-fund
+          npm audit --audit-level=moderate --json > ../../npm-audit-frontend.json || true
+
+      # ----- 파일시스템 (Trivy) -----
+      - name: Trivy 파일시스템 스캔 (TradePilot)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          scan-ref: TradePilot
+          format: sarif
+          output: trivy-tradepilot.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Trivy SARIF 업로드 (Code Scanning)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-tradepilot.sarif
+          category: trivy-tradepilot
+
+      - name: 보안 리포트 아티팩트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tradepilot-dependency-scan
+          path: |
+            pip-audit-backend.json
+            pip-audit-gateway.json
+            npm-audit-frontend.json
+            trivy-tradepilot.sarif
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 2) Secret 스캔
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: 시크릿 노출 점검 (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 소스 체크아웃 (전체 히스토리)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks 실행
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+          GITLEAKS_ENABLE_SUMMARY: "true"
