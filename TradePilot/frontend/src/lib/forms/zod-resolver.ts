@@ -12,9 +12,12 @@ export function zodResolver<TIn extends FieldValues, TOut extends FieldValues = 
   return async (values) => {
     const result = schema.safeParse(values);
     if (result.success) {
-      return { values: result.data as TOut, errors: {} };
+      return { values: result.data as TOut, errors: {} as Record<string, never> };
     }
-    return { values: {} as TOut, errors: toRhfErrors<TIn>(result.error) };
+    return {
+      values: {} as Record<string, never>,
+      errors: toRhfErrors<TIn>(result.error),
+    };
   };
 }
 

@@ -16,7 +16,7 @@ export interface TradeFilter {
 
 export function useTrades(filter?: TradeFilter) {
   return useQuery<MockTrade[]>({
-    queryKey: queryKeys.trades.list(filter),
+    queryKey: queryKeys.trades.list(filter as Record<string, unknown> | undefined),
     queryFn: async () => {
       if (USE_MOCK) {
         let list = mockTrades;

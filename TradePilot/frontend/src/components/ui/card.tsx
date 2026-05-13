@@ -22,7 +22,7 @@ export function Card({ compact, ghost, as = 'section', className, children, ...r
   );
 }
 
-interface SectionProps extends HTMLAttributes<HTMLDivElement> {
+interface SectionProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   title?: ReactNode;
   subtitle?: ReactNode;
   right?: ReactNode;

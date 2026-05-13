@@ -23,6 +23,14 @@ import type { ApiResponse, ApiSuccess, TradeMode } from '@/types/api';
  */
 
 declare module 'axios' {
+  export interface AxiosRequestConfig {
+    /** X-Trade-Mode 헤더 자동 주입 여부 (주문/모드 API) */
+    requireTradeMode?: boolean;
+    /** 멱등성 키 자동 발급 (POST /orders 등) */
+    idempotent?: boolean;
+    /** 401 재시도 락 */
+    __retried?: boolean;
+  }
   export interface InternalAxiosRequestConfig {
     /** X-Trade-Mode 헤더 자동 주입 여부 (주문/모드 API) */
     requireTradeMode?: boolean;
