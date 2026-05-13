@@ -1,0 +1,20 @@
+# =====================================================================
+# TradePilot 백업 컨테이너용 supercronic crontab
+# 형식: 표준 cron (사용자 컬럼 없음)
+# 시간대: 컨테이너 TZ=Asia/Seoul
+# =====================================================================
+
+# 매일 02:50 - 논리 백업 (글로벌 객체)
+50 2 * * *  /opt/tradepilot/infra/backup/backup_logical.sh
+
+# 매일 03:00 - 풀백업
+0 3 * * *   /opt/tradepilot/infra/backup/backup_full.sh
+
+# 매시 5분 - 보존 정책
+5 * * * *   /opt/tradepilot/infra/backup/retention.sh
+
+# 매주 일요일 04:00 - 복구 리허설
+0 4 * * 0   /opt/tradepilot/infra/backup/restore_drill.sh
+
+# 15분마다 - 모니터링
+*/15 * * * * /usr/bin/python3 /opt/tradepilot/infra/backup/monitor.py

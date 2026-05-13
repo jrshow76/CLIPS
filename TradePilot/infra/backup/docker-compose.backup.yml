@@ -1,0 +1,78 @@
+# =====================================================================
+# TradePilot 백업 사이드카 docker-compose
+# 파일: docker-compose.backup.yml
+# 사용:
+#   # 메인 compose 와 함께 (네트워크 공유)
+#   docker compose -f ../../docker-compose.yml -f docker-compose.backup.yml up -d
+#
+# 또는 독립 실행:
+#   docker compose -f docker-compose.backup.yml up -d
+#
+# 주의:
+#   - 메인 docker-compose.yml 의 네트워크 이름(tp-net)과 일치해야 함
+#   - .env.backup 은 컨테이너에 secret 으로 마운트
+#   - 백업 볼륨은 호스트 디스크에 영속 보관
+# =====================================================================
+
+name: tradepilot
+
+services:
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    image: tradepilot/backup:dev
+    container_name: tp-backup
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      BACKUP_LOCAL_DIR: /var/backup/tradepilot
+      BACKUP_ENV_FILE: /etc/tradepilot/.env.backup
+    volumes:
+      # 백업 영속 볼륨 (호스트 디스크)
+      - tp-backup-data:/var/backup/tradepilot
+      # 환경변수 secret (read-only)
+      - ./.env.backup:/etc/tradepilot/.env.backup:ro
+      # GPG 키링 (있을 때만)
+      - ${GPG_HOME:-./gnupg}:/home/tradepilot/.gnupg:ro
+      # 로그
+      - tp-backup-logs:/var/log/tradepilot
+    networks:
+      - tp-net
+    depends_on:
+      - postgres
+    # 백업 컨테이너는 운영 영향 최소화
+    cpus: 1.0
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "python3", "/opt/tradepilot/infra/backup/monitor.py", "--no-alert"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # 운영시 권장: 컨테이너 자체는 read_only, 백업 볼륨만 RW
+    # read_only: true
+    # tmpfs:
+    #   - /tmp:size=512m
+
+volumes:
+  tp-backup-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      # 호스트 절대경로 (운영에서는 LVM/RAID 디스크로 변경 권장)
+      device: /var/backup/tradepilot
+  tp-backup-logs:
+    driver: local
+
+networks:
+  tp-net:
+    external: true
+    name: tradepilot_tp-net
