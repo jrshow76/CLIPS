@@ -30,6 +30,7 @@ celery_app = Celery(
         "app.workers.tasks.ml_tasks",
         "app.workers.tasks.calendar_tasks",
         "app.workers.tasks.ingestion_tasks",
+        "app.workers.tasks.cleanup_tasks",
     ],
 )
 
@@ -61,6 +62,7 @@ celery_app.conf.update(
         "indicators.*": {"queue": "signals"},  # 시그널 큐 공용
         "calendar.*": {"queue": "default"},  # 캘린더 동기화 (저빈도)
         "ingestion.*": {"queue": "ingestion"},  # 시장 데이터 적재
+        "cleanup.*": {"queue": "default"},  # 정리 작업 (저빈도)
     },
     worker_max_tasks_per_child=500,
     broker_connection_retry_on_startup=True,
@@ -130,6 +132,22 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="23", minute="30"),
         "kwargs": {"months": 2},
         "options": {"queue": "ingestion"},
+    },
+    # ----------------------------------------------------------------------
+    # SEC-003(GATE-1): Kill Switch 부분 실패 재시도 — 5분 주기
+    # ----------------------------------------------------------------------
+    "orders-kill-switch-retry": {
+        "task": "orders.kill_switch_retry",
+        "schedule": crontab(minute="*/5"),
+        "options": {"queue": "orders"},
+    },
+    # ----------------------------------------------------------------------
+    # SEC-004(GATE-3): 만료된 refresh 세션 정리 — 매일 04:00 KST
+    # ----------------------------------------------------------------------
+    "cleanup-refresh-sessions": {
+        "task": "cleanup.refresh_sessions",
+        "schedule": crontab(hour="4", minute="0"),
+        "options": {"queue": "default"},
     },
 }
 

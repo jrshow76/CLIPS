@@ -4,7 +4,8 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -61,17 +62,50 @@ async def login(payload: LoginRequest, request: Request, db: AsyncSession = Depe
     )
 
 
-@router.post("/refresh", summary="액세스 토큰 갱신")
-async def refresh(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/refresh", summary="액세스 토큰 갱신 + Refresh 회전")
+async def refresh(
+    payload: RefreshRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """SEC-004(GATE-3): 매 호출마다 새 access + 새 refresh 발급.
+
+    기존 refresh는 즉시 폐기되며 회전 체인이 기록된다.
+    동일 refresh가 두 번 들어오면 replay로 간주되어 사용자 전 세션이 일괄 폐기된다.
+    """
     svc = AuthService(db)
-    access, ttl = await svc.refresh(payload.refresh_token)
-    return success_response(RefreshResponse(access_token=access, expires_in=ttl))
+    ua = request.headers.get("User-Agent")
+    ip = request.client.host if request.client else None
+    access, new_refresh, access_ttl, refresh_ttl = await svc.refresh(
+        payload.refresh_token, user_agent=ua, ip=ip
+    )
+    return success_response(
+        RefreshResponse(
+            access_token=access,
+            refresh_token=new_refresh,
+            expires_in=access_ttl,
+            refresh_expires_in=refresh_ttl,
+        )
+    )
+
+
+class _LogoutBody(BaseModel):
+    """선택적 refresh_token 전달용 (단일 세션 로그아웃)."""
+
+    refresh_token: str | None = None
 
 
 @router.post("/logout", summary="로그아웃")
-async def logout(user: CurrentUser, db: AsyncSession = Depends(get_db)):
+async def logout(
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+    body: _LogoutBody = Body(default_factory=_LogoutBody),
+):
+    """로그아웃.
+
+    SEC-004(GATE-3): refresh_token이 body로 전달되면 해당 jti만 폐기,
+    없으면 사용자의 모든 활성 세션 폐기 (기존 동작 유지).
+    """
     svc = AuthService(db)
-    await svc.logout(user.id)
+    await svc.logout(user.id, refresh_token=body.refresh_token)
     return success_response(LogoutResponse(logged_out=True))
 
 

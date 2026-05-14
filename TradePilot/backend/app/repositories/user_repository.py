@@ -105,6 +105,13 @@ class OtpRepository(BaseRepository[OtpCode]):
 
 
 class SessionRepository(BaseRepository[Session]):
+    """Refresh Token 세션 Repository.
+
+    SEC-004(GATE-3) 보강:
+    - jti 기반 조회/회전(rotate)/replay 탐지 메서드 추가.
+    - find_by_jti는 폐기/만료 여부와 무관하게 조회하여 호출자가 상태를 검사할 수 있게 한다.
+    """
+
     model = Session
 
     async def find_by_hash(self, token_hash: str) -> Session | None:
@@ -115,6 +122,22 @@ class SessionRepository(BaseRepository[Session]):
                 Session.expires_at > datetime.now(tz=timezone.utc),
             )
         )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
+    async def find_by_jti(self, jti: Any) -> Session | None:
+        """jti 기반 조회 (폐기/만료 여부 무관).
+
+        replay 탐지(이미 폐기된 jti가 다시 사용됨)를 위해 ``revoked_at``를
+        WHERE 조건에 포함하지 않는다.
+        """
+        from uuid import UUID
+
+        if isinstance(jti, str):
+            try:
+                jti = UUID(jti)
+            except ValueError:
+                return None
+        stmt = select(Session).where(Session.jti == jti).limit(1)
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
     async def revoke(self, session_id: int) -> None:
@@ -132,3 +155,34 @@ class SessionRepository(BaseRepository[Session]):
             .values(revoked_at=datetime.now(tz=timezone.utc))
         )
         await self.session.execute(stmt)
+
+    async def rotate(self, old_session: Session, new_jti: Any) -> None:
+        """기존 세션을 즉시 폐기하고 새 jti로의 회전 체인을 기록한다.
+
+        SEC-004(GATE-3): 호출자가 새 session 행을 ``add()``로 삽입한 직후/직전에
+        본 메서드를 호출하면 동일 트랜잭션 내에서 회전이 원자적으로 처리된다.
+        """
+        from uuid import UUID
+
+        if isinstance(new_jti, str):
+            new_jti = UUID(new_jti)
+        stmt = (
+            update(Session)
+            .where(Session.id == old_session.id)
+            .values(
+                revoked_at=datetime.now(tz=timezone.utc),
+                replaced_by_jti=new_jti,
+            )
+        )
+        await self.session.execute(stmt)
+
+    async def delete_expired(self, cutoff: datetime) -> int:
+        """expires_at < cutoff 인 행을 일괄 삭제.
+
+        주기적 정리(cleanup) 작업에서 호출. 반환값은 삭제된 행 수.
+        """
+        from sqlalchemy import delete as sql_delete
+
+        stmt = sql_delete(Session).where(Session.expires_at < cutoff)
+        result = await self.session.execute(stmt)
+        return int(result.rowcount or 0)

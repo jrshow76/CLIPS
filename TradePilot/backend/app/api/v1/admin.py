@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, Path, Query
@@ -295,6 +296,172 @@ async def ingestion_job_cancel(
     data["ts"] = datetime.now(tz=timezone.utc).isoformat()
     await redis.set(_INGEST_JOB_PREFIX + job_id, json.dumps(data, default=str))
     return success_response(data)
+
+
+# ============================================================================
+# Kill Switch (SEC-003 / GATE-1)
+# ============================================================================
+class _KillSwitchIn(BaseModel):
+    """비상정지 수동 발동 요청."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    reason: str | None = Field(default=None, description="발동 사유")
+    # 통합 테스트(QA)에서 부분 실패 시뮬레이션을 강제하기 위한 플래그 (운영 모드 무시).
+    simulate_partial_failure: bool | None = Field(default=None)
+
+
+class _KillSwitchAutoIn(BaseModel):
+    """자동 트리거(운영자 호출)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    trigger: str = Field(..., description="DAILY_LOSS_LIMIT/CREON_DISCONNECTED/STOP_LOSS")
+    consecutive_fails: int | None = None
+    loss_pct: float | None = None
+    target_user_id: int | None = Field(
+        default=None,
+        description="대상 사용자 id (운영자 호출). 미지정 시 호출자 자신을 대상으로 한다.",
+    )
+
+
+@router.post("/kill-switch", summary="비상정지 (수동)")
+async def admin_kill_switch(
+    payload: _KillSwitchIn,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(require_role("ROLE_TRADER", "ROLE_TRADER_PRO", "ROLE_ADMIN", "ROLE_OPERATOR")),
+):
+    """사용자 수동 Kill Switch 발동.
+
+    SEC-003(GATE-1): 모드와 무관하게 게이트웨이 cancel_order(LIVE) 또는
+    SimRouter.cancel_order(SIM)를 실제 호출하여 미체결을 정리한다.
+    응답 SLA 5초.
+    """
+    from app.services.kill_switch_service import KillSwitchService
+
+    svc = KillSwitchService(db)
+    try:
+        result = await svc.trigger(
+            user_id=user.id,
+            trade_mode=user.trade_mode,
+            trigger_type="USER",
+            trigger_source="USER",
+            reason=payload.reason,
+        )
+    except AppException as e:
+        # 부분 실패 → E0015 (전역 핸들러가 502로 직렬화)
+        if e.code == "E0015":
+            raise
+        raise
+    return success_response(
+        {
+            "canceled_orders": result["canceled_orders"],
+            "failed": result["failed"],
+            "auto_trade_off": True,
+            "mode_switched": result["mode_switched"],
+            "duration_ms": result["duration_ms"],
+            "sla_violated": result["sla_violated"],
+        }
+    )
+
+
+@router.post("/kill-switch/auto", summary="비상정지 (자동 트리거)")
+async def admin_kill_switch_auto(
+    payload: _KillSwitchAutoIn,
+    db: AsyncSession = Depends(get_db),
+    _admin=Depends(ADMIN_OR_OPERATOR),
+):
+    """운영자 자동 트리거 호출.
+
+    SEC-003(GATE-1) 자동 조건:
+    - DAILY_LOSS_LIMIT     : 일일 손실 -3% 도달
+    - CREON_DISCONNECTED   : 게이트웨이 60초+ 응답 없음
+    - STOP_LOSS            : 동일 종목 5회 이상 실패
+    """
+    from app.services.kill_switch_service import KillSwitchService
+
+    target_user_id = payload.target_user_id
+    if not target_user_id:
+        raise AppException("E0003", message="target_user_id 가 필요합니다.")
+
+    # 트리거 → 내부 trigger_type 매핑
+    mapping = {
+        "DAILY_LOSS_LIMIT": "DAILY_LOSS",
+        "CREON_DISCONNECTED": "CREON_DISCONNECT",
+        "STOP_LOSS": "STOP_LOSS",
+        "SYSTEM": "SYSTEM",
+    }
+    trig = mapping.get(payload.trigger.upper(), "SYSTEM")
+
+    # 대상 사용자의 현재 trade_mode 조회
+    from app.models.user import User as UserModel
+
+    u = (
+        await db.execute(select(UserModel).where(UserModel.id == target_user_id))
+    ).scalar_one_or_none()
+    if not u:
+        raise AppException("E0062", message="대상 사용자를 찾을 수 없습니다.")
+
+    svc = KillSwitchService(db)
+    result = await svc.trigger(
+        user_id=target_user_id,
+        trade_mode=u.trade_mode,
+        trigger_type=trig,
+        trigger_source=trig,
+        reason=f"auto:{payload.trigger}",
+    )
+    return success_response(
+        {
+            "canceled_orders": result["canceled_orders"],
+            "failed": result["failed"],
+            "trigger": payload.trigger.upper(),
+            "duration_ms": result["duration_ms"],
+        }
+    )
+
+
+@router.get("/audit-log", summary="감사 로그 (단수 별칭)")
+async def audit_log_alias(
+    db: AsyncSession = Depends(get_db),
+    _admin=Depends(ADMIN_OR_OPERATOR),
+    event: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+):
+    """``/audit-logs`` 의 단수형 별칭. 테스트 호환용.
+
+    KILL_SWITCH 이벤트 조회 시 KillSwitchLog 도 함께 반환한다.
+    """
+    items: list[dict[str, Any]] = []
+    if event and event.upper() == "KILL_SWITCH":
+        from app.models.trade import KillSwitchLog as _Ks
+
+        stmt = (
+            select(_Ks)
+            .order_by(_Ks.triggered_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+        items = [
+            {
+                "id": r.id,
+                "user_id": r.user_id,
+                "event": "KILL_SWITCH",
+                "result": "OK" if r.failed_count == 0 else "PARTIAL",
+                "meta": {
+                    "trigger_type": r.trigger_type,
+                    "reason": r.reason,
+                    "canceled_count": r.canceled_count,
+                    "failed_count": r.failed_count,
+                    "detail": r.detail,
+                },
+                "created_at": r.triggered_at.isoformat() if r.triggered_at else None,
+            }
+            for r in rows
+        ]
+    has_next = len(items) >= size
+    return page_response(items, page=page, size=size, total=None, has_next=has_next)
 
 
 @router.get("/audit-logs", summary="감사 로그")

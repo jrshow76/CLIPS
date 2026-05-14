@@ -131,9 +131,19 @@ class SimOrderRouter(OrderRouterPort):
         return result
 
     async def cancel_order(
-        self, order_id: int, broker_order_no: str | None, stock_code: str
+        self,
+        order_id: int,
+        broker_order_no: str | None,
+        stock_code: str,
+        *,
+        timeout_sec: float | None = None,
+        idempotency_key: str | None = None,
     ) -> OrderResult:
-        """SIM 모드 취소는 즉시 성공."""
+        """SIM 모드 취소는 즉시 성공.
+
+        ``timeout_sec`` / ``idempotency_key``는 시그니처 호환을 위해 받지만
+        in-memory 처리이므로 사용하지 않는다.
+        """
         return OrderResult(
             accepted=True,
             status="CANCELED",

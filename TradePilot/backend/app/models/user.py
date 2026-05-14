@@ -129,7 +129,14 @@ class OtpCode(Base):
 
 
 class Session(Base):
-    """JWT Refresh Token 세션."""
+    """JWT Refresh Token 세션.
+
+    SEC-004(GATE-3) 보강:
+    - ``jti``: refresh 토큰의 고유 식별자. 매 회전마다 새 값.
+    - ``replaced_by_jti``: 회전 체인 추적. 폐기된 세션이 어떤 jti로 대체되었는지 기록.
+    - ``device_id``: 멀티 디바이스 환경에서 회전 체인 분리에 사용 (선택).
+    - ``issued_at``: 토큰 최초 발급 시각.
+    """
 
     __tablename__ = "sessions"
     __table_args__ = {"schema": "tp_user"}
@@ -138,11 +145,16 @@ class Session(Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("tp_user.users.id", ondelete="CASCADE"), nullable=False
     )
+    # jti: 마이그레이션 적용 후에는 NOT NULL UNIQUE. 신규 발급은 항상 UUID 채움.
+    jti: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True, unique=True)
+    device_id: Mapped[str | None] = mapped_column(String(64))
     refresh_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     user_agent: Mapped[str | None] = mapped_column(String(255))
     ip_address: Mapped[str | None] = mapped_column(INET)
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    replaced_by_jti: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

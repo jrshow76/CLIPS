@@ -5,11 +5,17 @@
 - 부분 실패 시 502 E0015, 미처리 ID details (TP-KILL-006)
 - 자동 트리거(헬스체크 3회 실패) 시뮬 (TP-KILL-002)
 - 일일 손실 한도 도달 자동 발동 (TP-KILL-003)
+- **SEC-003(GATE-1)**: LIVE 모드에서 라우터의 cancel_order가 실제 호출됨 (TP-KILL-007/008)
+- **SEC-003(GATE-1)**: 5초 SLA 초과 시 부분결과 반환 + Redis publish (TP-KILL-009)
+- **SEC-003(GATE-1)**: 부분 실패 시 `last_kill_switch_attempt_at` 기록 (TP-KILL-010)
 """
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

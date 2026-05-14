@@ -107,6 +107,9 @@ class Order(Base):
     )
     filled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # SEC-003(GATE-1) — Kill Switch 게이트웨이 cancel_order 부분 실패 재시도용
+    last_kill_switch_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    kill_switch_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

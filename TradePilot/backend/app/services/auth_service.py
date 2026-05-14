@@ -17,6 +17,7 @@ from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
 from app.core.security import (
     create_jwt_token,
+    create_refresh_token_with_jti,
     generate_otp_code,
     hash_otp_code,
     hash_password,
@@ -119,20 +120,25 @@ class AuthService:
             role=user.role,
             trade_mode=user.trade_mode,
         )
-        refresh, refresh_ttl = create_jwt_token(
+        # SEC-004(GATE-3): refresh 토큰은 jti와 함께 발급하여 DB와 동기화한다.
+        refresh, refresh_jti, refresh_ttl = create_refresh_token_with_jti(
             subject=str(user.public_id),
-            token_type="refresh",
             role=user.role,
             trade_mode=user.trade_mode,
         )
 
-        # 세션 저장
+        # 세션 저장 (jti + issued_at 포함)
+        issued = datetime.now(tz=timezone.utc)
+        from uuid import UUID as _UUID
+
         sess = Session(
             user_id=user.id,
+            jti=_UUID(refresh_jti),
             refresh_token_hash=hash_refresh_token(refresh),
             user_agent=(user_agent or "")[:255] or None,
             ip_address=ip,
-            expires_at=datetime.now(tz=timezone.utc) + timedelta(seconds=refresh_ttl),
+            issued_at=issued,
+            expires_at=issued + timedelta(seconds=refresh_ttl),
         )
         await self.sessions.add(sess)
         await self.db.commit()
@@ -140,40 +146,87 @@ class AuthService:
         return user, access, refresh, access_ttl
 
     # ------------------------------------------------------------------
-    # Refresh (SEC-006: Token Rotation)
+    # Refresh (SEC-004 GATE-3: 완전 Token Rotation)
     # ------------------------------------------------------------------
-    async def refresh(self, refresh_token: str) -> tuple[str, int]:
-        """Access 토큰 재발급.
+    async def refresh(
+        self, refresh_token: str, user_agent: str | None = None, ip: str | None = None
+    ) -> tuple[str, str, int, int]:
+        """Refresh 토큰 회전 + Access 재발급.
 
-        SEC-006 보강:
-        - 동일 refresh_token이 재사용되면(이미 회수된 세션) 모든 세션 일괄 폐기.
-          → refresh token replay 공격(탈취 토큰 재사용) 탐지 시 강제 로그아웃.
-        - 본 메서드 자체는 access 토큰만 발급한다. refresh 토큰 자체의 회전은
-          상위 라우터에서 새 세션을 발급하는 식으로 확장 가능.
+        SEC-004(GATE-3) 완전 해소:
+        1. JWT 디코딩 → ``jti`` 클레임 추출.
+        2. DB에서 jti 조회.
+           - 미존재(legacy or 위조): 토큰 hash로 재시도 (마이그레이션 호환). 그래도 없으면 사용자 전 세션 폐기.
+           - 존재하지만 ``revoked_at IS NOT NULL``: **REPLAY 탐지** → 사용자 전 refresh 세션 일괄 폐기 +
+             Redis 보안 이벤트 publish (``tp:security.events``).
+           - 만료된 경우: E0053.
+        3. 정상 경로: 새 jti + 새 refresh + 새 access 발급. 기존 세션은 ``revoked_at + replaced_by_jti`` 갱신.
+        4. 클라이언트는 새 refresh 토큰을 보관하여 다음 회전에 사용.
+
+        반환: (access_token, new_refresh_token, access_ttl_sec, refresh_ttl_sec)
         """
+        from datetime import datetime, timezone
+        from uuid import UUID as _UUID
+
         from app.core.security import decode_jwt_token
 
         payload = decode_jwt_token(refresh_token, expected_type="refresh")
         public_id = payload.get("sub")
+        token_jti = payload.get("jti")
 
-        token_hash = hash_refresh_token(refresh_token)
-        sess = await self.sessions.find_by_hash(token_hash)
-        if not sess:
-            # 폐기된 토큰이 다시 사용됨 = 탈취 의심. user_id를 알 수 있으면 전 세션 폐기.
+        # 1) jti 기반 조회 (폐기/만료 무관)
+        sess: Session | None = None
+        if token_jti:
+            sess = await self.sessions.find_by_jti(token_jti)
+
+        # 1-a) jti가 미존재면 hash 기반 fallback (legacy 세션 호환).
+        if sess is None:
+            token_hash = hash_refresh_token(refresh_token)
+            from sqlalchemy import select as _select
+
+            stmt = _select(Session).where(Session.refresh_token_hash == token_hash).limit(1)
+            sess = (await self.db.execute(stmt)).scalar_one_or_none()
+
+        # 2) 세션 자체가 존재하지 않음 = 위조/legacy 만료 → 사용자 전 세션 폐기
+        if sess is None:
             if public_id:
                 user = await self.users.find_by_public_id(public_id)
                 if user:
                     log.warning(
-                        "refresh_token_replay_detected",
+                        "refresh_token_unknown",
                         user_id=user.id,
                         public_id=public_id,
+                        jti=token_jti,
                     )
                     await self.sessions.revoke_all_for_user(user.id)
+                    await self._publish_security_event(
+                        event_type="refresh_token_unknown",
+                        user_id=user.id,
+                        public_id=str(public_id),
+                        jti=token_jti,
+                    )
                     await self.db.commit()
             raise AppException("E0001", message="유효하지 않은 리프레시 토큰입니다.")
 
-        # 만료 검증
-        from datetime import datetime, timezone
+        # 3) 이미 폐기된 jti가 다시 들어옴 = REPLAY 탐지
+        if sess.revoked_at is not None:
+            log.warning(
+                "refresh_token_replay_detected",
+                user_id=sess.user_id,
+                session_id=sess.id,
+                jti=token_jti,
+            )
+            await self.sessions.revoke_all_for_user(sess.user_id)
+            await self._publish_security_event(
+                event_type="refresh_replay_detected",
+                user_id=sess.user_id,
+                public_id=str(public_id) if public_id else None,
+                jti=token_jti,
+            )
+            await self.db.commit()
+            raise AppException("E0001", message="리프레시 토큰 재사용이 감지되었습니다. 다시 로그인해주세요.")
+
+        # 4) 만료 검증
         if sess.expires_at and sess.expires_at < datetime.now(tz=timezone.utc):
             raise AppException("E0053", message="세션이 만료되었습니다.")
 
@@ -181,20 +234,95 @@ class AuthService:
         if not user:
             raise AppException("E0001")
 
-        access, ttl = create_jwt_token(
+        # 5) 새 refresh + access 발급 (회전)
+        new_refresh, new_jti, new_refresh_ttl = create_refresh_token_with_jti(
+            subject=str(user.public_id),
+            role=user.role,
+            trade_mode=user.trade_mode,
+        )
+        access, access_ttl = create_jwt_token(
             subject=str(user.public_id),
             token_type="access",
             role=user.role,
             trade_mode=user.trade_mode,
         )
-        return access, ttl
+
+        now = datetime.now(tz=timezone.utc)
+        new_sess = Session(
+            user_id=user.id,
+            jti=_UUID(new_jti),
+            refresh_token_hash=hash_refresh_token(new_refresh),
+            user_agent=(user_agent or sess.user_agent or "")[:255] or None,
+            ip_address=ip or (str(sess.ip_address) if sess.ip_address else None),
+            device_id=sess.device_id,
+            issued_at=now,
+            expires_at=now + timedelta(seconds=new_refresh_ttl),
+        )
+        await self.sessions.add(new_sess)
+        # 기존 세션 즉시 폐기 + 회전 체인 기록
+        await self.sessions.rotate(sess, new_jti)
+        await self.db.commit()
+
+        log.info(
+            "refresh_token_rotated",
+            user_id=user.id,
+            old_jti=str(sess.jti) if sess.jti else None,
+            new_jti=new_jti,
+        )
+        return access, new_refresh, access_ttl, new_refresh_ttl
+
+    async def _publish_security_event(
+        self,
+        *,
+        event_type: str,
+        user_id: int | None,
+        public_id: str | None = None,
+        jti: str | None = None,
+    ) -> None:
+        """보안 이벤트를 Redis ``tp:security.events`` 채널에 publish.
+
+        실패는 로그만 남기고 무시한다(인증 흐름 차단 방지).
+        """
+        try:
+            payload = {
+                "type": event_type,
+                "user_id": user_id,
+                "public_id": public_id,
+                "jti": jti,
+                "ts": datetime.now(tz=timezone.utc).isoformat(),
+            }
+            await get_redis().publish("tp:security.events", orjson.dumps(payload))
+        except Exception as e:
+            log.warning("security_event_publish_failed", event_type=event_type, error=str(e))
 
     # ------------------------------------------------------------------
     # 로그아웃
     # ------------------------------------------------------------------
-    async def logout(self, user_id: int) -> None:
+    async def logout(self, user_id: int, refresh_token: str | None = None) -> None:
+        """로그아웃.
+
+        SEC-004(GATE-3): refresh 토큰이 함께 전달되면 해당 jti만 폐기한다.
+        토큰이 없으면 사용자의 모든 활성 세션 폐기(기존 동작 유지).
+        """
+        if refresh_token:
+            from app.core.security import decode_jwt_token
+
+            try:
+                payload = decode_jwt_token(refresh_token, expected_type="refresh")
+                jti = payload.get("jti")
+                if jti:
+                    sess = await self.sessions.find_by_jti(jti)
+                    if sess and sess.revoked_at is None and sess.user_id == user_id:
+                        await self.sessions.revoke(sess.id)
+                        await self.db.commit()
+                        log.info("user_logout_session", user_id=user_id, jti=jti)
+                        return
+            except AppException:
+                # 토큰 손상/만료여도 user_id 기반 일괄 폐기로 fallback
+                pass
         await self.sessions.revoke_all_for_user(user_id)
         await self.db.commit()
+        log.info("user_logout_all", user_id=user_id)
 
     # ------------------------------------------------------------------
     # OTP

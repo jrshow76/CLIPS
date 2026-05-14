@@ -173,18 +173,19 @@ async def liquidate_all(
     mode: TradeModeDep,
     db: AsyncSession = Depends(get_db),
 ):
-    """비상정지 (Kill Switch). 활성 전략 OFF + 미체결 주문 취소 + (LIVE→SIM 강제)."""
+    """비상정지 (Kill Switch).
+
+    SEC-003(GATE-1): 라우터(SIM/LIVE)의 cancel_order를 실제 호출하여 미체결을
+    정리한다. LIVE 모드는 게이트웨이에 X-Idempotency-Key 포함 cancel_order 호출.
+    """
     svc = KillSwitchService(db)
-    try:
-        result = await svc.trigger(
-            user_id=user.id,
-            trade_mode=mode,
-            trigger_type="USER",
-            reason=payload.reason,
-        )
-    except Exception:
-        # KillSwitchService 가 E0015를 details와 함께 raise → 전역 핸들러가 처리
-        raise
+    result = await svc.trigger(
+        user_id=user.id,
+        trade_mode=mode,
+        trigger_type="USER",
+        trigger_source="USER",
+        reason=payload.reason,
+    )
     return success_response(
         LiquidateAllResponse(
             processed=result["canceled_orders"],

@@ -67,19 +67,36 @@ class CreonGatewayClient:
     # 저수준 호출
     # ------------------------------------------------------------------
     async def _request(
-        self, method: str, path: str, json: dict[str, Any] | None = None
+        self,
+        method: str,
+        path: str,
+        json: dict[str, Any] | None = None,
+        *,
+        timeout_sec: float | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
-        """게이트웨이 호출 + 에러 매핑."""
+        """게이트웨이 호출 + 에러 매핑.
+
+        SEC-003(GATE-1) 보강:
+        - ``timeout_sec`` 호출별 오버라이드: Kill Switch 같은 SLA가 엄격한 경로는 2초 등 짧게 설정.
+        - ``idempotency_key`` 호출별 헤더 주입 (X-Idempotency-Key): cancel_order 중복 호출 방지.
+        """
         client = await self._get_client()
         import structlog
         trace_id = structlog.contextvars.get_contextvars().get("trace_id", "")
+        extra_headers: dict[str, str] = {}
+        if trace_id:
+            extra_headers["X-Request-Id"] = str(trace_id)
+        if idempotency_key:
+            extra_headers["X-Idempotency-Key"] = idempotency_key
         try:
-            resp = await client.request(
-                method,
-                path,
-                json=json,
-                headers={"X-Request-Id": str(trace_id)} if trace_id else None,
-            )
+            kwargs: dict[str, Any] = {
+                "json": json,
+                "headers": extra_headers or None,
+            }
+            if timeout_sec is not None:
+                kwargs["timeout"] = httpx.Timeout(timeout_sec, connect=min(2.0, timeout_sec))
+            resp = await client.request(method, path, **kwargs)
         except httpx.TimeoutException as e:
             log.warning("creon_gateway_timeout", path=path, error=str(e))
             raise AppException("E0072", message="크레온 게이트웨이 응답 타임아웃") from e
@@ -137,8 +154,25 @@ class CreonGatewayClient:
         """주문 발주 → broker_order_no 반환."""
         return await self._request("POST", "/orders", json=payload)
 
-    async def cancel_order(self, order_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return await self._request("POST", f"/orders/{order_id}/cancel", json=payload)
+    async def cancel_order(
+        self,
+        order_id: str,
+        payload: dict[str, Any],
+        *,
+        timeout_sec: float | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """주문 취소 호출.
+
+        SEC-003(GATE-1): Kill Switch 경로는 ``timeout_sec=2.0`` + ``idempotency_key`` 권장.
+        """
+        return await self._request(
+            "POST",
+            f"/orders/{order_id}/cancel",
+            json=payload,
+            timeout_sec=timeout_sec,
+            idempotency_key=idempotency_key,
+        )
 
     async def liquidate_all(self, reason: str | None = None) -> dict[str, Any]:
         return await self._request("POST", "/orders/liquidate-all", json={"reason": reason})

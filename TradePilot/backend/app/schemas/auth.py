@@ -47,8 +47,12 @@ class RefreshRequest(BaseModel):
 
 
 class RefreshResponse(BaseModel):
+    """SEC-004(GATE-3): refresh 토큰 회전 후 새 access + refresh를 함께 반환."""
+
     access_token: str
-    expires_in: int
+    refresh_token: str
+    expires_in: int  # access TTL
+    refresh_expires_in: int | None = None  # refresh TTL
     token_type: str = "bearer"
 
 

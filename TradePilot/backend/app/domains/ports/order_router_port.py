@@ -58,9 +58,21 @@ class OrderRouterPort(ABC):
 
     @abstractmethod
     async def cancel_order(
-        self, order_id: int, broker_order_no: str | None, stock_code: str
+        self,
+        order_id: int,
+        broker_order_no: str | None,
+        stock_code: str,
+        *,
+        timeout_sec: float | None = None,
+        idempotency_key: str | None = None,
     ) -> OrderResult:
-        """주문 취소."""
+        """주문 취소.
+
+        SEC-003(GATE-1) 보강:
+        - ``timeout_sec``: 호출별 타임아웃 오버라이드 (None이면 클라이언트 기본).
+          Kill Switch는 2.0초로 강제하여 SLA 보장.
+        - ``idempotency_key``: 중복 발주 방지를 위한 X-Idempotency-Key 값.
+        """
 
     @abstractmethod
     async def get_order_status(

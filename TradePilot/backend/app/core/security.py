@@ -77,10 +77,16 @@ def create_jwt_token(
     role: str = "ROLE_TRADER",
     trade_mode: str = "SIM",
     extra_claims: dict[str, Any] | None = None,
+    jti: str | None = None,
 ) -> tuple[str, int]:
     """JWT 발급.
 
     반환: (token, expires_in_sec)
+
+    SEC-004(GATE-3) 보강:
+    - 호출자가 ``jti``를 지정할 수 있도록 파라미터 추가. 미지정 시 ``uuid4().hex``로 자동 생성.
+    - refresh 토큰 회전 시 호출자(AuthService)가 미리 생성한 jti를 DB 세션 행과 JWT 클레임 모두에
+      동일하게 박아 넣기 위함.
     """
     if token_type == "access":
         ttl = settings.JWT_ACCESS_TTL_SEC
@@ -95,13 +101,36 @@ def create_jwt_token(
         "trade_mode": trade_mode,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(seconds=ttl)).timestamp()),
-        "jti": uuid4().hex,
+        "jti": jti or uuid4().hex,
     }
     if extra_claims:
         payload.update(extra_claims)
 
     token = jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return token, ttl
+
+
+def create_refresh_token_with_jti(
+    subject: str,
+    role: str = "ROLE_TRADER",
+    trade_mode: str = "SIM",
+) -> tuple[str, str, int]:
+    """refresh 토큰을 jti와 함께 발급한다.
+
+    반환: (token, jti_hex, expires_in_sec)
+
+    SEC-004(GATE-3): refresh 토큰 회전 절차에서 호출. AuthService가 본 jti를
+    `sessions.jti` 컬럼에 그대로 저장하여 회전 체인 추적의 단일 키로 사용한다.
+    """
+    jti_value = uuid4().hex
+    token, ttl = create_jwt_token(
+        subject=subject,
+        token_type="refresh",
+        role=role,
+        trade_mode=trade_mode,
+        jti=jti_value,
+    )
+    return token, jti_value, ttl
 
 
 _ALLOWED_JWT_ALGORITHMS = ("HS256", "HS384", "HS512", "RS256", "RS384", "RS512")

@@ -59,8 +59,20 @@ class LiveOrderRouter(OrderRouterPort):
         )
 
     async def cancel_order(
-        self, order_id: int, broker_order_no: str | None, stock_code: str
+        self,
+        order_id: int,
+        broker_order_no: str | None,
+        stock_code: str,
+        *,
+        timeout_sec: float | None = None,
+        idempotency_key: str | None = None,
     ) -> OrderResult:
+        """주문 취소.
+
+        SEC-003(GATE-1) 보강:
+        - 호출별 ``timeout_sec`` 오버라이드 지원 (Kill Switch 경로는 2.0초 권장).
+        - ``idempotency_key`` 헤더 주입 (X-Idempotency-Key) — 부분 실패 재시도 중복 발주 방지.
+        """
         if not broker_order_no:
             return OrderResult(
                 accepted=False, status="REJECTED", reject_reason="broker_order_no 없음"
@@ -70,11 +82,15 @@ class LiveOrderRouter(OrderRouterPort):
             "live_order_cancel",
             order_id=order_id,
             broker_order_no=broker_order_no,
+            timeout_sec=timeout_sec,
+            idem=bool(idempotency_key),
         )
 
         resp = await self._client.cancel_order(
             str(order_id),
             payload={"broker_order_no": broker_order_no, "code": stock_code},
+            timeout_sec=timeout_sec,
+            idempotency_key=idempotency_key,
         )
         data = resp.get("data", {}) or {}
         return OrderResult(

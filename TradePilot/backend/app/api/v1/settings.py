@@ -99,7 +99,7 @@ async def update_limits(
 
 
 # ---------------------------------------------------------------------------
-# Kill Switch
+# Kill Switch (SEC-003 / GATE-1)
 # ---------------------------------------------------------------------------
 @router.post("/kill-switch", summary="비상정지")
 async def kill_switch(
@@ -108,18 +108,29 @@ async def kill_switch(
     mode: TradeModeDep,
     db: AsyncSession = Depends(get_db),
 ):
+    """비상정지 (Kill Switch).
+
+    SEC-003(GATE-1):
+    - 모드와 무관하게 라우터의 cancel_order를 호출하여 미체결을 정리한다.
+    - SLA 5초 보장. 초과 시 부분결과 반환 + `tp:gateway.killswitch_partial` 이벤트.
+    - 부분 실패 시 E0015 (502).
+    """
     svc = KillSwitchService(db)
-    try:
-        result = await svc.trigger(
-            user_id=user.id,
-            trade_mode=mode,
-            trigger_type="USER",
-            reason=payload.reason,
-        )
-    except Exception:
-        raise
+    result = await svc.trigger(
+        user_id=user.id,
+        trade_mode=mode,
+        trigger_type="USER",
+        trigger_source="USER",
+        reason=payload.reason,
+    )
     return success_response(
-        {"canceled_orders": result["canceled_orders"], "failed": result["failed"]}
+        {
+            "canceled_orders": result["canceled_orders"],
+            "failed": result["failed"],
+            "mode_switched": result["mode_switched"],
+            "duration_ms": result["duration_ms"],
+            "sla_violated": result["sla_violated"],
+        }
     )
 
 
