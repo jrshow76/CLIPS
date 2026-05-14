@@ -358,7 +358,7 @@ class MultiStockTrainResult:
 
 def train_sector_model(
     sector_code: str,
-    ohlcv_by_code: dict[str, "pd.DataFrame"],
+    ohlcv_by_code: dict[str, pd.DataFrame],
     config: MLConfig,
     *,
     progress_cb: Any = None,
@@ -386,7 +386,7 @@ def train_sector_model(
 
 
 def train_multistock_model(
-    ohlcv_by_code: dict[str, "pd.DataFrame"],
+    ohlcv_by_code: dict[str, pd.DataFrame],
     config: MLConfig,
     *,
     progress_cb: Any = None,
@@ -418,7 +418,7 @@ def _train_multi(
     *,
     kind: str,
     identifier: str,
-    ohlcv_by_code: dict[str, "pd.DataFrame"],
+    ohlcv_by_code: dict[str, pd.DataFrame],
     config: MLConfig,
     progress_cb: Any = None,
     model_dir_base: str | None = None,

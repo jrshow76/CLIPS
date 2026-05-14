@@ -461,13 +461,7 @@ def _model_comparison_sync(
     glo = _predict_global_probs(ohlcv, stock_code, horizon)
     if glo is not None:
         probs, key = glo
-        setattr(out, "global_", EnsembleContribution(
-            model_key=key,
-            prob_down=float(probs[0]),
-            prob_flat=float(probs[1]),
-            prob_up=float(probs[2]),
-            weight=0.0,
-        ))
+        out.global_ = EnsembleContribution(model_key=key, prob_down=float(probs[0]), prob_flat=float(probs[1]), prob_up=float(probs[2]), weight=0.0)
 
     # 앙상블도 계산
     try:

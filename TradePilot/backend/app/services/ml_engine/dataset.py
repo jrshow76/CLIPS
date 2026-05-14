@@ -425,7 +425,7 @@ def build_multistock_dataset_from_ohlcvs(
     # 라벨 분포 및 클래스 가중치
     weights = class_weights(np.concatenate([train_y_all, val_y_all]), num_classes=config.num_classes)
     label_dist = {
-        int(c): int(((train_y_all == c).sum() + (val_y_all == c).sum()))
+        int(c): int((train_y_all == c).sum() + (val_y_all == c).sum())
         for c in range(config.num_classes)
     }
     meta = {
