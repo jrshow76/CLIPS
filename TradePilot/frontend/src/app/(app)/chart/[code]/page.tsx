@@ -17,6 +17,7 @@ import { StatRow } from '@/components/ui/stat-row';
 import { Tabs } from '@/components/ui/tabs';
 import { IndicatorPanel } from '@/components/charts/IndicatorPanel';
 import { StockSearchInput } from '@/components/forms/StockSearchInput';
+import { OrderBook } from '@/components/orderbook/OrderBook';
 import { OrderModal } from '@/components/orders/OrderModal';
 import { useRealtimeTick } from '@/hooks/useRealtimeTick';
 import { useCandles, useQuote, useStockDetail } from '@/lib/api/queries/stocks';
@@ -108,7 +109,7 @@ export default function ChartPage() {
 
       <div
         className="grid"
-        style={{ gridTemplateColumns: '1fr 320px', gap: 'var(--space-4)', alignItems: 'flex-start' }}
+        style={{ gridTemplateColumns: '1fr 260px 320px', gap: 'var(--space-4)', alignItems: 'flex-start' }}
         data-grid="chart-layout"
       >
         {/* ===== 좌측: 차트 + 지표 ===== */}
@@ -169,6 +170,22 @@ export default function ChartPage() {
             </Card.Body>
           </Card>
         </div>
+
+        {/* ===== 중앙: 호가창 (Level 2) ===== */}
+        <Card data-area="orderbook">
+          <Card.Header
+            title="호가창"
+            subtitle="가격 클릭 시 주문에 적용"
+          />
+          <Card.Body className="p-0">
+            <OrderBook
+              stockCode={code}
+              onPriceClick={(p) => {
+                setPrice(p);
+              }}
+            />
+          </Card.Body>
+        </Card>
 
         {/* ===== 우측: 빠른 주문 패널 ===== */}
         <Card>
@@ -247,8 +264,23 @@ export default function ChartPage() {
       )}
 
       <style jsx>{`
+        /* 태블릿: 호가창 + 주문 패널만 우측 컬럼으로 합침 */
+        @media (max-width: 1280px) {
+          div[data-grid='chart-layout'] {
+            grid-template-columns: 1fr 320px !important;
+          }
+          div[data-grid='chart-layout'] [data-area='orderbook'] {
+            grid-column: 2;
+          }
+        }
+        /* 모바일: 단일 컬럼, 호가창은 차트 아래로 */
         @media (max-width: 1024px) {
-          div[data-grid='chart-layout'] { grid-template-columns: 1fr !important; }
+          div[data-grid='chart-layout'] {
+            grid-template-columns: 1fr !important;
+          }
+          div[data-grid='chart-layout'] [data-area='orderbook'] {
+            grid-column: auto;
+          }
         }
       `}</style>
     </>

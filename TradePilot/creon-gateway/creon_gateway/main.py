@@ -88,6 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Mock tick worker (mock 어댑터 + MOCK_TICK_ENABLED 시)
     mock_tick = None
+    mock_orderbook = None
     if _settings().MOCK_TICK_ENABLED:
         try:
             from creon_gateway.mock_tick_worker import get_mock_tick_worker
@@ -95,12 +96,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await mock_tick.start()
         except Exception as e:
             log.warning("mock_tick_start_failed", error=str(e))
+        # 호가 mock worker는 시세 worker와 동일 플래그로 토글
+        try:
+            from creon_gateway.mock_orderbook_worker import (
+                get_mock_orderbook_worker,
+            )
+            mock_orderbook = get_mock_orderbook_worker()
+            await mock_orderbook.start()
+        except Exception as e:
+            log.warning("mock_orderbook_start_failed", error=str(e))
 
     yield
 
     if mock_tick:
         try:
             await mock_tick.stop()
+        except Exception:
+            pass
+    if mock_orderbook:
+        try:
+            await mock_orderbook.stop()
         except Exception:
             pass
     await healthbeat.stop()
@@ -457,14 +472,23 @@ async def market_orderbook(
     code: Annotated[str, Path(min_length=6, max_length=6)],
     _=Depends(require_api_key),
 ) -> dict[str, Any]:
-    q = get_adapter().get_quote(code)
-    bids = [
-        {"price": q.price - (i + 1) * 100, "qty": 100 * (i + 1)} for i in range(10)
-    ]
-    asks = [
-        {"price": q.price + (i + 1) * 100, "qty": 100 * (i + 1)} for i in range(10)
-    ]
-    return ok({"code": code, "bids": bids, "asks": asks})
+    """호가 10단계 스냅샷.
+
+    어댑터의 ``get_orderbook(code)`` 호출 (Real: StockJpBid BlockRequest,
+    Mock: deterministic 호가). 반환 형식은 백엔드 ``OrderbookSnapshot``과 동일한
+    ``{bids:[[price,qty]x10], asks:[[price,qty]x10]}``.
+    """
+    snap = get_adapter().get_orderbook(code)
+    return ok(
+        {
+            "code": snap.code,
+            "bids": [[p, q] for p, q in snap.bids],
+            "asks": [[p, q] for p, q in snap.asks],
+            "total_bid_qty": snap.total_bid_qty,
+            "total_ask_qty": snap.total_ask_qty,
+            "ts": snap.ts or datetime.now(tz=timezone.utc).isoformat(),
+        }
+    )
 
 
 @app.get("/stocks/master/{code}", tags=["market"])

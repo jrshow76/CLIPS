@@ -11,6 +11,7 @@ import { ErrorCard } from '@/components/ui/error-card';
 import { Kpi } from '@/components/ui/kpi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { ExportButton } from '@/components/exports';
 import { useBacktestJob, useBacktestResult } from '@/lib/api/queries/backtest';
 import { ROUTES } from '@/lib/constants';
 import { formatPct, pnlClass } from '@/lib/utils/format';
@@ -45,6 +46,13 @@ export default function BacktestResultPage() {
           </div>
         </div>
         <div className="row gap-2">
+          {job.data?.status === 'DONE' && jobId && (
+            <ExportButton
+              jobType="BACKTEST"
+              filterParams={{ run_id: jobId }}
+              label="결과 다운로드"
+            />
+          )}
           <Link href={ROUTES.BACKTEST}><Button variant="outline">새 백테스트</Button></Link>
           <Link href={ROUTES.BACKTEST_HISTORY}><Button variant="ghost">과거 결과</Button></Link>
         </div>

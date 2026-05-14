@@ -191,6 +191,10 @@ class ConnectionManager:
                 removed.append(code)
         return removed
 
+    def stock_subscriber_count(self, code: str) -> int:
+        """종목별 현재 구독자 수 (lock 없음 - 통계/한도 점검용)."""
+        return len(self._stock_subscribers.get(code, set()))
+
     # ------------------------------------------------------------------
     # 메시지 송신
     # ------------------------------------------------------------------
@@ -316,6 +320,15 @@ class ConnectionManager:
 _market_manager: ConnectionManager | None = None
 _account_manager: ConnectionManager | None = None
 _notifications_manager: ConnectionManager | None = None
+_orderbook_manager: ConnectionManager | None = None
+
+
+# 호가창 채널 부하 한도 (시세보다 throttle 길게 = 200ms)
+# - 종목당 구독 사용자 50명 한도는 매니저 외부에서 별도 강제(stock_subscribers 검사).
+# - 사용자당 종목 30개 한도는 max_subscriptions_per_client로 강제.
+ORDERBOOK_THROTTLE_MS = 200
+ORDERBOOK_MAX_SUBS_PER_CLIENT = 30
+ORDERBOOK_MAX_QUEUE_SIZE = 1000
 
 
 def get_market_manager() -> ConnectionManager:
@@ -339,9 +352,28 @@ def get_notifications_manager() -> ConnectionManager:
     return _notifications_manager
 
 
+def get_orderbook_manager() -> ConnectionManager:
+    """호가창 전용 ConnectionManager.
+
+    - throttle 200ms (시세 100ms 대비 2배 - 호가는 더 빈번 변경)
+    - 사용자당 30종목 한도
+    - 큐 cap 1000 (시세와 동일)
+    - 종목당 사용자 50명 제한은 ws 핸들러에서 추가 강제
+    """
+    global _orderbook_manager
+    if _orderbook_manager is None:
+        _orderbook_manager = ConnectionManager(
+            max_subscriptions_per_client=ORDERBOOK_MAX_SUBS_PER_CLIENT,
+            max_queue_size=ORDERBOOK_MAX_QUEUE_SIZE,
+            throttle_ms=ORDERBOOK_THROTTLE_MS,
+        )
+    return _orderbook_manager
+
+
 def reset_managers() -> None:
     """테스트 격리용."""
-    global _market_manager, _account_manager, _notifications_manager
+    global _market_manager, _account_manager, _notifications_manager, _orderbook_manager
     _market_manager = None
     _account_manager = None
     _notifications_manager = None
+    _orderbook_manager = None

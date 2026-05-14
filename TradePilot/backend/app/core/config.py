@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     # 일일 리포트 발송 시각 (KST 0~23)
     NOTIFICATION_DAILY_REPORT_HOUR: int = 18
 
+    # Web Push (VAPID) — 미설정 시 WEBPUSH 채널 비활성
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:admin@tradepilot.example.com"
+    WEBPUSH_TTL_SECONDS: int = 86400  # 24h
+    WEBPUSH_DEFAULT_URL: str = "/notifications"
+
     # 시세 백업
     FALLBACK_QUOTE_ENABLED: bool = True
     FALLBACK_QUOTE_SOURCE: str = "naver"

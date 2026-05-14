@@ -31,11 +31,20 @@ from app.integrations.notifications.base import ChannelType, SendResult
 from app.integrations.notifications.email.smtp_channel import render_template
 from app.integrations.notifications.factory import get_channel
 from app.integrations.notifications.kakao.templates_registry import render_kakao_content
-from app.models.notification import Notification, NotificationChannel
+from app.integrations.notifications.webpush import (
+    WebPushChannel,
+    WebPushSubscriptionExpired,
+)
+from app.models.notification import (
+    Notification,
+    NotificationChannel,
+    PushSubscription,
+)
 from app.models.user import User
 from app.repositories.notification_repository import (
     NotificationChannelRepository,
     NotificationRepository,
+    PushSubscriptionRepository,
 )
 
 log = structlog.get_logger(__name__)
@@ -67,6 +76,9 @@ class NotificationService:
         self.db = db
         self.notis = NotificationRepository(db)
         self.channels = NotificationChannelRepository(db)
+        self.push_subs = PushSubscriptionRepository(db)
+        # WEBPUSH 어댑터 (싱글톤 캐시 외부 — VAPID 키 환경 변경에 즉시 반응)
+        self._webpush: WebPushChannel | None = None
 
     # ------------------------------------------------------------------
     # 조회/읽음 처리 (기존 동작)
@@ -240,6 +252,14 @@ class NotificationService:
                     kakao_error=res.error_code,
                     sms_ok=fb.ok,
                 )
+
+        # WEBPUSH 채널 — INAPP 사용자 활성 구독에 모두 발송 (사용자가 인앱 활성화한 경우만)
+        if ch_pref.inapp_enabled and getattr(self, "push_subs", None) is not None:
+            try:
+                webpush_results = await self._dispatch_webpush(noti, user)
+                results.extend(webpush_results)
+            except Exception as e:  # noqa: BLE001
+                log.warning("webpush_dispatch_block_failed", error=str(e)[:200])
 
         # delivery 정보를 페이로드에 누적 (감사용)
         delivery = list((noti.payload or {}).get("delivery") or [])
@@ -592,6 +612,197 @@ class NotificationService:
                     metadata={"country_code": "82"},
                 )
         return {"sent": res.ok, "channel": ch_key, "provider_message_id": res.provider_message_id, "error": res.error_code}
+
+    # ------------------------------------------------------------------
+    # Web Push 구독 관리
+    # ------------------------------------------------------------------
+    def get_webpush_channel(self) -> WebPushChannel:
+        # 테스트가 __init__ 을 우회해 인스턴스를 만들 수 있어 안전 가드
+        current = getattr(self, "_webpush", None)
+        if current is None:
+            current = WebPushChannel()
+            self._webpush = current
+        return current
+
+    def webpush_public_key(self) -> str | None:
+        """클라이언트에 노출할 VAPID 공개키. 미설정 시 None."""
+        key = (settings.VAPID_PUBLIC_KEY or "").strip()
+        return key or None
+
+    async def register_push_subscription(
+        self,
+        *,
+        user_id: int,
+        endpoint: str,
+        p256dh_key: str,
+        auth_key: str,
+        user_agent: str | None,
+        expires_at: datetime | None,
+    ) -> PushSubscription:
+        sub = await self.push_subs.upsert(
+            user_id=user_id,
+            endpoint=endpoint,
+            p256dh_key=p256dh_key,
+            auth_key=auth_key,
+            user_agent=user_agent,
+            expires_at=expires_at,
+        )
+        await self.db.commit()
+        return sub
+
+    async def unregister_push_subscription(
+        self,
+        *,
+        user_id: int,
+        endpoint: str | None = None,
+    ) -> int:
+        if endpoint:
+            removed = await self.push_subs.remove_by_endpoint(
+                user_id=user_id, endpoint=endpoint
+            )
+        else:
+            removed = await self.push_subs.remove_all_for_user(user_id)
+        await self.db.commit()
+        return removed
+
+    async def send_test_webpush(self, user_id: int) -> dict[str, Any]:
+        """사용자 활성 구독 모두에 테스트 발송."""
+        subs = await self.push_subs.list_active_for_user(user_id)
+        if not subs:
+            raise AppException("E0082", message="활성 푸시 구독이 없습니다.")
+        adapter = self.get_webpush_channel()
+        if not adapter.verify_config():
+            return {"sent": 0, "failed": len(subs), "mock": True}
+
+        payload = {
+            "title": "TradePilot 테스트 알림",
+            "body": "Web Push 알림이 정상 수신되었습니다.",
+            "severity": "INFO",
+            "event_type": "TEST",
+            "url": "/notifications",
+        }
+        sent = 0
+        failed = 0
+        expired_endpoints: list[str] = []
+        for sub in subs:
+            try:
+                res = await adapter.send(
+                    recipient=sub.endpoint,
+                    subject=payload["title"],
+                    body=payload["body"],
+                    metadata={
+                        "p256dh_key": sub.p256dh_key,
+                        "auth_key": sub.auth_key,
+                        "payload": payload,
+                    },
+                )
+                if res.ok:
+                    sent += 1
+                    await self.push_subs.touch_last_used(sub.id)
+                else:
+                    failed += 1
+            except WebPushSubscriptionExpired:
+                failed += 1
+                expired_endpoints.append(sub.endpoint)
+            except Exception as e:  # noqa: BLE001
+                log.warning("webpush_test_failed", error=str(e), sub_id=sub.id)
+                failed += 1
+        # 만료된 구독 즉시 정리
+        for ep in expired_endpoints:
+            await self.push_subs.remove_by_endpoint(user_id=user_id, endpoint=ep)
+        await self.db.commit()
+        return {"sent": sent, "failed": failed, "expired": len(expired_endpoints)}
+
+    async def _dispatch_webpush(
+        self,
+        noti: Notification,
+        user: User,
+    ) -> list[SendResult]:
+        """단일 알림 행을 사용자의 모든 활성 push 구독으로 발송.
+
+        만료된 endpoint(404/410)는 자동 삭제한다.
+        """
+        adapter = self.get_webpush_channel()
+        if not adapter.verify_config():
+            return []
+        subs = await self.push_subs.list_active_for_user(user.id)
+        if not subs:
+            return []
+
+        payload: dict[str, Any] = {
+            "title": noti.title,
+            "body": noti.body or "",
+            "severity": "CRITICAL" if noti.priority == "HIGH" else "INFO",
+            "event_type": noti.event_type,
+            "notification_id": noti.id,
+            "payload": noti.payload or {},
+        }
+        # 이벤트별 URL 라우팅 힌트 (Service Worker 측에도 동일 fallback 룰이 있음)
+        stock_code = (noti.payload or {}).get("stock_code")
+        order_pub = (noti.payload or {}).get("order_public_id")
+        if noti.event_type == "SIGNAL" and stock_code:
+            payload["url"] = f"/chart/{stock_code}"
+        elif noti.event_type == "ORDER_FILLED" and order_pub:
+            payload["url"] = "/auto-trading/orders"
+        elif noti.event_type == "KILL_SWITCH":
+            payload["url"] = "/auto-trading"
+        else:
+            payload["url"] = settings.WEBPUSH_DEFAULT_URL
+
+        results: list[SendResult] = []
+        expired_endpoints: list[str] = []
+        for sub in subs:
+            try:
+                res = await adapter.send(
+                    recipient=sub.endpoint,
+                    subject=noti.title,
+                    body=noti.body or "",
+                    metadata={
+                        "p256dh_key": sub.p256dh_key,
+                        "auth_key": sub.auth_key,
+                        "payload": payload,
+                        "urgency": "high" if noti.priority == "HIGH" else "normal",
+                        "topic": noti.event_type[:32] if noti.event_type else None,
+                    },
+                )
+                results.append(res)
+                if res.ok:
+                    await self.push_subs.touch_last_used(sub.id)
+            except WebPushSubscriptionExpired as exc:
+                expired_endpoints.append(exc.endpoint)
+                results.append(
+                    SendResult(
+                        ok=False,
+                        channel="INAPP",
+                        recipient=exc.endpoint,
+                        error_code=f"WEBPUSH_GONE_{exc.status_code}",
+                        error_message="구독 만료(자동 정리)",
+                    )
+                )
+            except Exception as e:  # noqa: BLE001
+                log.warning(
+                    "webpush_send_failed",
+                    notification_id=noti.id,
+                    sub_id=sub.id,
+                    error=str(e)[:200],
+                )
+                results.append(
+                    SendResult(
+                        ok=False,
+                        channel="INAPP",
+                        recipient=sub.endpoint,
+                        error_code="WEBPUSH_EXCEPTION",
+                        error_message=str(e)[:200],
+                    )
+                )
+        for ep in expired_endpoints:
+            try:
+                await self.push_subs.remove_by_endpoint(user_id=user.id, endpoint=ep)
+            except Exception as e:  # noqa: BLE001
+                log.warning("webpush_cleanup_failed", endpoint=ep, error=str(e))
+        if expired_endpoints:
+            await self.db.commit()
+        return results
 
     # ------------------------------------------------------------------
     # 내부 헬퍼

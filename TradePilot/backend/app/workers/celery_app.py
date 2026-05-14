@@ -1,9 +1,9 @@
 """Celery 인스턴스.
 
-7개 큐: default, signals, orders, backtest, ml, notifications, ingestion.
+8개 큐: default, signals, orders, backtest, ml, notifications, ingestion, exports.
 워커 실행:
     celery -A app.workers.celery_app worker --loglevel=INFO \
-      -Q signals,orders,backtest,ml,notifications,ingestion,default
+      -Q signals,orders,backtest,ml,notifications,ingestion,exports,default
 """
 from __future__ import annotations
 
@@ -32,6 +32,8 @@ celery_app = Celery(
         "app.workers.tasks.ingestion_tasks",
         "app.workers.tasks.cleanup_tasks",
         "app.workers.tasks.notification_tasks",
+        # D2 — 익스포트 (CSV/XLSX → S3)
+        "app.workers.tasks.export_tasks",
     ],
 )
 
@@ -53,6 +55,7 @@ celery_app.conf.update(
         Queue("ml"),
         Queue("notifications"),
         Queue("ingestion"),
+        Queue("exports"),  # D2 — CSV/XLSX 익스포트
     ],
     task_routes={
         "signals.*": {"queue": "signals"},
@@ -64,6 +67,8 @@ celery_app.conf.update(
         "calendar.*": {"queue": "default"},  # 캘린더 동기화 (저빈도)
         "ingestion.*": {"queue": "ingestion"},  # 시장 데이터 적재
         "cleanup.*": {"queue": "default"},  # 정리 작업 (저빈도)
+        "exports.run": {"queue": "exports"},  # D2 — 단일 익스포트 실행
+        "exports.cleanup_expired": {"queue": "default"},  # D2 — 만료 정리(beat)
     },
     worker_max_tasks_per_child=500,
     broker_connection_retry_on_startup=True,
@@ -77,16 +82,31 @@ celery_app.conf.update(
 # - 매일 KST 14:30 (장 마감 전):   1/3/5일 호라이즌 모두 갱신
 # 타임존은 conf.timezone(APP_TIMEZONE) 기준 (기본 Asia/Seoul)
 celery_app.conf.beat_schedule = {
+    # 일일 일괄 추론 (앙상블 사용)
     "ml-batch-predict-morning": {
         "task": "ml.batch_predict",
         "schedule": _cron(hour=9, minute=5),
-        "kwargs": {"horizons": [1]},
+        "kwargs": {"horizons": [1], "ensemble": True},
         "options": {"queue": "ml"},
     },
     "ml-batch-predict-afternoon": {
         "task": "ml.batch_predict",
         "schedule": _cron(hour=14, minute=30),
-        "kwargs": {"horizons": [1, 3, 5]},
+        "kwargs": {"horizons": [1, 3, 5], "ensemble": True},
+        "options": {"queue": "ml"},
+    },
+    # 매주 일요일 02:00 KST: 모든 섹터 공통 모델 재학습
+    "ml-train-all-sectors-weekly": {
+        "task": "ml.train_all_sectors",
+        "schedule": crontab(day_of_week="0", hour="2", minute="0"),
+        "kwargs": {"horizon": 1},
+        "options": {"queue": "ml"},
+    },
+    # 매월 1일 02:00 KST: 글로벌 모델 재학습 (전 종목)
+    "ml-train-global-monthly": {
+        "task": "ml.train_global",
+        "schedule": crontab(day_of_month="1", hour="2", minute="0"),
+        "kwargs": {"job_id": "global-monthly", "horizon": 1},
         "options": {"queue": "ml"},
     },
     # 매년 1월 2일 09:00 KST: 당해/익년 휴장일 자동 동기화
@@ -161,6 +181,14 @@ celery_app.conf.beat_schedule = {
             minute="0",
         ),
         "options": {"queue": "notifications"},
+    },
+    # ----------------------------------------------------------------------
+    # D2 — 익스포트 만료 정리: 매일 04:00 KST (S3 객체 + DB 행 삭제)
+    # ----------------------------------------------------------------------
+    "exports-cleanup-expired": {
+        "task": "exports.cleanup_expired",
+        "schedule": crontab(hour="4", minute="0"),
+        "options": {"queue": "default"},
     },
 }
 

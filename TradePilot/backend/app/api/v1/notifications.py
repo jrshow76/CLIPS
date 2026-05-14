@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -15,6 +15,10 @@ from app.schemas.notification import (
     ChannelOut,
     ChannelUpdateIn,
     NotificationItem,
+    PushSubscribeIn,
+    PushTestResult,
+    PushUnsubscribeIn,
+    PushVapidKeyOut,
     TestSendIn,
 )
 from app.services.notification_service import NotificationService
@@ -117,3 +121,70 @@ async def test_send(
     svc = NotificationService(db)
     data = await svc.send_test(user.id, channel=payload.channel)
     return success_response(data)
+
+
+# ==========================================================
+# Web Push (PWA)
+# ==========================================================
+@router.get("/push/vapid-public-key", summary="VAPID 공개키 조회")
+async def get_vapid_public_key(
+    _user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """클라이언트가 pushManager.subscribe 에 사용할 P-256 공개키.
+
+    환경에 VAPID_PUBLIC_KEY 가 설정되지 않은 경우 ``public_key=null`` 반환.
+    """
+    svc = NotificationService(db)
+    return success_response(PushVapidKeyOut(public_key=svc.webpush_public_key()))
+
+
+@router.post("/push/subscribe", summary="Web Push 구독 등록")
+async def subscribe_push(
+    payload: PushSubscribeIn,
+    user: CurrentUser,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = NotificationService(db)
+    ua = payload.user_agent or request.headers.get("user-agent")
+    sub = await svc.register_push_subscription(
+        user_id=user.id,
+        endpoint=payload.endpoint,
+        p256dh_key=payload.p256dh_key,
+        auth_key=payload.auth_key,
+        user_agent=ua,
+        expires_at=payload.expires_at,
+    )
+    return success_response(
+        {
+            "id": sub.id,
+            "endpoint": sub.endpoint,
+            "active": sub.active,
+            "last_used_at": sub.last_used_at,
+        }
+    )
+
+
+@router.delete("/push/unsubscribe", summary="Web Push 구독 해제")
+async def unsubscribe_push(
+    user: CurrentUser,
+    payload: PushUnsubscribeIn | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = NotificationService(db)
+    endpoint = payload.endpoint if payload else None
+    removed = await svc.unregister_push_subscription(
+        user_id=user.id, endpoint=endpoint
+    )
+    return success_response({"removed": removed})
+
+
+@router.post("/push/test", summary="Web Push 테스트 발송")
+async def test_push(
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = NotificationService(db)
+    result = await svc.send_test_webpush(user.id)
+    return success_response(PushTestResult(**result))

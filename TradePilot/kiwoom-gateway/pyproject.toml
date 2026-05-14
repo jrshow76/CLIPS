@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradepilot-kiwoom-gateway"
+version = "1.0.0"
+description = "TradePilot 키움증권 OpenAPI+ 어댑터 게이트웨이 (Windows 전용)"
+requires-python = ">=3.8,<3.12"  # 키움 OpenAPI+ 는 32-bit Python 3.8~ 권장
+readme = "README.md"
+
+dependencies = [
+    "fastapi==0.110.*",
+    "uvicorn[standard]==0.29.*",
+    "pydantic==2.6.*",
+    "pydantic-settings==2.2.*",
+    "redis==5.0.*",
+    "httpx==0.27.*",
+    "structlog==24.1.*",
+    "orjson==3.9.*",
+    # pywin32 는 Windows 32-bit Python 환경에서만 설치 (조건부).
+    # 운영 환경에서는 별도 requirements-win.txt 로 관리한다.
+]
+
+[project.optional-dependencies]
+windows = [
+    "pywin32==306",
+    "PyQt5==5.15.*",   # 키움 OCX 호스팅(QAxWidget)
+]
+
+[tool.setuptools.packages.find]
+include = ["kiwoom_gateway*"]

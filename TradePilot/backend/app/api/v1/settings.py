@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -297,6 +299,180 @@ async def email_verify(
         channel="EMAIL",
     )
     return success_response({"otp_id": otp_id, "ttl_sec": ttl})
+
+
+# ---------------------------------------------------------------------------
+# 다증권사 (Broker) — D4 다증권사 어댑터
+# ---------------------------------------------------------------------------
+@router.get("/brokers", summary="사용 가능한 증권사 목록")
+async def list_brokers(user: CurrentUser, db: AsyncSession = Depends(get_db)):
+    """사용 가능한 증권사 카탈로그 + 현재 사용자의 연결 상태.
+
+    응답:
+    - ``brokers``: ``[{name, broker, api_type, supports_markets, requires_windows, ...}]``
+    - ``preferred``: 사용자 선호 broker
+    - ``connected``: 자격증명 등록된 broker 목록
+    """
+    from app.domains.brokers import list_broker_infos
+
+    creds: dict[str, Any] = getattr(user, "broker_credentials", {}) or {}
+    items = []
+    for info in list_broker_infos():
+        items.append(
+            {
+                "broker": info.broker.value,
+                "name": info.name,
+                "api_type": info.api_type.value,
+                "supports_markets": list(info.supports_markets),
+                "requires_windows": info.requires_windows,
+                "supports_sim": info.supports_sim,
+                "supports_real": info.supports_real,
+                "recommended": info.recommended,
+                "notes": info.notes,
+                "connected": info.broker.value in creds,
+            }
+        )
+    return success_response(
+        {
+            "brokers": items,
+            "preferred": getattr(user, "preferred_broker", "CREON"),
+            "connected": sorted(creds.keys()),
+        }
+    )
+
+
+@router.put("/brokers/preference", summary="선호 증권사 설정")
+async def set_preferred_broker(
+    payload: dict,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """사용자 선호 증권사 변경.
+
+    Body: ``{"broker": "KIS" | "CREON" | "KIWOOM"}``
+    """
+    from sqlalchemy import update
+
+    from app.core.exceptions import AppException
+    from app.domains.brokers import Broker
+    from app.models.user import User as UserModel
+
+    raw = (payload or {}).get("broker")
+    try:
+        chosen = Broker(str(raw).upper()) if raw else None
+    except ValueError:
+        chosen = None
+    if chosen is None:
+        raise AppException("E0003", message="지원하지 않는 증권사입니다.")
+
+    await db.execute(
+        update(UserModel)
+        .where(UserModel.id == user.id)
+        .values(preferred_broker=chosen.value)
+    )
+    await db.commit()
+    return success_response({"preferred": chosen.value})
+
+
+@router.post("/brokers/{broker}/connect", summary="증권사 자격증명 등록")
+async def connect_broker(
+    broker: str,
+    payload: dict,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """증권사 자격증명을 AES-256-GCM 암호화하여 ``broker_credentials`` JSON에 저장.
+
+    KIS 예시:
+    ```
+    POST /settings/brokers/KIS/connect
+    { "appkey": "...", "appsecret": "...", "account_no": "...", "account_prod_cd": "01" }
+    ```
+
+    키움 예시 (계좌번호만 — 게이트웨이가 로그인 처리):
+    ```
+    POST /settings/brokers/KIWOOM/connect
+    { "account_no": "..." }
+    ```
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update
+
+    from app.core.exceptions import AppException
+    from app.core.security import aes_encrypt
+    from app.domains.brokers import Broker
+    from app.models.user import User as UserModel
+
+    try:
+        chosen = Broker(broker.upper())
+    except ValueError:
+        raise AppException("E0003", message="지원하지 않는 증권사입니다.")
+
+    body = payload or {}
+    # 평문 비밀은 즉시 AES 암호화. JSON에는 ``_enc`` 접미사로만 저장.
+    creds: dict[str, Any] = dict(getattr(user, "broker_credentials", {}) or {})
+    entry: dict[str, Any] = {
+        "connected_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+    # 공통 필드
+    if body.get("account_no"):
+        entry["account_no"] = str(body["account_no"])
+    if body.get("account_prod_cd"):
+        entry["account_prod_cd"] = str(body["account_prod_cd"])
+    # KIS 전용
+    if body.get("appkey"):
+        entry["appkey_enc"] = aes_encrypt(str(body["appkey"]))
+    if body.get("appsecret"):
+        entry["appsecret_enc"] = aes_encrypt(str(body["appsecret"]))
+    # 키움/CREON 계좌 비밀번호 (선택)
+    if body.get("account_password"):
+        entry["account_password_enc"] = aes_encrypt(str(body["account_password"]))
+
+    creds[chosen.value] = entry
+    await db.execute(
+        update(UserModel).where(UserModel.id == user.id).values(broker_credentials=creds)
+    )
+    await db.commit()
+    # 응답에는 암호문 미노출
+    return success_response(
+        {
+            "broker": chosen.value,
+            "connected": True,
+            "account_masked": (
+                entry.get("account_no", "")[:2] + "****" + entry.get("account_no", "")[-2:]
+                if entry.get("account_no")
+                else None
+            ),
+        }
+    )
+
+
+@router.post("/brokers/{broker}/disconnect", summary="증권사 자격증명 삭제")
+async def disconnect_broker(
+    broker: str,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """해당 증권사의 자격증명을 삭제 (선호는 유지)."""
+    from sqlalchemy import update
+
+    from app.core.exceptions import AppException
+    from app.domains.brokers import Broker
+    from app.models.user import User as UserModel
+
+    try:
+        chosen = Broker(broker.upper())
+    except ValueError:
+        raise AppException("E0003", message="지원하지 않는 증권사입니다.")
+
+    creds: dict[str, Any] = dict(getattr(user, "broker_credentials", {}) or {})
+    creds.pop(chosen.value, None)
+    await db.execute(
+        update(UserModel).where(UserModel.id == user.id).values(broker_credentials=creds)
+    )
+    await db.commit()
+    return success_response({"broker": chosen.value, "connected": False})
 
 
 @router.post("/notifications/kakao/optin", summary="카카오 알림톡 수신 동의")

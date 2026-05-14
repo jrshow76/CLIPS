@@ -1,10 +1,11 @@
 'use client';
 
-import { Bell, KeyRound, Plug, Shield, SlidersHorizontal, Sun, User2 } from 'lucide-react';
+import { Bell, KeyRound, Plug, Shield, SlidersHorizontal, Smartphone, Sun, User2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { PWAStatusCard } from '@/components/pwa';
 import { Badge } from '@/components/ui/badge';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ import { useThemeStore } from '@/stores/theme-store';
 import { zodResolver } from '@/lib/forms/zod-resolver';
 import { toast } from '@/stores/notification-store';
 
-type Tab = 'account' | 'security' | 'notify' | 'limits' | 'creon' | 'appearance';
+type Tab = 'account' | 'security' | 'notify' | 'pwa' | 'limits' | 'creon' | 'appearance';
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('account');
@@ -45,6 +46,7 @@ export default function SettingsPage() {
           { value: 'account', label: '계정' },
           { value: 'security', label: '보안' },
           { value: 'notify', label: '알림' },
+          { value: 'pwa', label: '앱/푸시' },
           { value: 'limits', label: '매매한도' },
           { value: 'creon', label: '크레온' },
           { value: 'appearance', label: '외관' },
@@ -55,6 +57,7 @@ export default function SettingsPage() {
         {tab === 'account' && <AccountTab />}
         {tab === 'security' && <SecurityTab />}
         {tab === 'notify' && <NotifyTab />}
+        {tab === 'pwa' && <PWATab />}
         {tab === 'limits' && <LimitsTab />}
         {tab === 'creon' && <CreonTab />}
         {tab === 'appearance' && <AppearanceTab />}
@@ -247,6 +250,37 @@ function NotifyTab() {
         </div>
       </Card.Footer>
     </Card>
+  );
+}
+
+/* -------------------- PWA / 푸시 탭 -------------------- */
+function PWATab() {
+  return (
+    <div className="stack gap-4">
+      <PWAStatusCard />
+      <Card>
+        <Card.Header
+          title={
+            <span className="row items-center gap-2">
+              <Smartphone className="h-4 w-4" /> 모바일 설치 가이드
+            </span>
+          }
+        />
+        <Card.Body className="stack gap-2">
+          <p className="text-sm">
+            <strong>iOS Safari</strong>: 공유 버튼 → “홈 화면에 추가” 를 선택하면
+            standalone 모드로 실행됩니다. 푸시 알림은 iOS 16.4 이상에서 동작합니다.
+          </p>
+          <p className="text-sm">
+            <strong>Android Chrome</strong>: 주소창 옆 메뉴 → “앱 설치” 또는 본 화면의 “설치”
+            버튼을 누르세요. 푸시 알림은 OS 알림 권한이 허용되어 있어야 합니다.
+          </p>
+          <p className="text-xs text-subtle">
+            지원되지 않는 환경에서는 이메일 / 카카오 알림톡 / SMS 채널로 자동 대체 발송됩니다.
+          </p>
+        </Card.Body>
+      </Card>
+    </div>
   );
 }
 

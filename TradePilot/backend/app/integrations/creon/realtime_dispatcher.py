@@ -24,10 +24,12 @@ from app.api.websocket.connection_manager import (
     get_account_manager,
     get_market_manager,
     get_notifications_manager,
+    get_orderbook_manager,
 )
 from app.api.websocket.protocol import (
     ExecutionMessage,
     NotificationMessage,
+    OrderbookMessage,
     TickMessage,
 )
 from app.core.redis_client import get_redis
@@ -37,6 +39,7 @@ log = structlog.get_logger(__name__)
 
 # 구독 패턴
 PATTERN_TICK = "tp:market.tick.*"
+PATTERN_ORDERBOOK = "tp:market.orderbook.*"
 PATTERN_EXECUTION = "tp:account.execution*"   # tp:account.execution + .<uid>
 PATTERN_NOTIFICATION = "tp:notifications.*"
 
@@ -49,6 +52,7 @@ class RealtimeDispatcher:
         self._stop = asyncio.Event()
         self._messages_total = 0
         self._last_tick_at: float = 0.0
+        self._last_orderbook_at: float = 0.0
 
     async def start(self) -> None:
         if self._task and not self._task.done():
@@ -75,15 +79,26 @@ class RealtimeDispatcher:
             "running": bool(self._task and not self._task.done()),
             "messages_total": self._messages_total,
             "last_tick_at": self._last_tick_at,
+            "last_orderbook_at": self._last_orderbook_at,
         }
 
     async def _run(self) -> None:
         redis = get_redis()
         pubsub = redis.pubsub()
-        await pubsub.psubscribe(PATTERN_TICK, PATTERN_EXECUTION, PATTERN_NOTIFICATION)
+        await pubsub.psubscribe(
+            PATTERN_TICK,
+            PATTERN_ORDERBOOK,
+            PATTERN_EXECUTION,
+            PATTERN_NOTIFICATION,
+        )
         log.info(
             "realtime_dispatcher_subscribed",
-            patterns=[PATTERN_TICK, PATTERN_EXECUTION, PATTERN_NOTIFICATION],
+            patterns=[
+                PATTERN_TICK,
+                PATTERN_ORDERBOOK,
+                PATTERN_EXECUTION,
+                PATTERN_NOTIFICATION,
+            ],
         )
 
         try:
@@ -121,6 +136,8 @@ class RealtimeDispatcher:
 
         if channel.startswith("tp:market.tick."):
             await self._on_tick(channel, payload)
+        elif channel.startswith("tp:market.orderbook."):
+            await self._on_orderbook(channel, payload)
         elif channel.startswith("tp:account.execution"):
             await self._on_execution(channel, payload)
         elif channel.startswith("tp:notifications."):
@@ -148,6 +165,48 @@ class RealtimeDispatcher:
         )
         manager = get_market_manager()
         await manager.broadcast_to_stock_subscribers(stock_code, message.model_dump())
+
+    async def _on_orderbook(self, channel: str, payload: dict[str, Any]) -> None:
+        """``tp:market.orderbook.<code>`` → orderbook manager로 broadcast.
+
+        페이로드 형식:
+        - ``stock_code``: 종목 코드
+        - ``bids``/``asks``: ``[[price, qty], ...]`` 10단계
+        - ``total_bid_qty``/``total_ask_qty``: 합산 잔량
+        """
+        # 채널 suffix가 종목 코드 (게이트웨이 발행 규약)
+        stock_code = channel.split("tp:market.orderbook.", 1)[-1]
+        stock_code = str(payload.get("stock_code") or payload.get("code") or stock_code)
+        if not stock_code:
+            return
+        self._last_orderbook_at = time.monotonic()
+
+        bids_raw = payload.get("bids") or []
+        asks_raw = payload.get("asks") or []
+        # 각 level이 [price, qty] 형태인지 보정
+        bids = [
+            [float(level[0]), float(level[1])]
+            for level in bids_raw
+            if isinstance(level, (list, tuple)) and len(level) >= 2
+        ]
+        asks = [
+            [float(level[0]), float(level[1])]
+            for level in asks_raw
+            if isinstance(level, (list, tuple)) and len(level) >= 2
+        ]
+
+        message = OrderbookMessage(
+            stock_code=stock_code,
+            bids=bids,
+            asks=asks,
+            total_bid_qty=int(payload.get("total_bid_qty") or 0),
+            total_ask_qty=int(payload.get("total_ask_qty") or 0),
+            ts=str(payload.get("ts") or "") or OrderbookMessage(stock_code="").ts,
+        )
+        manager = get_orderbook_manager()
+        await manager.broadcast_to_stock_subscribers(
+            stock_code, message.model_dump()
+        )
 
     async def _on_execution(self, channel: str, payload: dict[str, Any]) -> None:
         # user_id 결정: 채널 suffix > payload.user_id

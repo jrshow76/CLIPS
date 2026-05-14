@@ -1,8 +1,7 @@
 'use client';
 
-import { Download } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,11 +12,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/ui/table';
 import { PnlLineChart } from '@/components/charts/PnlLineChart';
+import { ExportButton, ExportHistoryDrawer } from '@/components/exports';
 import { useHoldings } from '@/lib/api/queries/dashboard';
 import { usePnlReport } from '@/lib/api/queries/reports';
 import { ROUTES } from '@/lib/constants';
 import { formatCurrency, formatPct, formatPnl, pnlClass } from '@/lib/utils/format';
-import { toast } from '@/stores/notification-store';
 import type { Holding } from '@/types/portfolio';
 
 type Period = '1M' | '3M' | '6M' | '1Y' | 'ALL';
@@ -27,19 +26,17 @@ export default function ReportPage() {
   const report = usePnlReport(period);
   const holdings = useHoldings();
 
-  function downloadCsv() {
-    if (!report.data) return;
-    const rows = report.data.series.map((p) => `${new Date(p.ts).toISOString().slice(0, 10)},${p.equity},${p.pnl}`);
-    const csv = ['date,equity,pnl', ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `pnl_${period}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('CSV 파일이 다운로드되었습니다.');
-  }
+  // 기간 → ISO 날짜 변환 (서버 익스포트 필터로 전달)
+  const exportFilters = useMemo(() => {
+    const days = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365, ALL: 720 }[period];
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - days);
+    return {
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10),
+    };
+  }, [period]);
 
   const holdingsColumns: Column<Holding>[] = [
     {
@@ -104,15 +101,24 @@ export default function ReportPage() {
               { value: 'ALL', label: '전체' },
             ]}
           />
-          <Button variant="outline" leftIcon={<Download className="h-4 w-4" />} onClick={downloadCsv} disabled={!report.data}>
-            CSV 다운로드
-          </Button>
+          <ExportButton
+            jobType="PNL"
+            filterParams={exportFilters}
+            label="손익 다운로드"
+          />
+          <ExportButton
+            jobType="ORDERS"
+            filterParams={exportFilters}
+            label="거래내역 다운로드"
+            variant="ghost"
+          />
         </div>
       </div>
 
       <div className="row gap-2 mb-3">
         <Link href={ROUTES.REPORT_TRADES}><Button variant="ghost">거래 내역 →</Button></Link>
         <Link href={ROUTES.REPORT_STRATEGIES}><Button variant="ghost">전략별 성과 →</Button></Link>
+        <ExportHistoryDrawer />
       </div>
 
       {report.isError && <ErrorCard message="리포트 데이터를 불러올 수 없습니다." />}

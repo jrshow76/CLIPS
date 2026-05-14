@@ -91,4 +91,9 @@ export const queryKeys = {
     all: ['backtest-history'] as const,
     list: () => ['backtest-history', 'list'] as const,
   },
+  exports: {
+    all: ['exports'] as const,
+    list: (page: number) => ['exports', 'list', page] as const,
+    status: (id: string) => ['exports', 'status', id] as const,
+  },
 };

@@ -48,6 +48,14 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     login_fail_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # D4 — 다증권사 어댑터: 사용자 선호 증권사 + 암호화된 자격증명 JSON.
+    # 마이그레이션 ``2026_05_add_broker_settings.sql`` 적용 후 사용 가능.
+    preferred_broker: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="CREON"
+    )
+    broker_credentials: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

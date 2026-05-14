@@ -62,21 +62,102 @@ class StockService:
         }
 
     async def get_orderbook(self, code: str) -> dict[str, Any]:
-        """호가 10단계. (v1: mock 호가 - DB에 별도 호가 테이블 없음)."""
+        """호가 10단계 스냅샷.
+
+        흐름:
+        1. Redis 캐시(``tp:cache:orderbook:<code>``, TTL=1초) 조회
+        2. 캐시 미스 → CREON 게이트웨이 ``/market/orderbook/{code}`` 호출
+        3. 게이트웨이 실패 → 최신 일봉 기반 mock 생성 (fallback)
+        4. 결과를 ``OrderbookOut`` 스키마 형식(`bids`/`asks`는 `[{price, qty}]`)로 정규화
+
+        - 게이트웨이 응답 페이로드는 ``bids/asks: [[price, qty], ...]``이므로 dict 형태로 변환.
+        - 게이트웨이가 도달 불가능한 환경(테스트/오프라인)에서도 화면이 깨지지 않도록 mock fallback 유지.
+        """
+        from app.core.redis_client import cache_get_json, cache_set_json
+
         s = await self.get_by_code(code)
-        # 최신 일봉 종가 기반으로 ±10단계 mock
+        cache_key = f"tp:cache:orderbook:{code}"
+        cached = await cache_get_json(cache_key)
+        if cached:
+            return self._normalize_orderbook(code, cached)
+
+        # 게이트웨이 호출 시도
+        try:
+            from app.integrations.creon.client import get_creon_client
+
+            gw = get_creon_client()
+            resp = await gw.get_orderbook(code)
+            if isinstance(resp, dict) and resp.get("success") and resp.get("data"):
+                data = resp["data"]
+                # 1초 TTL 캐시
+                await cache_set_json(cache_key, data, ttl_sec=1)
+                return self._normalize_orderbook(code, data)
+        except Exception as e:
+            log.warning("orderbook_gateway_fallback", code=code, error=str(e))
+
+        # Fallback: 최신 일봉 종가 기반 mock 호가
         last = await self.stocks.latest_daily(s.id)
         if not last:
             raise AppException("E0061", message="호가 정보를 사용할 수 없습니다.")
         base = float(last.close)
         tick = max(1.0, base * 0.001)
-        asks = [{"price": Decimal(str(round(base + tick * (i + 1), 2))), "qty": 100 + i * 10} for i in range(10)]
-        bids = [{"price": Decimal(str(round(base - tick * (i + 1), 2))), "qty": 100 + i * 10} for i in range(10)]
+        asks = [
+            {
+                "price": Decimal(str(round(base + tick * (i + 1), 2))),
+                "qty": 100 + i * 10,
+            }
+            for i in range(10)
+        ]
+        bids = [
+            {
+                "price": Decimal(str(round(base - tick * (i + 1), 2))),
+                "qty": 100 + i * 10,
+            }
+            for i in range(10)
+        ]
         return {
             "code": code,
             "asks": asks,
             "bids": bids,
             "ts": datetime.utcnow(),
+        }
+
+    @staticmethod
+    def _normalize_orderbook(code: str, data: dict[str, Any]) -> dict[str, Any]:
+        """게이트웨이/캐시 페이로드를 ``OrderbookOut`` 형식으로 정규화.
+
+        게이트웨이 페이로드는 ``bids/asks: [[price, qty], ...]``로 오므로,
+        ``[{price, qty}]`` (Pydantic ``OrderbookLevel``)로 변환한다.
+        """
+        def _conv(levels: list[Any]) -> list[dict[str, Any]]:
+            out: list[dict[str, Any]] = []
+            for level in levels or []:
+                if isinstance(level, dict):
+                    price = level.get("price", 0)
+                    qty = level.get("qty", 0)
+                elif isinstance(level, (list, tuple)) and len(level) >= 2:
+                    price, qty = level[0], level[1]
+                else:
+                    continue
+                out.append({"price": Decimal(str(price)), "qty": int(qty or 0)})
+            return out
+
+        ts_raw = data.get("ts")
+        if isinstance(ts_raw, str):
+            try:
+                ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+            except ValueError:
+                ts = datetime.utcnow()
+        elif isinstance(ts_raw, datetime):
+            ts = ts_raw
+        else:
+            ts = datetime.utcnow()
+
+        return {
+            "code": code,
+            "bids": _conv(data.get("bids") or []),
+            "asks": _conv(data.get("asks") or []),
+            "ts": ts,
         }
 
     # ------------------------------------------------------------------

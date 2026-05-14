@@ -243,13 +243,19 @@ class TestMarketEndpoints:
         body = r.json()
         assert len(body["data"]["bids"]) == 10
         assert len(body["data"]["asks"]) == 10
-        # 가격이 단조 증가/감소
+        # 응답 형식: bids/asks 각 row = [price, qty]
         bids = body["data"]["bids"]
         asks = body["data"]["asks"]
+        # 가격이 매수=내림차순, 매도=오름차순 (1단계가 최우선)
         for i in range(len(bids) - 1):
-            assert bids[i]["price"] > bids[i + 1]["price"]
+            assert bids[i][0] > bids[i + 1][0]
         for i in range(len(asks) - 1):
-            assert asks[i]["price"] < asks[i + 1]["price"]
+            assert asks[i][0] < asks[i + 1][0]
+        # 최우선 매수 < 최우선 매도 (호가창 정합성)
+        assert bids[0][0] < asks[0][0]
+        # 합산 잔량 필드 존재
+        assert body["data"]["total_bid_qty"] > 0
+        assert body["data"]["total_ask_qty"] > 0
 
     def test_stock_master(self, app_client):
         r = app_client.get("/stocks/master/005930")

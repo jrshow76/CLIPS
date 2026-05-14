@@ -91,6 +91,25 @@ class TickMessage(BaseModel):
     event_id: str | None = None
 
 
+class OrderbookMessage(BaseModel):
+    """호가창 (10단계) 메시지.
+
+    필드:
+    - ``bids``: ``[[price, qty], ...]`` 10단계 (index 0 = 최우선 매수호가)
+    - ``asks``: ``[[price, qty], ...]`` 10단계 (index 0 = 최우선 매도호가)
+    - ``total_bid_qty`` / ``total_ask_qty``: 합산 잔량 (10단계 누계)
+    """
+
+    type: Literal["orderbook"] = "orderbook"
+    stock_code: str
+    bids: list[list[float]] = Field(default_factory=list)
+    asks: list[list[float]] = Field(default_factory=list)
+    total_bid_qty: int = 0
+    total_ask_qty: int = 0
+    ts: str = Field(default_factory=_now_iso)
+    event_id: str | None = None
+
+
 class ExecutionMessage(BaseModel):
     type: Literal["execution"] = "execution"
     order_id: str | None = None

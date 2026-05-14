@@ -82,3 +82,33 @@ class AlertRule(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+
+class PushSubscription(Base):
+    """Web Push (PWA) 구독 endpoint + 키 매핑.
+
+    DDL: `database/migrations/2026_05_add_push_subscriptions.sql`
+    스키마는 tp_user (사용자 도메인) 에 위치한다.
+    """
+
+    __tablename__ = "push_subscriptions"
+    __table_args__ = {"schema": "tp_user"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tp_user.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    p256dh_key: Mapped[str] = mapped_column(Text, nullable=False)
+    auth_key: Mapped[str] = mapped_column(Text, nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

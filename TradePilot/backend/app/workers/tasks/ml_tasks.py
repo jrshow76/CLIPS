@@ -158,13 +158,26 @@ def train_one(
 # 일괄 추론 (스케줄러용)
 # ============================================================================
 @shared_task(name="ml.batch_predict", queue="ml", bind=True)
-def batch_predict(self, horizons: list[int] | None = None) -> dict[str, Any]:
+def batch_predict(
+    self,
+    horizons: list[int] | None = None,
+    ensemble: bool = True,
+) -> dict[str, Any]:
     """모든 활성 종목 일괄 추론.
 
-    `tp_market.stocks.status = 'LISTED'` 에 한해 학습된 모델이 존재하는 종목만 추론.
+    Args:
+        horizons: 추론 호라이즌 리스트
+        ensemble: True 이면 앙상블(개별/섹터/글로벌 가중 평균), False 면 기존 단일.
+                  앙상블 시 어떤 모델이라도 존재하면 처리한다.
     """
     horizons = horizons or [1]
-    results: dict[str, Any] = {"horizons": horizons, "processed": 0, "skipped": 0, "failed": 0}
+    results: dict[str, Any] = {
+        "horizons": horizons,
+        "processed": 0,
+        "skipped": 0,
+        "failed": 0,
+        "ensemble": ensemble,
+    }
 
     try:
         codes = _list_active_codes()
@@ -172,22 +185,119 @@ def batch_predict(self, horizons: list[int] | None = None) -> dict[str, Any]:
         log.warning("ml_batch_predict_load_codes_failed", error=str(e))
         return {**results, "status": "FAILED", "error": str(e)}
 
-    log.info("ml_batch_predict_started", n_codes=len(codes), horizons=horizons)
+    log.info("ml_batch_predict_started", n_codes=len(codes), horizons=horizons, ensemble=ensemble)
     for code in codes:
         for h in horizons:
-            if not _model_exists(code, h):
-                results["skipped"] += 1
-                continue
-            try:
-                _run_predict(stock_code=code, horizon=h)
-                results["processed"] += 1
-            except Exception as e:
-                log.warning("ml_batch_predict_failed", code=code, horizon=h, error=str(e))
-                results["failed"] += 1
+            if ensemble:
+                # 앙상블: 한 종류라도 모델이 있으면 시도
+                if not _any_model_exists(code, h):
+                    results["skipped"] += 1
+                    continue
+                try:
+                    _run_ensemble_predict(stock_code=code, horizon=h)
+                    results["processed"] += 1
+                except Exception as e:
+                    log.warning(
+                        "ml_batch_predict_ensemble_failed",
+                        code=code, horizon=h, error=str(e),
+                    )
+                    results["failed"] += 1
+            else:
+                if not _model_exists(code, h):
+                    results["skipped"] += 1
+                    continue
+                try:
+                    _run_predict(stock_code=code, horizon=h)
+                    results["processed"] += 1
+                except Exception as e:
+                    log.warning("ml_batch_predict_failed", code=code, horizon=h, error=str(e))
+                    results["failed"] += 1
 
     results["status"] = "DONE"
     log.info("ml_batch_predict_done", **results)
     return results
+
+
+def _any_model_exists(stock_code: str, horizon: int) -> bool:
+    """앙상블 가능한 모델이 하나라도 있는지."""
+    from app.services.ml_engine import (
+        global_model_exists,
+        model_exists,
+        sector_model_exists,
+    )
+
+    if model_exists(stock_code, horizon):
+        return True
+    if global_model_exists(horizon):
+        return True
+    # 섹터 모델은 stock 의 sector 가 필요 (없으면 false)
+    sector_code = _get_stock_sector(stock_code)
+    if sector_code and sector_model_exists(sector_code, horizon):
+        return True
+    return False
+
+
+def _run_ensemble_predict(stock_code: str, horizon: int) -> dict[str, Any]:
+    """앙상블 추론 코어."""
+    from app.services.ml_engine import predict_ensemble, predictions_to_ml_record
+
+    ohlcv = _load_ohlcv(stock_code, lookback_days_min=200)
+    if ohlcv.empty:
+        raise RuntimeError(f"OHLCV 데이터 없음: {stock_code}")
+
+    sector_code = _get_stock_sector(stock_code)
+    ensemble_result = predict_ensemble(
+        ohlcv=ohlcv,
+        stock_code=stock_code,
+        horizon=horizon,
+        sector_code=sector_code,
+    )
+
+    # PredictionResult 호환 형태로 변환 (DB 저장용)
+    from app.services.ml_engine import PredictionResult
+
+    pseudo = PredictionResult(
+        direction=ensemble_result.direction,
+        confidence=ensemble_result.confidence,
+        prob_down=ensemble_result.prob_down,
+        prob_flat=ensemble_result.prob_flat,
+        prob_up=ensemble_result.prob_up,
+        model_key=f"ensemble-{horizon}d",
+        asof_date=ensemble_result.asof_date,
+        horizon_days=horizon,
+    )
+    record = predictions_to_ml_record(pseudo, last_close=float(ohlcv["close"].iloc[-1]))
+
+    try:
+        _save_ml_prediction(stock_code, record)
+    except Exception as e:
+        log.warning("ml_ensemble_predict_db_save_failed", stock_code=stock_code, error=str(e))
+
+    return ensemble_result.to_dict()
+
+
+def _get_stock_sector(stock_code: str) -> str | None:
+    """종목의 섹터 코드 조회 (실패 시 None)."""
+    try:
+        from sqlalchemy import create_engine, text
+
+        from app.core.config import settings
+
+        url = settings.DATABASE_URL.replace("+asyncpg", "")
+        engine = create_engine(url, pool_pre_ping=True)
+        sql = text(
+            """
+            SELECT sec.code FROM tp_market.stocks s
+            JOIN tp_market.sectors sec ON sec.id = s.sector_id
+            WHERE s.code = :code
+            """
+        )
+        with engine.connect() as conn:
+            row = conn.execute(sql, {"code": stock_code}).fetchone()
+        engine.dispose()
+        return str(row[0]) if row else None
+    except Exception:
+        return None
 
 
 # ============================================================================
@@ -234,6 +344,414 @@ def get_job_status(job_id: str) -> dict[str, Any]:
     except Exception:
         pass
     return {"status": "UNKNOWN"}
+
+
+# ============================================================================
+# 학습 락 (CPU 자원 보호: 동시 1개)
+# ============================================================================
+_TRAIN_LOCK_KEY = "ml:train:lock"
+_TRAIN_LOCK_TTL = 7200  # 2시간
+
+
+def _acquire_train_lock(holder: str) -> bool:
+    """학습 동시성 락 획득 (Redis SETNX). Redis 미가용 시 True."""
+    try:
+        import redis
+
+        from app.core.config import settings
+
+        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        return bool(r.set(_TRAIN_LOCK_KEY, holder, nx=True, ex=_TRAIN_LOCK_TTL))
+    except Exception:
+        return True
+
+
+def _release_train_lock(holder: str) -> None:
+    """학습 락 해제 (자신이 보유한 경우만)."""
+    try:
+        import redis
+
+        from app.core.config import settings
+
+        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        cur = r.get(_TRAIN_LOCK_KEY)
+        if cur == holder:
+            r.delete(_TRAIN_LOCK_KEY)
+    except Exception:
+        pass
+
+
+# ============================================================================
+# 섹터 모델 학습
+# ============================================================================
+@shared_task(
+    name="ml.train_sector",
+    queue="ml",
+    bind=True,
+    max_retries=1,
+    time_limit=7200,
+)
+def train_sector(
+    self,
+    job_id: str,
+    sector_code: str,
+    stock_codes: list[str],
+    horizon: int = 1,
+    config_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """섹터 모델 학습."""
+    started = datetime.now(UTC)
+    if not _acquire_train_lock(job_id):
+        return {
+            "job_id": job_id,
+            "status": "SKIPPED",
+            "reason": "다른 학습 작업이 진행 중",
+            "sector_code": sector_code,
+        }
+
+    _set_train_status(job_id, {
+        "job_id": job_id,
+        "status": "RUNNING",
+        "kind": "SECTOR",
+        "sector_code": sector_code,
+        "horizon": horizon,
+        "n_stocks": len(stock_codes),
+        "progress": 0,
+        "started_at": started.isoformat(),
+    })
+    log.info(
+        "ml_train_sector_started",
+        job_id=job_id,
+        sector_code=sector_code,
+        n_stocks=len(stock_codes),
+        horizon=horizon,
+    )
+    try:
+        result = _run_train_sector(
+            job_id=job_id,
+            sector_code=sector_code,
+            stock_codes=stock_codes,
+            horizon=horizon,
+            config_overrides=config_overrides or {},
+        )
+        result.update({
+            "job_id": job_id,
+            "status": "DONE",
+            "kind": "SECTOR",
+            "sector_code": sector_code,
+            "started_at": started.isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
+        _set_train_status(job_id, result)
+        log.info("ml_train_sector_done", job_id=job_id, **{
+            k: result.get(k) for k in ("best_val_acc", "duration_sec", "n_stocks")
+        })
+        return result
+    except Exception as e:  # pragma: no cover
+        log.warning("ml_train_sector_failed", job_id=job_id, error=str(e))
+        failure = {
+            "job_id": job_id,
+            "status": "FAILED",
+            "kind": "SECTOR",
+            "sector_code": sector_code,
+            "horizon": horizon,
+            "error": str(e),
+        }
+        _set_train_status(job_id, failure)
+        return failure
+    finally:
+        _release_train_lock(job_id)
+
+
+# ============================================================================
+# 글로벌 모델 학습
+# ============================================================================
+@shared_task(
+    name="ml.train_global",
+    queue="ml",
+    bind=True,
+    max_retries=1,
+    time_limit=10800,  # 3시간 (전 종목)
+)
+def train_global(
+    self,
+    job_id: str,
+    stock_codes: list[str] | None = None,
+    horizon: int = 1,
+    config_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """글로벌 모델 학습 (종목 임베딩 포함)."""
+    started = datetime.now(UTC)
+    if not _acquire_train_lock(job_id):
+        return {
+            "job_id": job_id,
+            "status": "SKIPPED",
+            "reason": "다른 학습 작업이 진행 중",
+        }
+
+    codes = stock_codes or _safe_list_active_codes()
+    _set_train_status(job_id, {
+        "job_id": job_id,
+        "status": "RUNNING",
+        "kind": "GLOBAL",
+        "horizon": horizon,
+        "n_stocks": len(codes),
+        "progress": 0,
+        "started_at": started.isoformat(),
+    })
+    log.info("ml_train_global_started", job_id=job_id, n_stocks=len(codes), horizon=horizon)
+    try:
+        result = _run_train_multistock(
+            job_id=job_id,
+            stock_codes=codes,
+            horizon=horizon,
+            config_overrides=config_overrides or {},
+        )
+        result.update({
+            "job_id": job_id,
+            "status": "DONE",
+            "kind": "GLOBAL",
+            "started_at": started.isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
+        _set_train_status(job_id, result)
+        log.info(
+            "ml_train_global_done",
+            job_id=job_id,
+            best_val_acc=result.get("best_val_acc"),
+            duration_sec=result.get("duration_sec"),
+            n_stocks=result.get("n_stocks"),
+        )
+        return result
+    except Exception as e:  # pragma: no cover
+        log.warning("ml_train_global_failed", job_id=job_id, error=str(e))
+        failure = {
+            "job_id": job_id,
+            "status": "FAILED",
+            "kind": "GLOBAL",
+            "horizon": horizon,
+            "error": str(e),
+        }
+        _set_train_status(job_id, failure)
+        return failure
+    finally:
+        _release_train_lock(job_id)
+
+
+# ============================================================================
+# 전 섹터 일괄 학습 (스케줄러용)
+# ============================================================================
+@shared_task(
+    name="ml.train_all_sectors",
+    queue="ml",
+    bind=True,
+    time_limit=21600,  # 6시간
+)
+def train_all_sectors(
+    self,
+    horizon: int = 1,
+    config_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """모든 섹터를 순차적으로 학습 (CPU 보호용 직렬 실행)."""
+    sectors = _safe_list_sectors_with_stocks()
+    if not sectors:
+        log.info("ml_train_all_sectors_no_sectors")
+        return {"status": "DONE", "n_sectors": 0}
+
+    results: list[dict[str, Any]] = []
+    log.info("ml_train_all_sectors_started", n_sectors=len(sectors), horizon=horizon)
+    for sector_code, codes in sectors:
+        job_id = f"sector-{sector_code}-{horizon}-{int(datetime.now(UTC).timestamp())}"
+        try:
+            res = train_sector(  # 직접 호출 (apply_async 가 아닌 순차 직렬)
+                job_id=job_id,
+                sector_code=sector_code,
+                stock_codes=codes,
+                horizon=horizon,
+                config_overrides=config_overrides or {},
+            )
+            results.append({"sector": sector_code, "status": res.get("status"), "job_id": job_id})
+        except Exception as e:
+            log.warning(
+                "ml_train_all_sectors_per_sector_failed",
+                sector_code=sector_code,
+                error=str(e),
+            )
+            results.append({"sector": sector_code, "status": "FAILED", "error": str(e)})
+
+    log.info("ml_train_all_sectors_done", n_sectors=len(results))
+    return {"status": "DONE", "horizon": horizon, "results": results}
+
+
+# ============================================================================
+# 멀티 모델 학습 코어 헬퍼
+# ============================================================================
+def _run_train_sector(
+    *,
+    job_id: str,
+    sector_code: str,
+    stock_codes: list[str],
+    horizon: int,
+    config_overrides: dict[str, Any],
+) -> dict[str, Any]:
+    """섹터 학습 동기 코어."""
+    from app.services.ml_engine import MLConfig, train_sector_model
+
+    ohlcv_map: dict[str, Any] = {}
+    for code in stock_codes:
+        df = _load_ohlcv(code, lookback_days_min=400)
+        if df is not None and not df.empty:
+            ohlcv_map[code] = df
+
+    if not ohlcv_map:
+        raise RuntimeError(f"섹터 {sector_code} 학습용 OHLCV 데이터가 없습니다")
+
+    config_kwargs: dict[str, Any] = {
+        "stock_code": sector_code,  # 식별자 용도 (실제 학습에서는 미사용)
+        "horizon_days": horizon,
+    }
+    config_kwargs.update(config_overrides)
+    config = MLConfig(**config_kwargs)
+
+    def progress(pct: int) -> None:
+        _set_train_status(job_id, {
+            "job_id": job_id,
+            "status": "RUNNING",
+            "kind": "SECTOR",
+            "sector_code": sector_code,
+            "horizon": horizon,
+            "progress": int(pct),
+            "n_stocks": len(ohlcv_map),
+        })
+
+    result = train_sector_model(
+        sector_code=sector_code,
+        ohlcv_by_code=ohlcv_map,
+        config=config,
+        progress_cb=progress,
+    )
+    return {
+        "model_key": result.model_key,
+        "model_kind": result.model_kind,
+        "n_stocks": result.n_stocks,
+        "epochs_run": result.epochs_run,
+        "best_val_loss": result.best_val_loss,
+        "best_val_acc": result.best_val_acc,
+        "best_val_f1": result.best_val_f1,
+        "per_stock_val_acc": result.per_stock_val_acc,
+        "duration_sec": result.duration_sec,
+        "model_param_count": result.model_param_count,
+        "horizon": horizon,
+    }
+
+
+def _run_train_multistock(
+    *,
+    job_id: str,
+    stock_codes: list[str],
+    horizon: int,
+    config_overrides: dict[str, Any],
+) -> dict[str, Any]:
+    """글로벌 학습 동기 코어."""
+    from app.services.ml_engine import MLConfig, train_multistock_model
+
+    ohlcv_map: dict[str, Any] = {}
+    for code in stock_codes:
+        df = _load_ohlcv(code, lookback_days_min=400)
+        if df is not None and not df.empty:
+            ohlcv_map[code] = df
+
+    if not ohlcv_map:
+        raise RuntimeError("글로벌 학습용 OHLCV 데이터가 없습니다")
+
+    config_kwargs: dict[str, Any] = {
+        "stock_code": "global",
+        "horizon_days": horizon,
+    }
+    config_kwargs.update(config_overrides)
+    config = MLConfig(**config_kwargs)
+
+    def progress(pct: int) -> None:
+        _set_train_status(job_id, {
+            "job_id": job_id,
+            "status": "RUNNING",
+            "kind": "GLOBAL",
+            "horizon": horizon,
+            "progress": int(pct),
+            "n_stocks": len(ohlcv_map),
+        })
+
+    result = train_multistock_model(
+        ohlcv_by_code=ohlcv_map,
+        config=config,
+        progress_cb=progress,
+    )
+    return {
+        "model_key": result.model_key,
+        "model_kind": result.model_kind,
+        "n_stocks": result.n_stocks,
+        "epochs_run": result.epochs_run,
+        "best_val_loss": result.best_val_loss,
+        "best_val_acc": result.best_val_acc,
+        "best_val_f1": result.best_val_f1,
+        "per_stock_val_acc": result.per_stock_val_acc,
+        "duration_sec": result.duration_sec,
+        "model_param_count": result.model_param_count,
+        "horizon": horizon,
+    }
+
+
+def _safe_list_active_codes() -> list[str]:
+    try:
+        return _list_active_codes()
+    except Exception as e:
+        log.warning("ml_list_active_codes_failed", error=str(e))
+        # 합성 fallback (개발/CI 환경)
+        if os.getenv("ML_USE_SYNTHETIC", "false").lower() == "true":
+            return [f"SYN{i:03d}" for i in range(10)]
+        return []
+
+
+def _safe_list_sectors_with_stocks() -> list[tuple[str, list[str]]]:
+    """섹터별 종목 리스트 (안전 fallback 포함)."""
+    try:
+        return _list_sectors_with_stocks()
+    except Exception as e:
+        log.warning("ml_list_sectors_failed", error=str(e))
+        if os.getenv("ML_USE_SYNTHETIC", "false").lower() == "true":
+            return [
+                ("SEMI", [f"SEMI{i:03d}" for i in range(5)]),
+                ("FIN", [f"FIN{i:03d}" for i in range(5)]),
+                ("BIO", [f"BIO{i:03d}" for i in range(5)]),
+            ]
+        return []
+
+
+def _list_sectors_with_stocks() -> list[tuple[str, list[str]]]:
+    """tp_market.sectors / stocks 조인으로 섹터별 종목 리스트."""
+    from sqlalchemy import create_engine, text
+
+    from app.core.config import settings
+
+    url = settings.DATABASE_URL.replace("+asyncpg", "")
+    engine = create_engine(url, pool_pre_ping=True)
+    sql = text(
+        """
+        SELECT sec.code AS sector_code, s.code AS stock_code
+        FROM tp_market.stocks s
+        JOIN tp_market.sectors sec ON sec.id = s.sector_id
+        WHERE s.status = 'LISTED'
+        ORDER BY sec.code, s.code
+        """
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(sql).fetchall()
+    engine.dispose()
+
+    grouped: dict[str, list[str]] = {}
+    for sector_code, stock_code in rows:
+        grouped.setdefault(str(sector_code), []).append(str(stock_code))
+    return list(grouped.items())
 
 
 # ============================================================================

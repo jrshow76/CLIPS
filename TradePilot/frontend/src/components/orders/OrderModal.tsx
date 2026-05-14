@@ -22,8 +22,16 @@ export interface OrderModalProps {
   name?: string;
   /** 기본 매수/매도 */
   defaultSide?: OrderSide;
-  /** 시그널/추천에서 추천된 가격 (지정가 기본값) */
+  /**
+   * 시그널/추천에서 추천된 가격 (지정가 기본값).
+   * ``defaultPrice``와 동일하며 둘 다 지정 시 ``defaultPrice`` 우선.
+   */
   suggestedPrice?: number;
+  /**
+   * 호가창 행 클릭 등으로 prefill 할 기본 지정가.
+   * ``suggestedPrice``의 의미 명확화 별칭 (구·신 API 호환).
+   */
+  defaultPrice?: number;
 }
 
 /**
@@ -32,15 +40,26 @@ export interface OrderModalProps {
  * - LIVE 모드에서는 빨간 배너 + 2차 확인 문구.
  * - 실제 주문은 useCreateOrder mutation 호출 (X-Trade-Mode, idempotent 자동).
  */
-export function OrderModal({ open, onClose, code, name, defaultSide = 'BUY', suggestedPrice }: OrderModalProps) {
+export function OrderModal({
+  open,
+  onClose,
+  code,
+  name,
+  defaultSide = 'BUY',
+  suggestedPrice,
+  defaultPrice,
+}: OrderModalProps) {
   const mode = useTradeModeStore((s) => s.mode);
   const quote = useQuote(open ? code : undefined);
   const createOrder = useCreateOrder();
 
+  // defaultPrice 우선, suggestedPrice 후순위 - 호가창 클릭 가격을 우선 반영
+  const initialPrice = defaultPrice ?? suggestedPrice;
+
   const [side, setSide] = useState<OrderSide>(defaultSide);
   const [orderType, setOrderType] = useState<OrderType>('LIMIT');
   const [qty, setQty] = useState<number>(1);
-  const [price, setPrice] = useState<number>(suggestedPrice ?? 0);
+  const [price, setPrice] = useState<number>(initialPrice ?? 0);
   const [confirmStep, setConfirmStep] = useState<'edit' | 'confirm'>('edit');
 
   useEffect(() => {
@@ -48,10 +67,10 @@ export function OrderModal({ open, onClose, code, name, defaultSide = 'BUY', sug
       setSide(defaultSide);
       setQty(1);
       setOrderType('LIMIT');
-      setPrice(suggestedPrice ?? quote.data?.price ?? 0);
+      setPrice(initialPrice ?? quote.data?.price ?? 0);
       setConfirmStep('edit');
     }
-  }, [open, defaultSide, suggestedPrice, quote.data?.price]);
+  }, [open, defaultSide, initialPrice, quote.data?.price]);
 
   const total = orderType === 'MARKET' && quote.data ? quote.data.price * qty : price * qty;
 

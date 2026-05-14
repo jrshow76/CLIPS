@@ -299,3 +299,177 @@ def make_loaders(
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
     return train_loader, val_loader
+
+
+# ============================================================================
+# 멀티 종목 데이터셋 통합
+# ============================================================================
+@dataclass
+class MultiStockWindowedArrays:
+    """다중 종목 윈도우 묶음 (글로벌/섹터 학습용)."""
+
+    X: np.ndarray            # (N, lookback, n_features)
+    y: np.ndarray            # (N,)
+    stock_ids: np.ndarray    # (N,) - 종목 인덱스 (0..num_stocks-1)
+    sample_weights: np.ndarray | None = None  # (N,) - 종목별 가중치
+
+    def __len__(self) -> int:
+        return len(self.X)
+
+
+def build_multistock_dataset_from_ohlcvs(
+    ohlcv_by_code: dict[str, pd.DataFrame],
+    config: MLConfig,
+    *,
+    use_sample_weight: bool = True,
+) -> tuple[
+    MultiStockWindowedArrays,
+    MultiStockWindowedArrays,
+    Any,
+    dict[str, int],
+    dict[str, Any],
+]:
+    """여러 종목 OHLCV → 통합 학습/검증 배열.
+
+    각 종목 내에서 시간 순으로 train/val 을 분할한 뒤, 종목별 split 을 합쳐
+    하나의 멀티 종목 배열을 만든다. StandardScaler 는 모든 train 윈도우를
+    합친 데이터로 fit 한다.
+
+    Args:
+        ohlcv_by_code: {stock_code: OHLCV DataFrame}
+        config: MLConfig
+        use_sample_weight: 종목별 샘플 수 역수로 가중치 부여 (소수 데이터 보정)
+
+    Returns:
+        (train_arr, val_arr, scaler, stock_to_id, meta)
+    """
+    if not ohlcv_by_code:
+        raise ValueError("ohlcv_by_code 가 비어 있습니다")
+
+    # 종목 ID 매핑 (정렬된 코드 기준)
+    sorted_codes = sorted(ohlcv_by_code.keys())
+    stock_to_id: dict[str, int] = {code: i for i, code in enumerate(sorted_codes)}
+
+    train_X_list: list[np.ndarray] = []
+    train_y_list: list[np.ndarray] = []
+    train_sid_list: list[np.ndarray] = []
+    val_X_list: list[np.ndarray] = []
+    val_y_list: list[np.ndarray] = []
+    val_sid_list: list[np.ndarray] = []
+
+    per_stock_counts: dict[str, int] = {}
+
+    for code in sorted_codes:
+        ohlcv = ohlcv_by_code[code]
+        if ohlcv is None or ohlcv.empty:
+            per_stock_counts[code] = 0
+            continue
+
+        features_df = build_features(ohlcv, config.features)
+        labels = label_horizon_class(
+            ohlcv["close"].reindex(features_df.index),
+            horizon_days=config.horizon_days,
+            up_threshold=config.up_threshold,
+            down_threshold=config.down_threshold,
+        )
+        arr = make_windows(features_df, labels, lookback=config.lookback_days)
+        if len(arr) == 0:
+            per_stock_counts[code] = 0
+            continue
+
+        train_raw, val_raw = time_split(arr, val_split=config.val_split)
+        sid = stock_to_id[code]
+
+        if len(train_raw) > 0:
+            train_X_list.append(train_raw.X)
+            train_y_list.append(train_raw.y)
+            train_sid_list.append(np.full(len(train_raw), sid, dtype=np.int64))
+        if len(val_raw) > 0:
+            val_X_list.append(val_raw.X)
+            val_y_list.append(val_raw.y)
+            val_sid_list.append(np.full(len(val_raw), sid, dtype=np.int64))
+
+        per_stock_counts[code] = len(arr)
+
+    if not train_X_list:
+        raise ValueError("학습용 윈도우가 없습니다 (모든 종목이 비어 있음)")
+
+    train_X_all = np.concatenate(train_X_list, axis=0)
+    train_y_all = np.concatenate(train_y_list, axis=0)
+    train_sid_all = np.concatenate(train_sid_list, axis=0)
+
+    if val_X_list:
+        val_X_all = np.concatenate(val_X_list, axis=0)
+        val_y_all = np.concatenate(val_y_list, axis=0)
+        val_sid_all = np.concatenate(val_sid_list, axis=0)
+    else:
+        n_feat = train_X_all.shape[-1]
+        val_X_all = np.zeros((0, config.lookback_days, n_feat), dtype=np.float32)
+        val_y_all = np.zeros(0, dtype=np.int64)
+        val_sid_all = np.zeros(0, dtype=np.int64)
+
+    # 스케일러: train 전체에 대해 fit
+    scaler = fit_scaler(train_X_all)
+    train_X_all = apply_scaler(train_X_all, scaler)
+    val_X_all = apply_scaler(val_X_all, scaler)
+
+    # 샘플 가중치 (종목별 샘플 수 역수)
+    train_w: np.ndarray | None = None
+    if use_sample_weight:
+        counts_per_sid = np.bincount(train_sid_all, minlength=len(sorted_codes)).astype(np.float32)
+        counts_per_sid = np.where(counts_per_sid == 0, 1.0, counts_per_sid)
+        # 정규화: 평균 1.0 이 되도록
+        inv = counts_per_sid.mean() / counts_per_sid
+        train_w = inv[train_sid_all]
+
+    # 라벨 분포 및 클래스 가중치
+    weights = class_weights(np.concatenate([train_y_all, val_y_all]), num_classes=config.num_classes)
+    label_dist = {
+        int(c): int(((train_y_all == c).sum() + (val_y_all == c).sum()))
+        for c in range(config.num_classes)
+    }
+    meta = {
+        "n_stocks": len(sorted_codes),
+        "n_train": int(len(train_X_all)),
+        "n_val": int(len(val_X_all)),
+        "label_dist": label_dist,
+        "class_weights": [float(w) for w in weights],
+        "features": list(config.features),
+        "lookback": config.lookback_days,
+        "horizon": config.horizon_days,
+        "per_stock_counts": per_stock_counts,
+        "stock_codes": sorted_codes,
+    }
+
+    train_arr = MultiStockWindowedArrays(
+        X=train_X_all, y=train_y_all, stock_ids=train_sid_all, sample_weights=train_w
+    )
+    val_arr = MultiStockWindowedArrays(
+        X=val_X_all, y=val_y_all, stock_ids=val_sid_all, sample_weights=None
+    )
+    return train_arr, val_arr, scaler, stock_to_id, meta
+
+
+def make_multi_loaders(
+    train_arr: MultiStockWindowedArrays,
+    val_arr: MultiStockWindowedArrays,
+    batch_size: int,
+    *,
+    with_sample_weight: bool = True,
+) -> tuple[Any, Any]:
+    """멀티 종목 DataLoader 생성.
+
+    train 셔플 / val 비셔플. CPU 환경 num_workers=0.
+    """
+    _torch, _Dataset, DataLoader = _import_torch()
+
+    train_w = train_arr.sample_weights if with_sample_weight else None
+    train_ds = MultiStockSequenceDataset(
+        train_arr.X, train_arr.y, train_arr.stock_ids, sample_weights=train_w
+    )
+    val_ds = MultiStockSequenceDataset(
+        val_arr.X, val_arr.y, val_arr.stock_ids, sample_weights=None
+    )
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+    return train_loader, val_loader
