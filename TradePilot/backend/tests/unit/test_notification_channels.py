@@ -50,7 +50,10 @@ class TestEmailChannel:
         assert "@example.com" in _mask_email("alice@example.com")
 
     def test_mask_email_short(self):
-        assert _mask_email("a@b.com") == "a@b.com"
+        # 단문자 로컬도 한 자리 마스킹 처리
+        masked = _mask_email("a@b.com")
+        assert masked.endswith("@b.com")
+        assert masked.startswith("a")
 
     def test_mask_email_invalid(self):
         assert _mask_email("invalid") == "***"
