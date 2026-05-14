@@ -1,0 +1,39 @@
+{{/*
+  Slack 알림 한글 템플릿 - TradePilot
+  - title: 알림 제목 (severity 아이콘 포함)
+  - text:  본문 (Alert 별 description / 라벨 / runbook URL)
+*/}}
+
+{{ define "tradepilot.slack.title" -}}
+{{ if eq .Status "firing" -}}
+{{ if eq (index .Alerts 0).Labels.severity "critical" -}}
+[CRITICAL] TradePilot 알림 ({{ .Alerts | len }}건)
+{{- else if eq (index .Alerts 0).Labels.severity "warning" -}}
+[WARNING] TradePilot 알림 ({{ .Alerts | len }}건)
+{{- else -}}
+[INFO] TradePilot 알림 ({{ .Alerts | len }}건)
+{{- end }}
+{{- else -}}
+[RESOLVED] TradePilot 알림 해소 ({{ .Alerts | len }}건)
+{{- end }}
+{{- end }}
+
+{{ define "tradepilot.slack.text" -}}
+{{ range .Alerts -}}
+*알림*: {{ .Annotations.summary }}
+*심각도*: `{{ .Labels.severity }}` / *카테고리*: `{{ .Labels.category }}`
+*설명*: {{ .Annotations.description }}
+{{ if .Labels.instance -}}
+*대상*: `{{ .Labels.instance }}`
+{{ end -}}
+*발생 시각*: {{ .StartsAt.Format "2006-01-02 15:04:05" }} (KST)
+{{ if eq .Status "resolved" -}}
+*해소 시각*: {{ .EndsAt.Format "2006-01-02 15:04:05" }} (KST)
+{{ end -}}
+{{ if .Annotations.runbook_url -}}
+*런북*: <{{ .Annotations.runbook_url }}|보기>
+{{ end -}}
+*대시보드*: <http://grafana.tradepilot.local/d/tradepilot/service-health|Grafana>
+---
+{{ end -}}
+{{- end }}

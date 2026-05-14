@@ -1,0 +1,256 @@
+# =============================================================================
+# TradePilot 관측성 스택 - docker-compose 오버레이
+# -----------------------------------------------------------------------------
+# 사용법(메인 compose 와 결합):
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.prod.yml \
+#     -f infra/observability/docker-compose.observability.yml \
+#     up -d
+#
+# 또는 단독 기동(메인 스택이 이미 떠 있는 경우 동일 네트워크 참조):
+#   docker compose -f infra/observability/docker-compose.observability.yml up -d
+#
+# 보안:
+#   - Grafana 만 외부 노출(nginx 경유 권장).
+#   - prometheus / loki / alertmanager 는 사설망(tp-net) 한정.
+#   - GF_SECURITY_ADMIN_PASSWORD 는 .env 로 주입(placeholder 기동 차단).
+# =============================================================================
+
+name: tradepilot
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - 메트릭 스크레이프 & 룰 평가
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: tp-prometheus
+    restart: unless-stopped
+    user: "nobody"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--storage.tsdb.retention.size=10GB"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+      - "--web.external-url=http://prometheus.tradepilot.local"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    expose:
+      - "9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Alertmanager - 알림 라우팅
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: tp-alertmanager
+    restart: unless-stopped
+    user: "nobody"
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://alertmanager.tradepilot.local"
+    environment:
+      SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-alerts}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-alerts@tradepilot.local}
+      SLACK_WEBHOOK_DEFAULT: ${SLACK_WEBHOOK_DEFAULT:-}
+      SLACK_WEBHOOK_CRITICAL: ${SLACK_WEBHOOK_CRITICAL:-}
+      SLACK_WEBHOOK_SECURITY: ${SLACK_WEBHOOK_SECURITY:-}
+      ALERT_EMAIL_CRITICAL: ${ALERT_EMAIL_CRITICAL:-oncall@tradepilot.local}
+      ALERT_EMAIL_SECURITY: ${ALERT_EMAIL_SECURITY:-security@tradepilot.local}
+      KAKAO_WEBHOOK_URL: ${KAKAO_WEBHOOK_URL:-}
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager-data:/alertmanager
+    expose:
+      - "9093"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Grafana - 대시보드
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: tp-grafana
+    restart: unless-stopped
+    user: "472"
+    depends_on:
+      - prometheus
+      - loki
+    environment:
+      # 기본 admin 비밀번호 차단: placeholder 면 기동 실패하도록 검증
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://grafana.tradepilot.local}
+      GF_LOG_LEVEL: "warn"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_INSTALL_PLUGINS: ""
+      TZ: Asia/Seoul
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Loki - 로그 저장
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:2.9.6
+    container_name: tp-loki
+    restart: unless-stopped
+    user: "10001"
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    expose:
+      - "3100"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Promtail - 로그 수집기
+  # ---------------------------------------------------------------------------
+  promtail:
+    image: grafana/promtail:2.9.6
+    container_name: tp-promtail
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    depends_on:
+      - loki
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Node Exporter - 호스트 OS 지표
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: tp-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|var/lib/docker/.+)($$|/)"
+      - "--collector.netdev.device-exclude=^(veth.*|docker.*|br-.*)$$"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Postgres Exporter
+  # ---------------------------------------------------------------------------
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: tp-postgres-exporter
+    restart: unless-stopped
+    env_file:
+      - ./exporters/postgres-exporter.yml
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-tradepilot}:${POSTGRES_PASSWORD:-tradepilot}@postgres:5432/${POSTGRES_DB:-tradepilot}?sslmode=disable"
+    expose:
+      - "9187"
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Redis Exporter
+  # ---------------------------------------------------------------------------
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.58.0
+    container_name: tp-redis-exporter
+    restart: unless-stopped
+    env_file:
+      - ./exporters/redis-exporter.yml
+    expose:
+      - "9121"
+    networks:
+      - tp-net
+
+  # ---------------------------------------------------------------------------
+  # Nginx Exporter (stub_status 기반)
+  # 활성화 조건: nginx 설정에 /stub_status 노출 필요 (exporters/nginx-exporter-note.md 참조)
+  # ---------------------------------------------------------------------------
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.1.0
+    container_name: tp-nginx-exporter
+    restart: unless-stopped
+    command:
+      - "--nginx.scrape-uri=http://nginx:8081/stub_status"
+    expose:
+      - "9113"
+    networks:
+      - tp-net
+
+# =============================================================================
+# 볼륨 (관측성 데이터 영속화)
+# =============================================================================
+volumes:
+  prometheus-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  grafana-data:
+    driver: local
+  loki-data:
+    driver: local
+  promtail-positions:
+    driver: local
+
+# =============================================================================
+# 네트워크 (메인 스택과 공유)
+# =============================================================================
+networks:
+  tp-net:
+    external: true
+    name: tradepilot_tp-net

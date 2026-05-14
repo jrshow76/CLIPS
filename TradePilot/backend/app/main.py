@@ -11,13 +11,14 @@ from __future__ import annotations
 import contextlib
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import dispose_engine, engine
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
+from app.core.metrics import PrometheusMiddleware, render_metrics
 from app.core.middleware import (
     RateLimitMiddleware,
     RequestLoggingMiddleware,
@@ -129,6 +130,9 @@ def create_app() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(TraceIdMiddleware)
+    # PrometheusMiddleware 는 가장 바깥(최외곽 dispatch)에 두어
+    # 다른 미들웨어의 처리 시간까지 응답시간에 포함시킨다.
+    app.add_middleware(PrometheusMiddleware)
 
     # 글로벌 예외 핸들러
     register_exception_handlers(app)
@@ -137,6 +141,14 @@ def create_app() -> FastAPI:
     @app.get("/healthz", tags=["meta"], include_in_schema=False)
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    # Prometheus 메트릭 노출
+    #   - 외부 노출은 nginx 의 /metrics location 에서 사설망 화이트리스트로 제한.
+    #   - 본 엔드포인트 자체에는 인증을 두지 않는다(사설망 전제).
+    @app.get("/metrics", tags=["meta"], include_in_schema=False)
+    async def metrics() -> Response:
+        body, content_type = render_metrics()
+        return Response(content=body, media_type=content_type)
 
     @app.get("/readyz", tags=["meta"], include_in_schema=False)
     async def readyz() -> dict[str, object]:

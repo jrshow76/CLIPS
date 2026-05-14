@@ -1,0 +1,20 @@
+{% extends "_base.html" %}
+{% block title %}매매 시그널 알림{% endblock %}
+{% block content %}
+  <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">매매 시그널 발생</h2>
+  <p style="margin:0 0 16px;color:#374151;line-height:1.6;">
+    {{ stock_name }}({{ stock_code }}) 에서 <strong style="color:{% if action == 'BUY' %}#dc2626{% else %}#2563eb{% endif %};">{{ action }}</strong>
+    시그널이 감지되었습니다.
+  </p>
+  <table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+    <tr><td style="background:#f9fafb;width:120px;color:#6b7280;">전략</td><td>{{ strategy_name }}</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">룰 코드</td><td>{{ rule_code }}</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">신뢰도</td><td>{{ confidence }}</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">기준가</td><td>{{ trigger_price }}원</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">발생 시각</td><td>{{ generated_at }}</td></tr>
+  </table>
+  <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.6;">
+    본 알림은 사용자의 매매 한도 및 모드 설정에 따라 자동매매에 활용될 수 있습니다.
+    자동매매를 사용하지 않는 경우 알림 발송만 이루어집니다.
+  </p>
+{% endblock %}

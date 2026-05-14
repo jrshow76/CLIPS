@@ -1,0 +1,137 @@
+{
+  "annotations": { "list": [{ "builtIn": 1, "datasource": "-- Grafana --", "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" }] },
+  "description": "TradePilot 인프라 대시보드 - CPU/RAM/디스크/네트워크, Postgres/Redis 헬스",
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 }] } } },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [{ "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100", "refId": "A" }],
+      "title": "CPU 사용률",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 90 }] } } },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "id": 2,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100", "refId": "A" }],
+      "title": "메모리 사용률",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 15 }, { "color": "green", "value": 30 }] } } },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "id": 3,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [{ "expr": "min((node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"}) * 100)", "refId": "A" }],
+      "title": "디스크 여유 (%)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 10,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*\"}[5m])", "legendFormat": "RX {{device}}", "refId": "A" },
+        { "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*\"}[5m])", "legendFormat": "TX {{device}}", "refId": "B" }
+      ],
+      "title": "네트워크 RX/TX",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "iops", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 11,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(node_disk_reads_completed_total[5m])", "legendFormat": "read {{device}}", "refId": "A" },
+        { "expr": "rate(node_disk_writes_completed_total[5m])", "legendFormat": "write {{device}}", "refId": "B" }
+      ],
+      "title": "디스크 IOPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 14 },
+      "id": 20,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (state) (pg_stat_activity_count)", "legendFormat": "{{state}}", "refId": "A" }
+      ],
+      "title": "Postgres 연결 상태",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 14 },
+      "id": 21,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "max(pg_stat_activity_max_tx_duration{datname=\"tradepilot\"})", "legendFormat": "최장 트랜잭션", "refId": "A" }
+      ],
+      "title": "Postgres 트랜잭션 지속 (최장)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "decbytes", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 14 },
+      "id": 22,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "redis_memory_used_bytes", "legendFormat": "사용", "refId": "A" },
+        { "expr": "redis_memory_max_bytes", "legendFormat": "최대", "refId": "B" }
+      ],
+      "title": "Redis 메모리",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "id": 30,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(redis_commands_processed_total[5m])", "legendFormat": "commands/s", "refId": "A" },
+        { "expr": "rate(redis_net_input_bytes_total[5m])", "legendFormat": "input bytes/s", "refId": "B" }
+      ],
+      "title": "Redis 처리량",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "id": 31,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(nginx_http_requests_total[5m])", "legendFormat": "nginx requests", "refId": "A" },
+        { "expr": "nginx_connections_active", "legendFormat": "active connections", "refId": "B" }
+      ],
+      "title": "Nginx 처리량",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["tradepilot", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-3h", "to": "now" },
+  "timezone": "Asia/Seoul",
+  "title": "03. TradePilot - 인프라",
+  "uid": "tradepilot-infrastructure",
+  "version": 1
+}

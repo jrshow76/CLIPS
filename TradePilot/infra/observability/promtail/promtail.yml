@@ -1,0 +1,107 @@
+# =============================================================================
+# Promtail 설정 - TradePilot
+# -----------------------------------------------------------------------------
+# - 입력: Docker 컨테이너 로그 (/var/lib/docker/containers/*/*-json.log)
+# - 라벨: service, role, level, trace_id
+# - 출력: loki:3100
+# - structlog JSON 로그를 파싱하여 라벨 추출
+# =============================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/promtail-positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    batchwait: 1s
+    batchsize: 1048576       # 1MB
+
+scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # 1) Docker 컨테이너 로그 수집 (모든 tp-* 컨테이너)
+  # ---------------------------------------------------------------------------
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 10s
+        filters:
+          - name: name
+            values: ["tp-"]
+
+    relabel_configs:
+      # 컨테이너 이름 → service 라벨
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(tp-[^/]+)"
+        target_label: service
+      - source_labels: ["__meta_docker_container_id"]
+        target_label: container_id
+      # Docker compose 서비스명 라벨
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: compose_service
+      # 로그 파일 위치 → __path__
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: stream
+
+    pipeline_stages:
+      # 1) Docker 로그 래퍼(JSON) 파싱
+      - docker: {}
+
+      # 2) structlog JSON 본문 파싱 (실패해도 통과)
+      - match:
+          selector: '{service=~"tp-backend.*"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  event: event
+                  trace_id: trace_id
+                  request_id: request_id
+                  role: role
+                  ts: timestamp
+
+            # 추출한 필드를 라벨로 (카디널리티 주의: trace_id 는 structured value 로만 사용)
+            - labels:
+                level:
+                role:
+            # event 는 인덱싱 라벨이 아니라 본문 보존 (검색만)
+
+            # 타임스탬프 적용 (가능한 경우)
+            - timestamp:
+                source: ts
+                format: RFC3339Nano
+                action_on_failure: skip
+
+      # 3) nginx 액세스 로그 (단순 텍스트)
+      - match:
+          selector: '{service="tp-nginx"}'
+          stages:
+            - regex:
+                expression: '^(?P<remote>\S+) - (?P<user>\S+) \[(?P<ts>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) \S+" (?P<status>\d+) (?P<bytes>\d+)'
+            - labels:
+                status:
+                method:
+
+      # 4) 레벨 기반 필터 (DEBUG 는 운영에서 폐기)
+      - match:
+          selector: '{level="DEBUG"}'
+          action: drop
+
+  # ---------------------------------------------------------------------------
+  # 2) 시스템 로그(syslog, journal) — 호스트 옵션
+  # ---------------------------------------------------------------------------
+  # 호스트 /var/log 마운트 시 활성화
+  - job_name: system
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: varlogs
+          __path__: /var/log/*log

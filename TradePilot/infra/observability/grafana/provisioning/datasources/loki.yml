@@ -1,0 +1,22 @@
+# =============================================================================
+# Grafana Datasource - Loki (구조화 로그)
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    uid: tradepilot-loki
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+      derivedFields:
+        # 로그 내 trace_id 를 Tempo/Jaeger 로 점프 (향후 분산 추적 도입 시)
+        - name: TraceID
+          matcherRegex: "trace_id=([a-f0-9-]+)"
+          url: "$${__value.raw}"
+          datasourceUid: tradepilot-prometheus

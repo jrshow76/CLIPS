@@ -31,6 +31,7 @@ celery_app = Celery(
         "app.workers.tasks.calendar_tasks",
         "app.workers.tasks.ingestion_tasks",
         "app.workers.tasks.cleanup_tasks",
+        "app.workers.tasks.notification_tasks",
     ],
 )
 
@@ -148,6 +149,18 @@ celery_app.conf.beat_schedule = {
         "task": "cleanup.refresh_sessions",
         "schedule": crontab(hour="4", minute="0"),
         "options": {"queue": "default"},
+    },
+    # ----------------------------------------------------------------------
+    # 알림: 매일 18:00 KST 모든 사용자 일일 매매 리포트 발송
+    # NOTIFICATION_DAILY_REPORT_HOUR 환경변수로 조정 가능 (기본 18시)
+    # ----------------------------------------------------------------------
+    "notifications-daily-report": {
+        "task": "notifications.daily_report_all",
+        "schedule": crontab(
+            hour=str(getattr(settings, "NOTIFICATION_DAILY_REPORT_HOUR", 18)),
+            minute="0",
+        ),
+        "options": {"queue": "notifications"},
     },
 }
 

@@ -168,6 +168,23 @@ class KillSwitchService:
             "sla_violated": sla_violated,
         }
 
+        # 알림 발송 (인앱 + 이메일 + 카카오 + SMS) - 실패해도 KillSwitch 흐름 중단 금지
+        try:
+            from app.models.user import User as _User
+            from app.services.notification_service import NotificationService
+
+            user_obj = await self.db.get(_User, user_id)
+            if user_obj is not None:
+                await NotificationService(self.db).send_kill_switch_alert(
+                    user=user_obj,
+                    trade_mode=trade_mode,
+                    reason=reason,
+                    trigger_source=source,
+                    result=result,
+                )
+        except Exception as _e:  # noqa: BLE001
+            log.warning("kill_switch_notify_failed", user_id=user_id, error=str(_e)[:200])
+
         if failed:
             log.warning(
                 "kill_switch_partial_failure",

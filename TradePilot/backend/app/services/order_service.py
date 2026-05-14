@@ -190,6 +190,28 @@ class OrderService:
                 {"order_public_id": str(order.public_id), "status": order.status},
             )
 
+        # 9) 체결 알림 발송 (실패해도 주문 흐름 차단 금지)
+        if order.status == OrderStatus.FILLED.value:
+            try:
+                from app.services.notification_service import NotificationService
+
+                fill_price = result.avg_fill_price or est_price
+                amount = (fill_price or Decimal("0")) * (result.filled_qty or Decimal("0"))
+                await NotificationService(self.db).send_execution_alert(
+                    user=user,
+                    stock_code=code,
+                    stock_name=stock.name,
+                    side=side,
+                    trade_mode=trade_mode,
+                    filled_qty=str(result.filled_qty),
+                    filled_price=str(fill_price),
+                    amount=str(amount),
+                    fee=str(result.fee or 0),
+                    order_public_id=str(order.public_id),
+                )
+            except Exception as _e:  # noqa: BLE001
+                log.warning("execution_notify_failed", order_id=order.id, error=str(_e)[:200])
+
         log.info(
             "order_created",
             user_id=user.id,

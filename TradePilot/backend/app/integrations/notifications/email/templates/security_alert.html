@@ -1,0 +1,20 @@
+{% extends "_base.html" %}
+{% block title %}[보안] TradePilot 보안 이벤트 알림{% endblock %}
+{% block content %}
+  <h2 style="margin:0 0 12px;font-size:20px;color:#dc2626;">[보안] 계정 활동 알림</h2>
+  <p style="margin:0 0 16px;color:#374151;line-height:1.6;">
+    회원님 계정에서 다음과 같은 보안 이벤트가 감지되었습니다. 본인이 한 활동이 아니라면
+    즉시 비밀번호를 변경하고 전체 세션을 종료해주세요.
+  </p>
+  <table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+    <tr><td style="background:#fef2f2;width:160px;color:#991b1b;">이벤트 유형</td><td>{{ event_type_ko }}</td></tr>
+    <tr><td style="background:#fef2f2;color:#991b1b;">발생 시각</td><td>{{ occurred_at }}</td></tr>
+    {% if ip %}<tr><td style="background:#fef2f2;color:#991b1b;">접속 IP</td><td>{{ ip }}</td></tr>{% endif %}
+    {% if user_agent %}<tr><td style="background:#fef2f2;color:#991b1b;">디바이스</td><td>{{ user_agent }}</td></tr>{% endif %}
+    {% if detail %}<tr><td style="background:#fef2f2;color:#991b1b;">세부 정보</td><td>{{ detail }}</td></tr>{% endif %}
+  </table>
+  <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.6;">
+    본 메시지는 자동 발송되며, 회신은 처리되지 않습니다. 계정 도용이 의심되는 경우
+    support@tradepilot.example.com 으로 문의해주세요.
+  </p>
+{% endblock %}

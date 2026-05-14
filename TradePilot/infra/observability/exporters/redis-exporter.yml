@@ -1,0 +1,17 @@
+# =============================================================================
+# redis_exporter 환경 설정 - TradePilot
+# -----------------------------------------------------------------------------
+# - docker-compose.observability.yml 의 redis-exporter 서비스에서 참조한다.
+# =============================================================================
+
+REDIS_ADDR: "redis://redis:6379"
+REDIS_EXPORTER_LOG_FORMAT: "json"
+REDIS_EXPORTER_INCLUDE_SYSTEM_METRICS: "true"
+REDIS_EXPORTER_CHECK_KEYS: "tp:order:idem:*,tp:gw:idem:*,tp:auth:refresh:*"
+REDIS_EXPORTER_CHECK_SINGLE_KEYS: ""
+REDIS_EXPORTER_NAMESPACE: "redis"
+REDIS_EXPORTER_WEB_LISTEN_ADDRESS: ":9121"
+REDIS_EXPORTER_WEB_TELEMETRY_PATH: "/metrics"
+
+# 인증 사용 시 (REDIS_PASSWORD 환경변수 또는 DATA_SOURCE_NAME 에 포함)
+# REDIS_PASSWORD: "${REDIS_PASSWORD}"

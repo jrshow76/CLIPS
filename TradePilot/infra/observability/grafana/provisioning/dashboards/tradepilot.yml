@@ -1,0 +1,21 @@
+# =============================================================================
+# Grafana 대시보드 폴더 프로비저닝
+# -----------------------------------------------------------------------------
+# /var/lib/grafana/dashboards 아래 JSON 파일을 자동 로드.
+# 컨테이너 볼륨 매핑: ./grafana/dashboards → /var/lib/grafana/dashboards
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: tradepilot
+    orgId: 1
+    folder: TradePilot
+    folderUid: tradepilot-folder
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

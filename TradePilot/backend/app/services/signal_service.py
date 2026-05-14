@@ -144,7 +144,7 @@ class SignalService:
         trigger_price: Decimal,
         condition_trace: dict[str, Any],
     ) -> Signal:
-        """시그널을 DB에 저장."""
+        """시그널을 DB에 저장하고 알림 발송 트리거."""
         sig = Signal(
             user_id=user_id,
             strategy_id=strategy_id,
@@ -158,4 +158,28 @@ class SignalService:
         )
         self.db.add(sig)
         await self.db.flush()
+
+        # 알림 발송 (실패해도 시그널 저장은 유지)
+        try:
+            from app.models.market import Stock as _Stock
+            from app.models.trade import Strategy as _Strategy
+            from app.models.user import User as _User
+            from app.services.notification_service import NotificationService
+
+            user = await self.db.get(_User, user_id)
+            stock = await self.db.get(_Stock, stock_id)
+            strategy = await self.db.get(_Strategy, strategy_id)
+            if user is not None and stock is not None:
+                await NotificationService(self.db).send_signal_alert(
+                    user=user,
+                    stock_code=stock.code,
+                    stock_name=stock.name,
+                    action=action,
+                    rule_code=str(condition_trace.get("code", condition_trace.get("rule_code", ""))),
+                    confidence=confidence,
+                    trigger_price=str(trigger_price),
+                    strategy_name=strategy.name if strategy else "사용자 전략",
+                )
+        except Exception as _e:  # noqa: BLE001
+            log.warning("signal_notify_failed", user_id=user_id, error=str(_e)[:200])
         return sig

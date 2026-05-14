@@ -1,0 +1,23 @@
+# =============================================================================
+# Grafana Datasource - Prometheus
+# -----------------------------------------------------------------------------
+# Grafana 시작 시 자동으로 등록된다 (provisioning).
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    uid: tradepilot-prometheus
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      queryTimeout: 60s
+      httpMethod: POST
+      manageAlerts: false
+      prometheusType: Prometheus
+      prometheusVersion: 2.50.0

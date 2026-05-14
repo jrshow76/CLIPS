@@ -1,0 +1,173 @@
+{
+  "annotations": {
+    "list": [
+      { "builtIn": 1, "datasource": "-- Grafana --", "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" },
+      {
+        "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+        "enable": true,
+        "expr": "changes(kill_switch_triggered_total[1m]) > 0",
+        "iconColor": "red",
+        "name": "Kill Switch",
+        "step": "60s",
+        "tagKeys": "source,result",
+        "titleFormat": "Kill Switch 발동"
+      }
+    ]
+  },
+  "description": "TradePilot 매매 KPI 대시보드 - 주문/체결, 시그널 생성, 모드별 사용자, 일일 PnL, Kill Switch",
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" },
+      "targets": [{ "expr": "sum(increase(orders_submitted_total{result=\"success\"}[1d]))", "legendFormat": "성공", "refId": "A" }],
+      "title": "당일 주문 성공 (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "yellow", "value": null }, { "color": "red", "value": 10 }] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "background", "textMode": "value_and_name" },
+      "targets": [{ "expr": "sum(increase(orders_submitted_total{result=\"failure\"}[1d]))", "legendFormat": "실패", "refId": "A" }],
+      "title": "당일 주문 실패 (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "background", "textMode": "value_and_name" },
+      "targets": [{ "expr": "sum(live_mode_users)", "legendFormat": "LIVE", "refId": "A" }],
+      "title": "현재 LIVE 사용자",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "background", "textMode": "value_and_name" },
+      "targets": [{ "expr": "sum(increase(kill_switch_triggered_total[1d]))", "legendFormat": "발동", "refId": "A" }],
+      "title": "당일 Kill Switch (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 10,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max", "sum"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (mode, result) (rate(orders_submitted_total[5m]))", "legendFormat": "{{mode}}/{{result}}", "refId": "A" }
+      ],
+      "title": "주문 제출률 (mode × result)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 11,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (strategy_id) (rate(signals_generated_total[5m]))", "legendFormat": "{{strategy_id}}", "refId": "A" }
+      ],
+      "title": "전략별 시그널 생성률",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.02 }, { "color": "red", "value": 0.05 }] } } },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
+      "id": 20,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "targets": [
+        { "expr": "sum(rate(orders_submitted_total{mode=\"LIVE\",result=\"failure\"}[5m])) / (sum(rate(orders_submitted_total{mode=\"LIVE\"}[5m])) > 0)", "refId": "A" }
+      ],
+      "title": "LIVE 주문 실패율 (5m)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 12 },
+      "id": 21,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (mode) (live_mode_users)", "legendFormat": "mode={{mode}}", "refId": "A" },
+        { "expr": "sim_mode_users", "legendFormat": "SIM", "refId": "B" }
+      ],
+      "title": "모드별 사용자 수",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
+      "id": 22,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "tradepilot_gateway_request_count_4s", "legendFormat": "4s window", "refId": "A" },
+        { "expr": "tradepilot_gateway_request_count_1s", "legendFormat": "1s window", "refId": "B" }
+      ],
+      "title": "Creon 요청량 윈도우 (한도 15/4s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 30,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "expr": "daily_pnl_p50", "legendFormat": "p50", "refId": "A" },
+        { "expr": "daily_pnl_p95", "legendFormat": "p95", "refId": "B" },
+        { "expr": "daily_pnl_p05", "legendFormat": "p5 (꼬리손실)", "refId": "C" }
+      ],
+      "title": "일일 PnL 분위 (백분위 집계)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 31,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (source) (increase(kill_switch_triggered_total[1h]))", "legendFormat": "source={{source}}", "refId": "A" }
+      ],
+      "title": "Kill Switch 시간대별 (source)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "tradepilot-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "id": 40,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(creon_gateway_requests_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "A" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(creon_gateway_requests_duration_seconds_bucket[5m])))", "legendFormat": "p99", "refId": "B" }
+      ],
+      "title": "Creon Gateway 요청 지연 (p95/p99)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["tradepilot", "trading-kpi"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "Asia/Seoul",
+  "title": "02. TradePilot - 매매 KPI",
+  "uid": "tradepilot-trading-kpi",
+  "version": 1
+}

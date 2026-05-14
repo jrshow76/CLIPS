@@ -1,0 +1,18 @@
+{% extends "_base.html" %}
+{% block title %}주문 체결 알림{% endblock %}
+{% block content %}
+  <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">주문이 체결되었습니다</h2>
+  <p style="margin:0 0 16px;color:#374151;line-height:1.6;">
+    <strong>{{ stock_name }}({{ stock_code }})</strong> {{ side_ko }} 주문이 체결되었습니다.
+  </p>
+  <table role="presentation" width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+    <tr><td style="background:#f9fafb;width:120px;color:#6b7280;">주문 모드</td><td>{{ trade_mode }}</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">체결 수량</td><td>{{ filled_qty }}주</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">체결 단가</td><td>{{ filled_price }}원</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">체결 금액</td><td>{{ amount }}원</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">수수료</td><td>{{ fee }}원</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">체결 시각</td><td>{{ filled_at }}</td></tr>
+    <tr><td style="background:#f9fafb;color:#6b7280;">주문 번호</td><td>{{ order_public_id }}</td></tr>
+  </table>
+  <p style="margin:0;color:#6b7280;font-size:12px;">자세한 내역은 TradePilot 웹의 주문 내역에서 확인할 수 있습니다.</p>
+{% endblock %}

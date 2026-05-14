@@ -1,0 +1,139 @@
+# =============================================================================
+# Alertmanager 설정 - TradePilot
+# -----------------------------------------------------------------------------
+# - severity 별 라우팅 (critical → 즉시, warning → 5분 묶음)
+# - inhibit_rules: critical 발생 시 동일 instance 의 warning 억제
+# - receivers: slack-default / slack-critical / email / kakao
+# - 실제 webhook URL/email 은 환경변수로 주입 (A3 에서 시크릿 매니저 연동)
+# -----------------------------------------------------------------------------
+# 검증:
+#   amtool check-config alertmanager.yml
+# =============================================================================
+
+global:
+  resolve_timeout: 5m
+  smtp_from: "${SMTP_FROM:-alerts@tradepilot.local}"
+  smtp_smarthost: "${SMTP_HOST:-smtp.example.com}:${SMTP_PORT:-587}"
+  smtp_auth_username: "${SMTP_USER:-alerts}"
+  smtp_auth_password: "${SMTP_PASSWORD:-changeme}"
+  smtp_require_tls: true
+
+# -----------------------------------------------------------------------------
+# 알림 템플릿 (한글)
+# -----------------------------------------------------------------------------
+templates:
+  - /etc/alertmanager/templates/*.tmpl
+
+# -----------------------------------------------------------------------------
+# 라우팅
+# -----------------------------------------------------------------------------
+route:
+  # 기본 묶음 키 (동일 알림 통합)
+  group_by: ["alertname", "category", "severity"]
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: slack-default
+
+  routes:
+    # ----- critical: 즉시 호출 (group_wait 단축, repeat 1h)
+    - matchers:
+        - severity = "critical"
+      receiver: slack-critical
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1h
+      continue: true
+      routes:
+        # 보안 critical 은 별도 채널 + 이메일 동시 전송
+        - matchers:
+            - category = "security"
+          receiver: security-pager
+          group_wait: 0s
+          repeat_interval: 30m
+
+    # ----- warning: 5분 묶음
+    - matchers:
+        - severity = "warning"
+      receiver: slack-default
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    # ----- info: 일일 묶음 (선택)
+    - matchers:
+        - severity = "info"
+      receiver: slack-default
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
+
+# -----------------------------------------------------------------------------
+# Inhibit Rules
+# -----------------------------------------------------------------------------
+# 동일 alertname + instance 에서 critical 이 발생하면 warning 억제
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname", "instance"]
+
+  # 호스트 다운 시 같은 호스트의 모든 알림 억제 (노이즈 방지)
+  - source_matchers:
+      - alertname = "BackendApiDown"
+    target_matchers:
+      - severity =~ "warning|info"
+    equal: ["instance"]
+
+# -----------------------------------------------------------------------------
+# Receivers
+# -----------------------------------------------------------------------------
+receivers:
+
+  # 1) Slack 기본 채널 (#tradepilot-alerts)
+  - name: slack-default
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_DEFAULT:-https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER}"
+        channel: "#tradepilot-alerts"
+        send_resolved: true
+        title: "{{ template \"tradepilot.slack.title\" . }}"
+        text: "{{ template \"tradepilot.slack.text\" . }}"
+
+  # 2) Slack critical 전용 (#tradepilot-critical)
+  - name: slack-critical
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_CRITICAL:-https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER}"
+        channel: "#tradepilot-critical"
+        send_resolved: true
+        title: "{{ template \"tradepilot.slack.title\" . }}"
+        text: "{{ template \"tradepilot.slack.text\" . }}"
+    email_configs:
+      - to: "${ALERT_EMAIL_CRITICAL:-oncall@tradepilot.local}"
+        send_resolved: true
+        headers:
+          Subject: "{{ template \"tradepilot.email.subject\" . }}"
+        html: "{{ template \"tradepilot.email.html\" . }}"
+
+  # 3) 보안 페이저 (Slack + Email + Kakao)
+  - name: security-pager
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_SECURITY:-https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER}"
+        channel: "#tradepilot-security"
+        send_resolved: true
+        title: "{{ template \"tradepilot.slack.title\" . }}"
+        text: "{{ template \"tradepilot.slack.text\" . }}"
+    email_configs:
+      - to: "${ALERT_EMAIL_SECURITY:-security@tradepilot.local}"
+        send_resolved: true
+        headers:
+          Subject: "[보안] {{ template \"tradepilot.email.subject\" . }}"
+        html: "{{ template \"tradepilot.email.html\" . }}"
+    webhook_configs:
+      # 카카오톡 비즈메시지 webhook (A3 에서 게이트웨이 연동)
+      - url: "${KAKAO_WEBHOOK_URL:-http://kakao-bridge:8090/alert}"
+        send_resolved: false
+        max_alerts: 5
+        http_config:
+          tls_config:
+            insecure_skip_verify: false

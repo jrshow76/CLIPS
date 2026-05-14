@@ -307,3 +307,186 @@ HAVING MAX(mid.trade_date) IS NULL
 \echo '=========================================='
 \echo 'Data Consistency Check 완료'
 \echo '=========================================='
+
+
+-- =============================================================================
+-- 부록 A. DB 성능/위생 점검 (2026-05-14 추가, DBA)
+--
+-- 본 섹션은 데이터 정합성과 무관하지만 동일 cron에서 함께 수행해
+-- 운영자에게 일일 리포트로 제공한다. 임계값 초과 시 Slack 알람.
+-- =============================================================================
+
+\echo '=========================================='
+\echo 'TradePilot DB Health Check (Performance)'
+\echo '=========================================='
+
+
+-- -----------------------------------------------------------------------------
+-- 14. 미사용 인덱스 (idx_scan = 0)
+--     운영 30일 이상 idx_scan=0 인 인덱스는 제거 후보.
+--     UNIQUE/PK 제외.
+-- -----------------------------------------------------------------------------
+\echo '--- 14. 미사용 인덱스 (운영 30일 이상 0회 스캔, 제거 검토) ---'
+SELECT s.schemaname,
+       s.relname        AS table_name,
+       s.indexrelname   AS index_name,
+       s.idx_scan,
+       pg_size_pretty(pg_relation_size(s.indexrelid)) AS index_size
+  FROM pg_stat_user_indexes s
+  JOIN pg_index i ON i.indexrelid = s.indexrelid
+ WHERE s.schemaname LIKE 'tp_%'
+   AND s.idx_scan = 0
+   AND NOT i.indisunique
+   AND NOT i.indisprimary
+   AND s.indexrelname NOT LIKE 'uq_%'
+ ORDER BY pg_relation_size(s.indexrelid) DESC
+ LIMIT 50;
+
+
+-- -----------------------------------------------------------------------------
+-- 15. 중복 인덱스 후보 (동일 컬럼 집합)
+-- -----------------------------------------------------------------------------
+\echo '--- 15. 중복 인덱스 후보 (제거 검토) ---'
+SELECT
+    a.indexrelid::regclass AS idx_a,
+    b.indexrelid::regclass AS idx_b,
+    pg_size_pretty(pg_relation_size(a.indexrelid)) AS size_a,
+    pg_size_pretty(pg_relation_size(b.indexrelid)) AS size_b
+  FROM pg_index a
+  JOIN pg_index b ON a.indrelid = b.indrelid
+  JOIN pg_class ca ON ca.oid = a.indexrelid
+  JOIN pg_namespace na ON na.oid = ca.relnamespace
+ WHERE a.indexrelid < b.indexrelid
+   AND a.indkey::text = b.indkey::text
+   AND na.nspname LIKE 'tp_%';
+
+
+-- -----------------------------------------------------------------------------
+-- 16. 부풀림(Bloat) 비율 추정 (dead_pct > 20%)
+--     pgstattuple 미설치 시 간단 추정. 정확도는 떨어지나 운영 추세 모니터에 충분.
+-- -----------------------------------------------------------------------------
+\echo '--- 16. Dead tuple 비율 20% 초과 테이블 (VACUUM 검토) ---'
+SELECT
+    schemaname || '.' || relname AS table_name,
+    n_live_tup,
+    n_dead_tup,
+    ROUND(100.0 * n_dead_tup / NULLIF(n_live_tup, 0), 2) AS dead_pct,
+    last_vacuum,
+    last_autovacuum,
+    last_analyze
+  FROM pg_stat_user_tables
+ WHERE schemaname LIKE 'tp_%'
+   AND n_live_tup > 1000
+   AND 100.0 * n_dead_tup / NULLIF(n_live_tup, 0) > 20
+ ORDER BY dead_pct DESC
+ LIMIT 30;
+
+
+-- -----------------------------------------------------------------------------
+-- 17. 슬로우 쿼리 의심 후보 (pg_stat_statements 활성 시)
+--     상위 30개 평균 실행시간 / 총 호출수 출력.
+--     pg_stat_statements 가 없으면 본 쿼리는 에러 → 운영자 무시.
+-- -----------------------------------------------------------------------------
+\echo '--- 17. Top 30 슬로우 쿼리 (pg_stat_statements 필요) ---'
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements') THEN
+        RAISE NOTICE 'pg_stat_statements available';
+    ELSE
+        RAISE NOTICE 'pg_stat_statements extension NOT installed - skipping';
+    END IF;
+END $$;
+
+-- pg_stat_statements 활성 시:
+SELECT
+    LEFT(query, 200)        AS query_preview,
+    calls,
+    ROUND(mean_exec_time::numeric, 2)  AS mean_ms,
+    ROUND(total_exec_time::numeric, 2) AS total_ms,
+    rows,
+    ROUND((100.0 * shared_blks_hit /
+           NULLIF(shared_blks_hit + shared_blks_read, 0))::numeric, 2) AS hit_pct
+  FROM pg_stat_statements
+ WHERE query NOT ILIKE '%pg_stat_statements%'
+   AND query NOT ILIKE '%pg_catalog%'
+   AND calls > 10
+ ORDER BY mean_exec_time DESC
+ LIMIT 30;
+
+
+-- -----------------------------------------------------------------------------
+-- 18. 누락 파티션 (당월/익월/익월+1)
+--     자동 생성 함수 실패 감지.
+-- -----------------------------------------------------------------------------
+\echo '--- 18. 누락 파티션 (생성 필요) ---'
+SELECT *
+  FROM tp_audit.v_missing_partitions
+ WHERE NOT exists
+ ORDER BY parent_schema, parent_table, ym;
+
+
+-- -----------------------------------------------------------------------------
+-- 19. DEFAULT 파티션 비대화 (n_live_tup > 0 = 정규 파티션 미존재 의심)
+-- -----------------------------------------------------------------------------
+\echo '--- 19. DEFAULT 파티션 비대화 (ALERT 시 즉시 대응) ---'
+SELECT *
+  FROM tp_audit.v_default_partition_health
+ WHERE health_status = 'ALERT';
+
+
+-- -----------------------------------------------------------------------------
+-- 20. 락 대기 5초 초과 세션 (운영 시점 스냅샷)
+-- -----------------------------------------------------------------------------
+\echo '--- 20. 락 대기 5초 초과 (실시간 스냅샷) ---'
+SELECT pid,
+       usename,
+       state,
+       wait_event_type,
+       wait_event,
+       LEFT(query, 200) AS query_preview,
+       now() - query_start AS query_duration
+  FROM pg_stat_activity
+ WHERE wait_event_type = 'Lock'
+   AND now() - query_start > INTERVAL '5 seconds'
+ ORDER BY query_duration DESC;
+
+
+-- -----------------------------------------------------------------------------
+-- 21. 캐시 히트율 점검 (목표 > 99%)
+-- -----------------------------------------------------------------------------
+\echo '--- 21. 테이블별 캐시 히트율 (목표 >99%) ---'
+SELECT
+    schemaname || '.' || relname AS table_name,
+    heap_blks_read,
+    heap_blks_hit,
+    ROUND((100.0 * heap_blks_hit /
+           NULLIF(heap_blks_hit + heap_blks_read, 0))::numeric, 2) AS hit_pct
+  FROM pg_statio_user_tables
+ WHERE schemaname LIKE 'tp_%'
+   AND heap_blks_read + heap_blks_hit > 0
+ ORDER BY hit_pct ASC NULLS LAST
+ LIMIT 20;
+
+
+-- -----------------------------------------------------------------------------
+-- 22. Long-running 트랜잭션 감지 (10분 초과)
+--     장기 트랜잭션은 vacuum 차단 → bloat 누적의 직접 원인
+-- -----------------------------------------------------------------------------
+\echo '--- 22. 10분 이상 진행 중인 트랜잭션 (장기 트랜잭션 알람) ---'
+SELECT pid,
+       usename,
+       application_name,
+       state,
+       xact_start,
+       now() - xact_start AS xact_duration,
+       LEFT(query, 200)   AS query_preview
+  FROM pg_stat_activity
+ WHERE xact_start IS NOT NULL
+   AND now() - xact_start > INTERVAL '10 minutes'
+   AND state <> 'idle'
+ ORDER BY xact_duration DESC;
+
+
+\echo '=========================================='
+\echo 'DB Health Check (Performance) 완료'
+\echo '=========================================='

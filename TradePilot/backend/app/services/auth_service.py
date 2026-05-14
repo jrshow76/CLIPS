@@ -223,6 +223,21 @@ class AuthService:
                 public_id=str(public_id) if public_id else None,
                 jti=token_jti,
             )
+            # 보안 이벤트 알림 (이메일/카카오/SMS) — 실패해도 인증 흐름 차단 금지
+            try:
+                from app.services.notification_service import NotificationService
+
+                victim = await self.users.get(sess.user_id)
+                if victim is not None:
+                    await NotificationService(self.db).send_security_alert(
+                        user=victim,
+                        event_type_code="refresh_replay_detected",
+                        ip=ip,
+                        user_agent=user_agent,
+                        detail="동일 리프레시 토큰이 두 번 이상 사용되어 모든 세션이 폐기되었습니다.",
+                    )
+            except Exception as _e:  # noqa: BLE001
+                log.warning("security_notify_failed", user_id=sess.user_id, error=str(_e)[:200])
             await self.db.commit()
             raise AppException("E0001", message="리프레시 토큰 재사용이 감지되었습니다. 다시 로그인해주세요.")
 

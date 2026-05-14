@@ -83,3 +83,70 @@ class ScheduleUpdateIn(BaseModel):
     pre_market_start: str | None = None
     post_market_end: str | None = None
     auto_kill_switch_loss_pct: Decimal | None = None
+
+
+# ---------------------------------------------------------------------------
+# 알림 설정 (GET/PUT /settings/notifications)
+# ---------------------------------------------------------------------------
+class NotificationPrefOut(BaseModel):
+    """알림 채널/룰 매핑 조회 응답."""
+
+    inapp_enabled: bool
+    email_enabled: bool
+    kakao_enabled: bool  # 스키마 호환: 내부적으로 telegram_enabled 와 동일 컬럼
+    sms_enabled: bool
+    email: str | None = None
+    phone: str | None = None
+    quiet_hours_enabled: bool = False
+    quiet_start: str = "22:00"
+    quiet_end: str = "08:00"
+    event_channel_map: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class NotificationPrefUpdateIn(BaseModel):
+    """PUT /settings/notifications."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    inapp_enabled: bool | None = None
+    email_enabled: bool | None = None
+    kakao_enabled: bool | None = None
+    sms_enabled: bool | None = None
+    quiet_hours_enabled: bool | None = None
+    quiet_start: str | None = None
+    quiet_end: str | None = None
+    event_channel_map: dict[str, list[str]] | None = None
+
+
+class NotificationTestIn(BaseModel):
+    """POST /settings/notifications/test."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    channel: Literal["INAPP", "EMAIL", "KAKAO", "SMS"]
+
+
+class EmailVerifyRequestIn(BaseModel):
+    """POST /settings/notifications/email/verify - 인증 코드 발송 요청."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: str | None = None  # 미지정 시 사용자의 기본 이메일
+
+
+class EmailVerifyConfirmIn(BaseModel):
+    """POST /settings/notifications/email/verify (확인 단계)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    otp_id: str
+
+
+class KakaoOptInIn(BaseModel):
+    """POST /settings/notifications/kakao/optin - 카카오 알림톡 수신 동의."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    phone: str = Field(min_length=9, max_length=20)
+    consent: bool = True

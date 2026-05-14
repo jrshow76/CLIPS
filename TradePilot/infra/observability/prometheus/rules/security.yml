@@ -1,0 +1,114 @@
+# =============================================================================
+# Security 알림 룰
+# -----------------------------------------------------------------------------
+# - 인증 실패 burst (브루트포스 의심)
+# - refresh token replay 감지
+# - RateLimit 초과 burst
+# - 5xx + 4xx 비정상 패턴
+# - Kill Switch source=security
+# -----------------------------------------------------------------------------
+# 참고: security/72_security_checklist.md
+# =============================================================================
+
+groups:
+
+  - name: tradepilot.security
+    interval: 30s
+    rules:
+
+      # --- 로그인 실패 burst (1분 30건 이상)
+      - alert: AuthLoginFailureBurst
+        expr: sum(increase(auth_failures_total{reason="invalid_credentials"}[1m])) > 30
+        for: 0s
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "로그인 실패 burst ({{ $value | printf \"%.0f\" }} 건 / 1분)"
+          description: "1분 내 로그인 실패가 30건을 초과했습니다. 브루트포스 공격 가능성. IP 단위 차단 검토."
+
+      # --- 로그인 실패 burst 심각 (1분 100건 → critical)
+      - alert: AuthLoginFailureCritical
+        expr: sum(increase(auth_failures_total{reason="invalid_credentials"}[1m])) > 100
+        for: 0s
+        labels:
+          severity: critical
+          category: security
+          team: security
+        annotations:
+          summary: "로그인 실패 burst CRITICAL ({{ $value | printf \"%.0f\" }} 건 / 1분)"
+          description: "브루트포스 공격 강하게 의심됨. 즉시 차단 + 사용자 통보 필요."
+
+      # --- JWT 검증 실패 burst (1분 20건 이상)
+      - alert: JwtVerifyFailureBurst
+        expr: sum(increase(auth_failures_total{reason="invalid_token"}[1m])) > 20
+        for: 0s
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "JWT 검증 실패 burst"
+          description: "1분 내 JWT 검증 실패 {{ $value | printf \"%.0f\" }} 건. 만료 키 사용 또는 키 회전 누락 의심."
+
+      # --- Refresh token replay 감지 (단 1건이라도 → critical)
+      - alert: RefreshTokenReplayDetected
+        expr: increase(refresh_replay_detected_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: security
+          team: security
+        annotations:
+          summary: "Refresh token replay 감지"
+          description: "이미 사용된 refresh token 이 재사용 시도되었습니다. 토큰 탈취 가능성. 해당 세션 즉시 폐기 + 사용자 통보."
+
+      # --- RateLimit 초과 burst (1분 100건)
+      - alert: RateLimitExceededBurst
+        expr: sum(increase(http_requests_total{status="429"}[1m])) > 100
+        for: 0s
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "RateLimit 초과 burst (429 응답 {{ $value | printf \"%.0f\" }} 건)"
+          description: "1분 내 429 응답이 100건 초과. 비정상 호출 패턴 점검 필요."
+
+      # --- 5xx + 4xx 폭증 (10분 1000건 이상)
+      - alert: HttpErrorFlood
+        expr: sum(increase(http_requests_total{status=~"4..|5.."}[10m])) > 1000
+        for: 1m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "HTTP 에러 폭증 (10분 {{ $value | printf \"%.0f\" }} 건)"
+          description: "DDoS 또는 스캔 공격 가능. nginx 액세스 로그 분석 필요."
+
+      # --- Kill Switch 가 security 사유로 발동
+      - alert: KillSwitchSecurityTriggered
+        expr: increase(kill_switch_triggered_total{source="security"}[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: security
+          team: security
+        annotations:
+          summary: "보안 사유 Kill Switch 발동"
+          description: "Kill Switch 가 source=security 로 발동되었습니다. SEV-1 사고 가능성. IR Playbook 즉시 실행."
+
+      # --- 관리자 API 호출 빈도 이상 (분당 50건 초과)
+      - alert: AdminApiAbnormalUsage
+        expr: |
+          sum(rate(http_requests_total{endpoint=~"/api/v1/admin/.*"}[1m])) * 60 > 50
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "관리자 API 비정상 호출 빈도"
+          description: "분당 관리자 API 호출이 50건을 초과했습니다. 권한 오남용 또는 자격 증명 탈취 가능."

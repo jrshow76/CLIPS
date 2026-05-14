@@ -1,0 +1,49 @@
+{{/*
+  Email 알림 한글 템플릿 - TradePilot
+*/}}
+
+{{ define "tradepilot.email.subject" -}}
+{{ if eq .Status "firing" -}}
+[TradePilot] {{ (index .Alerts 0).Labels.severity | toUpper }} - {{ (index .Alerts 0).Annotations.summary }}
+{{- else -}}
+[TradePilot] 해소 - {{ (index .Alerts 0).Annotations.summary }}
+{{- end }}
+{{- end }}
+
+{{ define "tradepilot.email.html" -}}
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif;">
+  <h2 style="color: {{ if eq .Status "firing" }}{{ if eq (index .Alerts 0).Labels.severity "critical" }}#d32f2f{{ else }}#f57c00{{ end }}{{ else }}#388e3c{{ end }};">
+    {{ if eq .Status "firing" }}TradePilot 알림 발생{{ else }}TradePilot 알림 해소{{ end }}
+  </h2>
+  <p>총 <b>{{ .Alerts | len }}</b> 건의 알림이 {{ if eq .Status "firing" }}발생{{ else }}해소{{ end }}되었습니다.</p>
+
+  {{ range .Alerts }}
+  <hr/>
+  <table style="border-collapse: collapse; width: 100%;">
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>알림명</b></td><td style="padding: 4px 8px;">{{ .Labels.alertname }}</td></tr>
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>요약</b></td><td style="padding: 4px 8px;">{{ .Annotations.summary }}</td></tr>
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>설명</b></td><td style="padding: 4px 8px;">{{ .Annotations.description }}</td></tr>
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>심각도</b></td><td style="padding: 4px 8px;">{{ .Labels.severity }}</td></tr>
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>카테고리</b></td><td style="padding: 4px 8px;">{{ .Labels.category }}</td></tr>
+    {{ if .Labels.instance }}
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>대상</b></td><td style="padding: 4px 8px;">{{ .Labels.instance }}</td></tr>
+    {{ end }}
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>발생 시각</b></td><td style="padding: 4px 8px;">{{ .StartsAt.Format "2006-01-02 15:04:05" }} (KST)</td></tr>
+    {{ if eq .Status "resolved" }}
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>해소 시각</b></td><td style="padding: 4px 8px;">{{ .EndsAt.Format "2006-01-02 15:04:05" }} (KST)</td></tr>
+    {{ end }}
+    {{ if .Annotations.runbook_url }}
+    <tr><td style="padding: 4px 8px; background: #f5f5f5;"><b>런북</b></td><td style="padding: 4px 8px;"><a href="{{ .Annotations.runbook_url }}">{{ .Annotations.runbook_url }}</a></td></tr>
+    {{ end }}
+  </table>
+  {{ end }}
+
+  <hr/>
+  <p style="font-size: 12px; color: #888;">
+    본 메일은 TradePilot Alertmanager 가 자동 발송한 것입니다.
+    문의: <a href="mailto:oncall@tradepilot.local">oncall@tradepilot.local</a>
+  </p>
+</body>
+</html>
+{{- end }}
