@@ -70,10 +70,31 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "TradePilot <noreply@example.com>"
+    SMTP_FROM_EMAIL: str = "noreply@tradepilot.example.com"
     SMTP_USE_TLS: bool = True
 
     # 텔레그램 (선택)
     TELEGRAM_BOT_TOKEN: str = ""
+
+    # 카카오 알림톡 (NHN Cloud Notification Service)
+    KAKAO_BIZ_API_URL: str = "https://api-alimtalk.cloud.toast.com/alimtalk/v2.3"
+    KAKAO_BIZ_APP_KEY: str = ""
+    KAKAO_BIZ_SECRET: str = ""
+    KAKAO_BIZ_SENDER_KEY: str = ""
+    KAKAO_BIZ_USE_OAUTH: bool = False
+
+    # SMS (aws_sns | nhn_cloud)
+    SMS_PROVIDER: str = "nhn_cloud"
+    SMS_FROM_NUMBER: str = ""
+    SMS_NHN_API_URL: str = "https://api-sms.cloud.toast.com/sms/v3.0"
+    SMS_NHN_APP_KEY: str = ""
+    SMS_NHN_SECRET: str = ""
+    SMS_AWS_ACCESS_KEY: str = ""
+    SMS_AWS_SECRET_KEY: str = ""
+    SMS_AWS_REGION: str = "ap-northeast-2"
+
+    # 일일 리포트 발송 시각 (KST 0~23)
+    NOTIFICATION_DAILY_REPORT_HOUR: int = 18
 
     # 시세 백업
     FALLBACK_QUOTE_ENABLED: bool = True
