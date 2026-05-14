@@ -1,0 +1,122 @@
+# =============================================================================
+# Prometheus 스크레이프 설정 - TradePilot
+# -----------------------------------------------------------------------------
+# - 수집 대상: backend-api / backend-worker / backend-scheduler /
+#              creon-gateway / nginx / postgres-exporter / redis-exporter /
+#              node-exporter / prometheus 자체
+# - 룰 파일은 /etc/prometheus/rules/*.yml 로드
+# - Alertmanager: alertmanager:9093 으로 전송
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    cluster: tradepilot
+    environment: production
+
+# -----------------------------------------------------------------------------
+# Alertmanager 연결 (정적 디스커버리)
+# -----------------------------------------------------------------------------
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+      api_version: v2
+
+# -----------------------------------------------------------------------------
+# 룰 파일 (서비스 헬스 / 매매 KPI / 인프라 / 보안)
+# -----------------------------------------------------------------------------
+rule_files:
+  - /etc/prometheus/rules/service_health.yml
+  - /etc/prometheus/rules/trading_kpi.yml
+  - /etc/prometheus/rules/infrastructure.yml
+  - /etc/prometheus/rules/security.yml
+
+# -----------------------------------------------------------------------------
+# Scrape Jobs
+# -----------------------------------------------------------------------------
+scrape_configs:
+
+  # --- Prometheus 자체 (self-monitor)
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: prometheus
+
+  # --- Backend FastAPI API (역할: api)
+  - job_name: backend-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend-api:8000"]
+        labels:
+          service: backend
+          role: api
+
+  # --- Backend Worker (Celery, 자체 메트릭 서버 포트 9101)
+  #   * worker는 별도 prometheus_client.start_http_server(9101) 가 떠야 한다.
+  #   * 미설정 시 down 상태로 표시되며 ServiceDown 알람으로 가시화
+  - job_name: backend-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend-worker:9101"]
+        labels:
+          service: backend
+          role: worker
+
+  # --- Backend Scheduler (APScheduler, 자체 메트릭 서버 포트 9102)
+  - job_name: backend-scheduler
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend-scheduler:9102"]
+        labels:
+          service: backend
+          role: scheduler
+
+  # --- Creon Gateway (Windows 호스트의 /metrics, 사설망 경유)
+  - job_name: creon-gateway
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ["${CREON_GATEWAY_HOST:-host.docker.internal}:9100"]
+        labels:
+          service: creon-gateway
+
+  # --- Nginx (stub_status → nginx-exporter:9113)
+  - job_name: nginx
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels:
+          service: nginx
+
+  # --- Postgres Exporter
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: postgres
+
+  # --- Redis Exporter
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          service: redis
+
+  # --- Node Exporter (호스트 OS 지표)
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: node
+
+  # --- Alertmanager 헬스 (룰 라우팅 점검용)
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+        labels:
+          service: alertmanager

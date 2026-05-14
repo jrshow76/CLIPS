@@ -1,0 +1,140 @@
+# =============================================================================
+# Infrastructure 알림 룰
+# -----------------------------------------------------------------------------
+# - CPU / RAM / 디스크 / postgres 연결수 / redis 메모리
+# =============================================================================
+
+groups:
+
+  - name: tradepilot.infrastructure
+    interval: 30s
+    rules:
+
+      # --- CPU 사용률 80% 초과 (5분 지속)
+      - alert: HostCpuHigh
+        expr: |
+          (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: infra
+          team: devops
+        annotations:
+          summary: "호스트 CPU 사용률 80% 초과 ({{ $labels.instance }})"
+          description: "최근 5분 평균 CPU 사용률이 {{ $value | printf \"%.1f%%\" }} 입니다."
+
+      # --- RAM 사용률 90% 초과
+      - alert: HostMemoryHigh
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          category: infra
+          team: devops
+        annotations:
+          summary: "호스트 메모리 사용률 90% 초과 ({{ $labels.instance }})"
+          description: "메모리 사용률 {{ $value | printf \"%.1f%%\" }}. OOM 위험."
+
+      # --- 디스크 여유 < 15%
+      - alert: HostDiskLow
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+          category: infra
+          team: devops
+        annotations:
+          summary: "디스크 여유 15% 미만 ({{ $labels.mountpoint }})"
+          description: "마운트포인트 {{ $labels.mountpoint }} 의 여유 공간이 {{ $value | printf \"%.1f%%\" }} 입니다."
+
+      # --- 디스크 여유 < 5% → critical
+      - alert: HostDiskCritical
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 5
+        for: 1m
+        labels:
+          severity: critical
+          category: infra
+          team: devops
+        annotations:
+          summary: "디스크 여유 5% 미만 (CRITICAL)"
+          description: "마운트포인트 {{ $labels.mountpoint }} 가 거의 가득 찼습니다."
+
+      # --- Postgres connection 80% 초과
+      - alert: PostgresConnectionsHigh
+        expr: |
+          sum(pg_stat_activity_count) by (instance)
+          / on (instance) pg_settings_max_connections
+          > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: infra
+          team: dba
+        annotations:
+          summary: "Postgres 커넥션 사용률 80% 초과"
+          description: "현재 사용률 {{ $value | printf \"%.0f%%\" }}."
+
+      # --- Postgres long-running transaction (5분 초과)
+      - alert: PostgresLongTransaction
+        expr: |
+          max(pg_stat_activity_max_tx_duration{datname="tradepilot"}) > 300
+        for: 1m
+        labels:
+          severity: warning
+          category: infra
+          team: dba
+        annotations:
+          summary: "5분 이상 지속되는 Postgres 트랜잭션 감지"
+          description: "최장 트랜잭션 지속 시간 {{ $value | printf \"%.0f\" }} 초."
+
+      # --- Postgres 다운
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: infra
+          team: dba
+        annotations:
+          summary: "Postgres exporter 다운"
+          description: "postgres-exporter 가 1분 이상 응답하지 않습니다. DB 자체 장애 가능."
+
+      # --- Redis 다운
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: infra
+          team: devops
+        annotations:
+          summary: "Redis exporter 다운"
+          description: "redis-exporter 가 1분 이상 응답하지 않습니다."
+
+      # --- Redis 메모리 90% 초과
+      - alert: RedisMemoryHigh
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          category: infra
+          team: devops
+        annotations:
+          summary: "Redis 메모리 사용률 90% 초과"
+          description: "maxmemory-policy=allkeys-lru 로 키 축출 발생 가능."
+
+      # --- Celery 큐 적체 (>500건, 큐별)
+      - alert: CeleryQueueBacklog
+        expr: celery_queue_length > 500
+        for: 5m
+        labels:
+          severity: warning
+          category: infra
+          team: backend
+        annotations:
+          summary: "Celery 큐 적체 ({{ $labels.queue }}, {{ $value }} 건)"
+          description: "큐 {{ $labels.queue }} 에 {{ $value }} 건이 적체되어 있습니다."

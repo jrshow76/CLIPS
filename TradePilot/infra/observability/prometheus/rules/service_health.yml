@@ -1,0 +1,150 @@
+# =============================================================================
+# Service Health 알림 룰
+# -----------------------------------------------------------------------------
+# - 서비스 다운 (up==0 지속)
+# - p95 / p99 응답 지연 임계 초과
+# - 5xx 에러율 burst
+# - Celery 큐 적체
+# =============================================================================
+
+groups:
+
+  # ---------------------------------------------------------------------------
+  # 1) 서비스 가용성
+  # ---------------------------------------------------------------------------
+  - name: tradepilot.service_health
+    interval: 30s
+    rules:
+
+      # --- API 다운 (1분 이상 up==0) → critical
+      - alert: BackendApiDown
+        expr: up{job="backend-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: service_health
+          team: backend
+        annotations:
+          summary: "Backend API 다운"
+          description: "backend-api 인스턴스가 1분 이상 응답하지 않습니다. (instance={{ $labels.instance }})"
+          runbook_url: "https://docs.tradepilot.local/runbook/backend-down"
+
+      # --- Worker 다운 → critical (매매 시간대일 때만)
+      - alert: BackendWorkerDown
+        expr: up{job="backend-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: service_health
+          team: backend
+        annotations:
+          summary: "Celery Worker 다운"
+          description: "backend-worker 가 2분 이상 응답하지 않아 시그널/주문 처리가 중단됩니다."
+
+      # --- Scheduler 다운
+      - alert: BackendSchedulerDown
+        expr: up{job="backend-scheduler"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          category: service_health
+          team: backend
+        annotations:
+          summary: "Scheduler 다운"
+          description: "backend-scheduler 가 3분 이상 응답하지 않습니다. 스케줄 잡 누락 가능."
+
+      # --- Creon Gateway 단절
+      - alert: CreonGatewayDown
+        expr: up{job="creon-gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: service_health
+          team: backend
+        annotations:
+          summary: "Creon Gateway 단절"
+          description: "Creon Gateway 가 1분 이상 응답하지 않습니다. LIVE 발주 차단됨."
+
+      # --- Creon COM 연결 끊김 (게이트웨이는 살았지만 COM 미연결)
+      - alert: CreonComDisconnected
+        expr: tradepilot_gateway_connected == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: service_health
+          team: backend
+        annotations:
+          summary: "Creon COM 연결 끊김"
+          description: "게이트웨이는 응답하지만 CREON COM 객체와 연결이 끊겼습니다. (재로그인 필요)"
+
+  # ---------------------------------------------------------------------------
+  # 2) 응답 지연
+  # ---------------------------------------------------------------------------
+  - name: tradepilot.latency
+    interval: 30s
+    rules:
+
+      # --- p95 응답시간 1초 초과 (warning)
+      - alert: ApiP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, endpoint) (rate(http_request_duration_seconds_bucket{job="backend-api"}[5m]))
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          category: latency
+          team: backend
+        annotations:
+          summary: "API p95 응답시간 1초 초과 (endpoint={{ $labels.endpoint }})"
+          description: "{{ $labels.endpoint }} 의 p95 응답시간이 5분간 1초를 초과했습니다. (현재: {{ $value | printf \"%.2f\" }}s)"
+
+      # --- p99 응답시간 3초 초과 (critical)
+      - alert: ApiP99LatencyCritical
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="backend-api"}[5m]))
+          ) > 3.0
+        for: 5m
+        labels:
+          severity: critical
+          category: latency
+          team: backend
+        annotations:
+          summary: "API p99 응답시간 3초 초과 (현재 {{ $value | printf \"%.2f\" }}s)"
+          description: "전체 API p99 응답시간이 5분간 3초를 초과했습니다. 외부 의존성 또는 DB 슬로우 의심."
+
+  # ---------------------------------------------------------------------------
+  # 3) 에러율
+  # ---------------------------------------------------------------------------
+  - name: tradepilot.errors
+    interval: 30s
+    rules:
+
+      # --- 5xx 비율 5% 초과 (5분 평균)
+      - alert: Api5xxRateHigh
+        expr: |
+          sum(rate(http_requests_total{job="backend-api",status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="backend-api"}[5m]))
+          > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          category: errors
+          team: backend
+        annotations:
+          summary: "5xx 에러율 5% 초과"
+          description: "최근 5분 5xx 비율 {{ $value | printf \"%.1f%%\" }} 입니다."
+
+      # --- 5xx burst (1분 내 50건 초과)
+      - alert: Api5xxBurst
+        expr: sum(increase(http_requests_total{job="backend-api",status=~"5.."}[1m])) > 50
+        for: 1m
+        labels:
+          severity: warning
+          category: errors
+          team: backend
+        annotations:
+          summary: "5xx burst (1분 내 50건 초과)"
+          description: "1분 동안 5xx 응답이 {{ $value | printf \"%.0f\" }} 건 발생했습니다."

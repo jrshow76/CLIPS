@@ -1,0 +1,114 @@
+# =============================================================================
+# Trading KPI 알림 룰
+# -----------------------------------------------------------------------------
+# - 주문 실패율 임계
+# - Kill Switch 발동
+# - 일일 손실 임계
+# - 시그널 생성 정체 (장중인데 생성 없음)
+# - LIVE 모드 사용자 급변
+# =============================================================================
+
+groups:
+
+  - name: tradepilot.trading_kpi
+    interval: 30s
+    rules:
+
+      # --- 주문 실패율 5% 초과 (LIVE 모드 한정)
+      - alert: OrderFailureRateHigh
+        expr: |
+          sum(rate(orders_submitted_total{mode="LIVE",result="failure"}[5m]))
+          /
+          (sum(rate(orders_submitted_total{mode="LIVE"}[5m])) > 0)
+          > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          category: trading
+          team: backend
+        annotations:
+          summary: "LIVE 주문 실패율 5% 초과"
+          description: "LIVE 모드 주문 실패율이 최근 5분 {{ $value | printf \"%.1f%%\" }} 입니다. 게이트웨이/한도/잔고 점검 필요."
+
+      # --- 주문 실패율 warning (SIM/LIVE 합산 10% 이상)
+      - alert: OrderFailureRateWarning
+        expr: |
+          sum(rate(orders_submitted_total{result="failure"}[5m]))
+          /
+          (sum(rate(orders_submitted_total[5m])) > 0)
+          > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          category: trading
+          team: backend
+        annotations:
+          summary: "주문 실패율 10% 초과"
+          description: "최근 5분 전체 주문 실패율 {{ $value | printf \"%.1f%%\" }}."
+
+      # --- Kill Switch 발동 (1분 내 1건이라도 → critical)
+      - alert: KillSwitchTriggered
+        expr: increase(kill_switch_triggered_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: trading
+          team: backend
+        annotations:
+          summary: "Kill Switch 발동 (source={{ $labels.source }})"
+          description: "Kill Switch 가 발동되었습니다. source={{ $labels.source }} result={{ $labels.result }}"
+
+      # --- 일일 손실 임계 (사용자별 PnL < -3%)
+      #   * daily_pnl 은 user_id 라벨 미사용. percentile 집계 메트릭만 노출 (개인정보 보호)
+      #   * pnl_users_below_threshold gauge 를 사용한다 (백엔드 메트릭 정의 참조)
+      - alert: DailyLossThresholdBreach
+        expr: pnl_users_below_threshold{threshold="3pct"} > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: trading
+          team: backend
+        annotations:
+          summary: "일일 손실 3% 초과 사용자 {{ $value | printf \"%.0f\" }} 명"
+          description: "당일 평가손실이 -3% 를 초과한 사용자가 발생했습니다. 자동 Kill Switch 트리거 여부 확인."
+
+      # --- 시그널 생성 정체 (장중 09:05~15:15 인데 5분간 시그널 0건)
+      #   * tradepilot_market_open 라벨 1 인 경우만 평가
+      - alert: SignalGenerationStalled
+        expr: |
+          sum(rate(signals_generated_total[5m])) == 0
+          and on() tradepilot_market_open == 1
+        for: 10m
+        labels:
+          severity: warning
+          category: trading
+          team: backend
+        annotations:
+          summary: "시그널 생성 정체"
+          description: "장중인데 10분간 시그널이 한 건도 생성되지 않았습니다. 전략 활성 상태 점검 필요."
+
+      # --- LIVE 사용자 급감 (50% 이상 감소)
+      - alert: LiveUsersDropped
+        expr: |
+          (live_mode_users - live_mode_users offset 5m) / (live_mode_users offset 5m) < -0.5
+          and live_mode_users offset 5m > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: trading
+          team: backend
+        annotations:
+          summary: "LIVE 모드 사용자 급감 (>50%)"
+          description: "5분 전 대비 LIVE 사용자 수가 50% 이상 감소했습니다. 강제 SIM 전환 이벤트 점검."
+
+      # --- 게이트웨이 요청량 임계 근접 (4초 15건 = CREON 한도 근접)
+      - alert: CreonGatewayThrottleNear
+        expr: tradepilot_gateway_request_count_4s > 12
+        for: 1m
+        labels:
+          severity: warning
+          category: trading
+          team: backend
+        annotations:
+          summary: "Creon 4초 요청량 임계 근접 ({{ $value }}/15)"
+          description: "CREON 4초 윈도우 요청 수가 12 를 초과했습니다. 한도(15) 초과 시 차단됩니다."
