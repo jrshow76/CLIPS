@@ -69,6 +69,50 @@ async def publish_tick(code: str, price: float, volume: int, **extra: Any) -> No
     )
 
 
+async def publish_orderbook(
+    stock_code: str,
+    bids: list[tuple[float, int]] | list[list[float]],
+    asks: list[tuple[float, int]] | list[list[float]],
+    *,
+    total_bid_qty: int | None = None,
+    total_ask_qty: int | None = None,
+    ts: str | None = None,
+    **extra: Any,
+) -> None:
+    """호가창 (10단계) 발행.
+
+    채널: ``tp:market.orderbook.<code>``
+
+    페이로드:
+    - ``stock_code``: 종목 코드 (수신측 라우팅 용 - 채널 suffix와 동일)
+    - ``bids``: ``[[price, qty], ...]`` 10단계 (매수 1단계가 index 0, 최우선 매수호가)
+    - ``asks``: ``[[price, qty], ...]`` 10단계 (매도 1단계가 index 0, 최우선 매도호가)
+    - ``total_bid_qty`` / ``total_ask_qty``: 합산 잔량
+    - ``ts``: ISO-8601 UTC
+
+    바이드/애스크는 ``tuple`` 또는 ``list`` 모두 허용. orjson이 둘 다 직렬화한다.
+    """
+    bids_norm = [[float(p), int(q)] for p, q in bids]
+    asks_norm = [[float(p), int(q)] for p, q in asks]
+    if total_bid_qty is None:
+        total_bid_qty = sum(int(q) for _, q in bids_norm)
+    if total_ask_qty is None:
+        total_ask_qty = sum(int(q) for _, q in asks_norm)
+    await publish(
+        f"tp:market.orderbook.{stock_code}",
+        {
+            "stock_code": stock_code,
+            "bids": bids_norm,
+            "asks": asks_norm,
+            "total_bid_qty": int(total_bid_qty),
+            "total_ask_qty": int(total_ask_qty),
+            "source": "creon",
+            "ts": ts or datetime.now(tz=timezone.utc).isoformat(),
+            **extra,
+        },
+    )
+
+
 async def publish_execution(payload: dict[str, Any]) -> None:
     await publish("tp:account.execution", payload)
 

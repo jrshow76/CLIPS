@@ -160,6 +160,81 @@ class StockSequenceDataset:
         return x, y
 
 
+class MultiStockSequenceDataset:
+    """다중 종목 윈도우 묶음 Dataset.
+
+    각 샘플은 (X, y, stock_id) 형태로 제공된다.
+    글로벌 모델 학습용. sample_weight 도 선택적으로 부착할 수 있다.
+    """
+
+    def __init__(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        stock_ids: np.ndarray,
+        sample_weights: np.ndarray | None = None,
+    ) -> None:
+        if not (len(X) == len(y) == len(stock_ids)):
+            raise ValueError("X/y/stock_ids 길이가 일치해야 합니다")
+        if sample_weights is not None and len(sample_weights) != len(X):
+            raise ValueError("sample_weights 길이가 X 와 일치해야 합니다")
+        self.X = X
+        self.y = y
+        self.stock_ids = stock_ids.astype(np.int64)
+        self.sample_weights = (
+            sample_weights.astype(np.float32) if sample_weights is not None else None
+        )
+
+    def __len__(self) -> int:
+        return len(self.X)
+
+    def __getitem__(self, idx: int):
+        torch, _Dataset, _DataLoader = _import_torch()
+        x = torch.from_numpy(self.X[idx]).float()
+        y = torch.tensor(self.y[idx], dtype=torch.long)
+        sid = torch.tensor(self.stock_ids[idx], dtype=torch.long)
+        if self.sample_weights is not None:
+            w = torch.tensor(self.sample_weights[idx], dtype=torch.float32)
+            return x, y, sid, w
+        return x, y, sid
+
+
+class SectorSequenceDataset:
+    """단일 섹터 내 다중 종목 윈도우 묶음 Dataset.
+
+    섹터 모델 학습용. 종목 ID 임베딩은 없으나, 디버그/메타 기록을 위해
+    stock_ids 를 보관한다.
+    """
+
+    def __init__(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        stock_ids: np.ndarray,
+        sample_weights: np.ndarray | None = None,
+    ) -> None:
+        self.X = X
+        self.y = y
+        self.stock_ids = stock_ids.astype(np.int64)
+        self.sample_weights = (
+            sample_weights.astype(np.float32) if sample_weights is not None else None
+        )
+
+    def __len__(self) -> int:
+        return len(self.X)
+
+    def __getitem__(self, idx: int):
+        torch, _Dataset, _DataLoader = _import_torch()
+        x = torch.from_numpy(self.X[idx]).float()
+        y = torch.tensor(self.y[idx], dtype=torch.long)
+        # 섹터 모델은 stock_id 를 사용하지 않지만, 인터페이스 일관성을 위해 반환
+        sid = torch.tensor(self.stock_ids[idx], dtype=torch.long)
+        if self.sample_weights is not None:
+            w = torch.tensor(self.sample_weights[idx], dtype=torch.float32)
+            return x, y, sid, w
+        return x, y, sid
+
+
 def build_dataset_from_ohlcv(
     df: pd.DataFrame,
     config: MLConfig,

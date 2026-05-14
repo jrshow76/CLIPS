@@ -259,3 +259,53 @@ class KillSwitchLog(Base):
     triggered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class ExportJob(Base):
+    """익스포트 잡(거래내역/PnL/백테스트/시그널/보유종목 CSV·XLSX 다운로드).
+
+    DDL: `database/migrations/2026_05_add_export_jobs.sql`
+    저장: S3(또는 호환 오브젝트 스토리지) — key = `{prefix}{user_id}/{public_id}.{ext}`
+    다운로드: S3 사전서명 URL(기본 1시간 TTL, 만료 시 자동 갱신)
+    """
+
+    __tablename__ = "export_jobs"
+    __table_args__ = {"schema": "tp_trade"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    public_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), nullable=False, unique=True, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("tp_user.users.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # 메타
+    job_type: Mapped[str] = mapped_column(String(20), nullable=False)  # ORDERS/PNL/BACKTEST/SIGNALS/POSITIONS
+    format: Mapped[str] = mapped_column(String(10), nullable=False, default="CSV")  # CSV/XLSX
+    filter_params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+
+    # 상태/진행률
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
+    progress_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # 결과
+    file_path: Mapped[str | None] = mapped_column(Text)
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    row_count: Mapped[int | None] = mapped_column(BigInteger)
+    download_url: Mapped[str | None] = mapped_column(Text)
+    download_url_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # 오류
+    error_message: Mapped[str | None] = mapped_column(Text)
+
+    # 타임스탬프
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

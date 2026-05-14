@@ -90,6 +90,22 @@ class Quote:
 
 
 @dataclass
+class OrderbookSnapshot:
+    """호가창 스냅샷 (매수/매도 10단계).
+
+    `bids`/`asks`는 가격이 좋은 순(매수=높은가, 매도=낮은가)으로 정렬된
+    `[(price, qty), ...]` 형태. CREON `StockJpBid` 명세 §1단계~10단계 매핑.
+    """
+
+    code: str
+    bids: list[tuple[float, int]]
+    asks: list[tuple[float, int]]
+    total_bid_qty: int = 0
+    total_ask_qty: int = 0
+    ts: str = ""
+
+
+@dataclass
 class StockMaster:
     code: str
     name: str
@@ -123,6 +139,26 @@ CREON_TO_GATEWAY_CODE: dict[int, str] = {
 def map_creon_code(raw_code: int) -> str:
     """CREON 원본 코드를 게이트웨이 표준 코드(G0xxx)로 매핑."""
     return CREON_TO_GATEWAY_CODE.get(raw_code, "G0010")
+
+
+def _calc_tick_size(price: float) -> float:
+    """KRX 호가 단위 단순화.
+
+    실제 호가 단위(2024 기준) 근사치 - 호가창 mock 생성용.
+    """
+    if price < 2000:
+        return 1.0
+    if price < 5000:
+        return 5.0
+    if price < 20000:
+        return 10.0
+    if price < 50000:
+        return 50.0
+    if price < 200000:
+        return 100.0
+    if price < 500000:
+        return 500.0
+    return 1000.0
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +238,10 @@ class CreonAdapter:
         self.last_error: str = ""
         self._rate_limiter = RateLimiter()
         self._tick_callbacks: dict[str, list[Callable[[Quote], None]]] = {}
+        # 호가 구독 콜백. 시세 구독과 분리해 관리한다.
+        self._orderbook_callbacks: dict[
+            str, list[Callable[[OrderbookSnapshot], None]]
+        ] = {}
 
     # ---------------- 기본 인터페이스 ----------------
     def ensure_connected(self) -> None:
@@ -240,6 +280,21 @@ class CreonAdapter:
         raise NotImplementedError
 
     def unsubscribe_realtime(self, codes: list[str]) -> int:
+        raise NotImplementedError
+
+    def subscribe_orderbook(
+        self,
+        codes: list[str],
+        callback: Callable[[OrderbookSnapshot], None] | None = None,
+    ) -> int:
+        """실시간 호가 (StockJpBid) 구독. 구독된 종목 수 반환."""
+        raise NotImplementedError
+
+    def unsubscribe_orderbook(self, codes: list[str]) -> int:
+        raise NotImplementedError
+
+    def get_orderbook(self, code: str) -> OrderbookSnapshot:
+        """호가 스냅샷 1회 조회 (StockJpBid BlockRequest)."""
         raise NotImplementedError
 
     # ---------------- 공통 헬퍼 ----------------
@@ -422,6 +477,52 @@ class MockCreonAdapter(CreonAdapter):
         for c in codes:
             self._tick_callbacks.pop(c, None)
         return len(codes)
+
+    def subscribe_orderbook(
+        self,
+        codes: list[str],
+        callback: Callable[[OrderbookSnapshot], None] | None = None,
+    ) -> int:
+        if callback:
+            for c in codes:
+                self._orderbook_callbacks.setdefault(c, []).append(callback)
+        log.info("mock_orderbook_subscribed", count=len(codes))
+        return len(codes)
+
+    def unsubscribe_orderbook(self, codes: list[str]) -> int:
+        for c in codes:
+            self._orderbook_callbacks.pop(c, None)
+        return len(codes)
+
+    def get_orderbook(self, code: str) -> OrderbookSnapshot:
+        """결정성 있는 mock 호가 스냅샷 생성.
+
+        - 기준가는 `get_quote(code)`의 price
+        - 호가 단위는 가격대 따라 1~1000원 (KRX 호가 단위 단순화)
+        - 잔량은 종목코드+단계로 deterministic
+        """
+        base = self.get_quote(code).price
+        tick = _calc_tick_size(base)
+        seed = (hash(code) % 1000) + 1
+        bids: list[tuple[float, int]] = []
+        asks: list[tuple[float, int]] = []
+        for i in range(10):
+            bid_price = max(1.0, round(base - tick * (i + 1)))
+            ask_price = round(base + tick * (i + 1))
+            # 1단계 가까운 호가일수록 잔량이 큰 경향
+            bid_qty = (seed * (11 - i)) * 7 % 99999 + 10
+            ask_qty = (seed * (11 - i)) * 11 % 99999 + 10
+            bids.append((bid_price, bid_qty))
+            asks.append((ask_price, ask_qty))
+        total_bid = sum(q for _, q in bids)
+        total_ask = sum(q for _, q in asks)
+        return OrderbookSnapshot(
+            code=code,
+            bids=bids,
+            asks=asks,
+            total_bid_qty=total_bid,
+            total_ask_qty=total_ask,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -732,6 +833,82 @@ class RealCreonAdapter(CreonAdapter):
                 cnt += 1
             except Exception:
                 log.exception("creon_unsubscribe_failed", code=c)
+        return cnt
+
+    # ---------------- 호가 (StockJpBid) ----------------
+    def get_orderbook(self, code: str) -> OrderbookSnapshot:
+        """`Dscbo1.StockJpBid` BlockRequest로 매수/매도 10단계 호가 조회.
+
+        CREON `StockJpBid` 명세:
+        - GetHeaderValue: 0=코드, 1=시간(HHMMSS)
+        - GetDataValue(i, n): 매수 1~10 (n=0..9)
+            * 0: 매도호가 가격
+            * 1: 매수호가 가격
+            * 2: 매도호가 잔량
+            * 3: 매수호가 잔량
+        실제 인덱스는 환경마다 차이가 있으므로 RealAdapter에서는 try/except 후 mock fallback.
+        """
+        self.ensure_connected()
+        self._rate_limiter.acquire()
+        try:
+            obj = self._win32.Dispatch("Dscbo1.StockJpBid")  # type: ignore[union-attr]
+            obj.SetInputValue(0, code)
+            ret = obj.BlockRequest()
+            if ret != 0:
+                raise RuntimeError(f"StockJpBid BlockRequest 실패 코드={ret}")
+            bids: list[tuple[float, int]] = []
+            asks: list[tuple[float, int]] = []
+            for i in range(10):
+                ask_price = float(obj.GetDataValue(0, i))
+                bid_price = float(obj.GetDataValue(1, i))
+                ask_qty = int(obj.GetDataValue(2, i))
+                bid_qty = int(obj.GetDataValue(3, i))
+                asks.append((ask_price, ask_qty))
+                bids.append((bid_price, bid_qty))
+            return OrderbookSnapshot(
+                code=code,
+                bids=bids,
+                asks=asks,
+                total_bid_qty=sum(q for _, q in bids),
+                total_ask_qty=sum(q for _, q in asks),
+            )
+        except Exception as e:
+            self.last_error = f"호가 조회 예외: {e}"
+            log.exception("creon_orderbook_failed", code=code)
+            return OrderbookSnapshot(
+                code=code, bids=[], asks=[], total_bid_qty=0, total_ask_qty=0
+            )
+
+    def subscribe_orderbook(
+        self,
+        codes: list[str],
+        callback: Callable[[OrderbookSnapshot], None] | None = None,
+    ) -> int:
+        """`Dscbo1.StockJpBid` 실시간 호가 구독 (종목별 인스턴스 1개)."""
+        cnt = 0
+        for c in codes:
+            try:
+                obj = self._win32.Dispatch("Dscbo1.StockJpBid")  # type: ignore[union-attr]
+                obj.SetInputValue(0, c)
+                obj.Subscribe()
+                if callback:
+                    self._orderbook_callbacks.setdefault(c, []).append(callback)
+                cnt += 1
+            except Exception:
+                log.exception("creon_orderbook_subscribe_failed", code=c)
+        return cnt
+
+    def unsubscribe_orderbook(self, codes: list[str]) -> int:
+        cnt = 0
+        for c in codes:
+            try:
+                obj = self._win32.Dispatch("Dscbo1.StockJpBid")  # type: ignore[union-attr]
+                obj.SetInputValue(0, c)
+                obj.Unsubscribe()
+                self._orderbook_callbacks.pop(c, None)
+                cnt += 1
+            except Exception:
+                log.exception("creon_orderbook_unsubscribe_failed", code=c)
         return cnt
 
 
