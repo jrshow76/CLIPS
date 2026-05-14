@@ -1,0 +1,215 @@
+# TradePilot 보안 GATE-1~5 회귀 워크플로우
+#
+# 목적: security/76_go_decision_report.md 의 GATE-1~5 통과 증거를 매 PR/머지마다
+#       자동으로 재검증한다. 단위 보안 회귀 80건 + cross-cutting 회귀 11건이 100%
+#       통과해야 한다.
+#
+# 동작:
+#   1. backend GATE-1+3+4 단위 테스트 (test_kill_switch_service / test_auth_refresh_rotation / test_log_masking)
+#   2. backend GATE-1~4 cross-cutting 회귀 (test_security_gates_regression)
+#   3. config fail-fast 시나리오 (운영 모드 + 약한 시크릿 → RuntimeError)
+#
+# 본 워크플로우는 DB/Redis 없이 동작하므로 빠르게 (~2분) 게이트 회귀를 감지한다.
+# 통합 회귀는 tradepilot-backend-ci.yml 의 backend-test job 에서 수행한다.
+
+name: tradepilot-security-gates
+
+on:
+  pull_request:
+    paths:
+      - "TradePilot/backend/app/services/kill_switch_service.py"
+      - "TradePilot/backend/app/services/auth_service.py"
+      - "TradePilot/backend/app/core/config.py"
+      - "TradePilot/backend/app/core/security.py"
+      - "TradePilot/backend/app/core/logging.py"
+      - "TradePilot/backend/app/domains/ports/order_router_port.py"
+      - "TradePilot/backend/app/integrations/creon/**"
+      - "TradePilot/backend/app/integrations/simulator/**"
+      - "TradePilot/backend/tests/unit/test_kill_switch_service.py"
+      - "TradePilot/backend/tests/unit/test_auth_refresh_rotation.py"
+      - "TradePilot/backend/tests/unit/test_log_masking.py"
+      - "TradePilot/backend/tests/qa/test_security_gates_regression.py"
+      - "TradePilot/security/**"
+      - ".github/workflows/tradepilot-security-gates.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "TradePilot/backend/app/services/kill_switch_service.py"
+      - "TradePilot/backend/app/services/auth_service.py"
+      - "TradePilot/backend/app/core/config.py"
+      - "TradePilot/backend/app/core/security.py"
+      - "TradePilot/backend/app/core/logging.py"
+      - "TradePilot/backend/app/domains/ports/order_router_port.py"
+      - "TradePilot/backend/app/integrations/creon/**"
+      - "TradePilot/backend/app/integrations/simulator/**"
+      - "TradePilot/backend/tests/unit/test_kill_switch_service.py"
+      - "TradePilot/backend/tests/unit/test_auth_refresh_rotation.py"
+      - "TradePilot/backend/tests/unit/test_log_masking.py"
+      - "TradePilot/backend/tests/qa/test_security_gates_regression.py"
+      - ".github/workflows/tradepilot-security-gates.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: tradepilot-security-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # GATE-1~4 단위 보안 회귀 (80건) + cross-cutting (11건)
+  # ---------------------------------------------------------------------------
+  security-gates:
+    name: GATE-1~5 회귀 검증 (단위 + cross-cutting)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      APP_ENV: test
+      LOG_LEVEL: WARNING
+      JWT_SECRET: test-secret-test-secret-test-secret-test
+      AES_KEY: test-aes-key-32-byte-test-key-12
+      DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      REDIS_URL: redis://localhost:6379/15
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+    defaults:
+      run:
+        working-directory: TradePilot/backend
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정 (3.11)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-security-gates-${{ hashFiles('TradePilot/backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-security-gates-
+
+      - name: 의존성 설치 (editable + dev)
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e ".[dev]"
+
+      # ------------------------------------------------------------------ #
+      # GATE-1 (SEC-003) — Kill Switch LIVE 게이트웨이 실호출 + 5초 SLA
+      # ------------------------------------------------------------------ #
+      - name: GATE-1 - Kill Switch (5건)
+        run: |
+          pytest tests/unit/test_kill_switch_service.py -v --tb=short \
+            --junitxml=reports/junit-gate1.xml
+
+      # ------------------------------------------------------------------ #
+      # GATE-3 (SEC-004) — Refresh Token 완전 회전 + jti + replay 탐지
+      # ------------------------------------------------------------------ #
+      - name: GATE-3 - Refresh Rotation (6건)
+        run: |
+          pytest tests/unit/test_auth_refresh_rotation.py -v --tb=short \
+            --junitxml=reports/junit-gate3.xml
+
+      # ------------------------------------------------------------------ #
+      # GATE-4 (SEC-009) — structlog 자동 마스킹 processor
+      # ------------------------------------------------------------------ #
+      - name: GATE-4 - Log Masking (69건)
+        run: |
+          pytest tests/unit/test_log_masking.py -v --tb=short \
+            --junitxml=reports/junit-gate4.xml
+
+      # ------------------------------------------------------------------ #
+      # GATE-5 (QA) — Cross-cutting 회귀 (GATE-1~4 통합)
+      # ------------------------------------------------------------------ #
+      - name: GATE-5 - Cross-cutting Regression (11건)
+        run: |
+          pytest tests/qa/test_security_gates_regression.py -v --tb=short \
+            --junitxml=reports/junit-gate5.xml
+
+      # ------------------------------------------------------------------ #
+      # GATE-2 (SEC-001) — 운영 모드 + 약한 시크릿 → fail-fast 직접 검증
+      # ------------------------------------------------------------------ #
+      - name: GATE-2 - Production fail-fast 시나리오
+        run: |
+          python -c "
+          import os
+          os.environ['APP_ENV'] = 'production'
+          os.environ['JWT_SECRET'] = 'change-this-in-production-please-32bytes-min'
+          os.environ['AES_KEY'] = 'base64-encoded-32byte-random-key'
+          os.environ['CREON_GATEWAY_API_KEY'] = 'replace-with-long-random-string'
+
+          from app.core.config import Settings, _validate_production_settings
+          s = Settings()
+          try:
+              _validate_production_settings(s)
+              raise SystemExit('FAIL: GATE-2 fail-fast 작동 안 함')
+          except RuntimeError as e:
+              msg = str(e)
+              assert 'SECURITY' in msg or '보안' in msg, 'GATE-2 메시지 검증 실패'
+              assert 'JWT_SECRET' in msg or 'AES_KEY' in msg, 'GATE-2 키 감지 실패'
+              print('OK: GATE-2 fail-fast 작동 확인')
+              print(msg[:300])
+          "
+
+      # ------------------------------------------------------------------ #
+      # 최종 보안 단위 회귀 (전 80건 합산)
+      # ------------------------------------------------------------------ #
+      - name: 전 보안 단위 회귀 합산 (80 + 11 = 91건)
+        run: |
+          pytest tests/unit/test_kill_switch_service.py \
+                 tests/unit/test_auth_refresh_rotation.py \
+                 tests/unit/test_log_masking.py \
+                 tests/qa/test_security_gates_regression.py \
+                 -v --tb=short \
+                 --junitxml=reports/junit-security-all.xml
+
+      - name: 테스트 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-gates-reports
+          path: TradePilot/backend/reports/
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 점수카드 / GO 보고서 일관성 검증 (단순 파일 존재 + 헤더 체크)
+  # ---------------------------------------------------------------------------
+  scorecard-consistency:
+    name: 보안 점수카드 / GO 보고서 일관성
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 필수 문서 존재 + 최신 버전 헤더 검증
+        run: |
+          set -euo pipefail
+          for f in \
+            TradePilot/security/70_security_review_report.md \
+            TradePilot/security/74_security_scorecard.md \
+            TradePilot/security/75_gate1_3_resolution.md \
+            TradePilot/security/76_go_decision_report.md
+          do
+            test -f "$f" || { echo "FAIL: $f 누락"; exit 1; }
+            echo "OK: $f 존재"
+          done
+
+          # 점수카드 v2.0 헤더 확인
+          grep -q "버전: v2.0" TradePilot/security/74_security_scorecard.md \
+            || { echo "FAIL: 점수카드가 v2.0 (GATE-1~5 해소 후) 헤더가 아님"; exit 1; }
+          echo "OK: 점수카드 v2.0 확인"
+
+          # GO 보고서 GATE-5 헤더 확인
+          grep -q "CONDITIONAL GO\|GO 판정" TradePilot/security/76_go_decision_report.md \
+            || { echo "FAIL: GO 결정 보고서가 GO 판정 헤더 누락"; exit 1; }
+          echo "OK: GO 결정 보고서 헤더 확인"
