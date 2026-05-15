@@ -182,6 +182,41 @@ tradepilot_market_open = Gauge(
     "장 개장 여부 (1=open, 0=closed)",
 )
 
+# --- E4: 운영 진입 GO/NO-GO 판정 Gauge -------------------------------------
+# 본 Gauge 들은 `app.services.go_decision_engine` 가 30초 주기로 갱신한다.
+# Grafana `05_go_decision.json` 대시보드 및 `rules/go_decision.yml` 알림에서
+# 본 메트릭을 참조한다.
+
+tradepilot_go_decision = Gauge(
+    "tradepilot_go_decision",
+    "운영 진입 GO/NO-GO 종합 판정 (0=NO_GO, 1=CONDITIONAL_GO, 2=GO)",
+    labelnames=("environment",),
+)
+
+tradepilot_d1_conditions_passed = Gauge(
+    "tradepilot_d1_conditions_passed",
+    "D-1 진입 조건 5건 중 PASS 건수 (0~5)",
+    labelnames=("environment",),
+)
+
+tradepilot_security_score = Gauge(
+    "tradepilot_security_score",
+    "보안 스코어카드 종합 점수 (0~100). security/74_security_scorecard.md 기준",
+    labelnames=("environment",),
+)
+
+tradepilot_followup_tasks_completed = Gauge(
+    "tradepilot_followup_tasks_completed",
+    "후속 작업 완료 건수 (0~18). security/76_go_decision_report.md §4 카탈로그",
+    labelnames=("environment",),
+)
+
+tradepilot_followup_tasks_total = Gauge(
+    "tradepilot_followup_tasks_total",
+    "후속 작업 카탈로그 전체 건수 (정적, 기본 18)",
+    labelnames=("environment",),
+)
+
 
 # -----------------------------------------------------------------------------
 # 엔드포인트 라벨 정규화
@@ -316,6 +351,11 @@ __all__ = [
     "render_metrics",
     "signals_generated_total",
     "sim_mode_users",
+    "tradepilot_d1_conditions_passed",
+    "tradepilot_followup_tasks_completed",
+    "tradepilot_followup_tasks_total",
+    "tradepilot_go_decision",
     "tradepilot_market_open",
+    "tradepilot_security_score",
     "websocket_connections",
 ]

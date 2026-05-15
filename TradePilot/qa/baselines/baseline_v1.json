@@ -1,0 +1,54 @@
+{
+  "$schema_version": "1.0",
+  "version": "1.0",
+  "captured_at": "2026-05-15T18:00:00+09:00",
+  "captured_by": "QA",
+  "description": "TradePilot 야간 P0 회귀 베이스라인 (GATE-1~5 통과 직후 기준)",
+  "source_evidence": [
+    "TradePilot/qa/51_test_cases.md (P0 57건)",
+    "TradePilot/qa/53_exception_matrix.md",
+    "TradePilot/security/76_go_decision_report.md (CONDITIONAL GO)",
+    "TradePilot/qa/load/80_load_test_report.md"
+  ],
+  "tests": {
+    "unit_pass_count": 200,
+    "qa_pass_count": 60,
+    "security_pass_count": 91,
+    "integration_pass_count": 110,
+    "total_pass_count": 461,
+    "min_pass_rate": 0.97,
+    "p0_required_pass_count": 57
+  },
+  "latency": {
+    "api_p95_ms": 300,
+    "api_p99_ms": 800,
+    "ws_p95_ms": 100,
+    "ws_handshake_p95_ms": 1500,
+    "gateway_p95_ms": 600,
+    "orders_p95_ms": 500,
+    "signals_p95_ms": 300,
+    "mixed_p95_ms": 800,
+    "backtest_p95_ms": 2000
+  },
+  "load": {
+    "orders_rps_min": 80,
+    "signals_rps_min": 150,
+    "ws_concurrent_min": 800,
+    "mixed_rps_min": 40,
+    "fail_rate_max": 0.01
+  },
+  "regression_threshold_pct": 5.0,
+  "regression_severity": {
+    "warn_pct": 5.0,
+    "alert_pct": 10.0,
+    "critical_pct": 20.0
+  },
+  "update_policy": {
+    "auto_update": false,
+    "owner": "QA",
+    "review_required": ["DevLead", "PM"],
+    "update_script": "qa/baselines/update_baseline.sh",
+    "history_dir": "qa/baselines/history",
+    "history_retention_days": 90
+  }
+}
